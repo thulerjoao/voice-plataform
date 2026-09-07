@@ -42,14 +42,14 @@ Restrição de dinheiro: um VPS pequeno deve aguentar **muitas salas pequenas**,
 
 **Não usar:** Electron, Next.js, Express/Node na API, Nest, servidor de mídia no MVP.
 
-Dois repositórios **dentro** de `voice-plataform/`:
+Um repositório, duas pastas:
 
 ```
 voice-plataform/
   PLAN.md
-  docker-compose.yml          # Postgres (já no guarda-chuva, ou só na API)
-  voice-plataform-api/        # Go
-  voice-plataform-client/     # React + Vite (depois + Tauri)
+  docker-compose.yml          # Postgres
+  api/                        # Go
+  client/                     # React + Vite (depois + Tauri)
 ```
 
 API no dia a dia: `go run` no WSL apontando para o Postgres do Compose.  
@@ -259,7 +259,7 @@ Fazer nesta ordem. Não pular voz “para depois do visual inteiro”, mas tamb�
 
 | # | Entrega | Critério de pronto |
 |---|---|---|
-| 0 | Criar os dois repos + Postgres no Docker | `compose up` sobe o banco; API hello; Vite abre |
+| 0 | Pastas `api/` + `client/` + Postgres no Docker | `compose up` sobe o banco; `go run` no `/health`; Vite abre |
 | 1 | Identidade no client | nickname na 1ª vez; uid persistido |
 | 2 | Criar / entrar sala (HTTP) | código gerado; owner no banco; bookmark local; auto-join |
 | 3 | Tela da sala + canal Geral | árvore; lista de membros via WS |
@@ -357,4 +357,4 @@ Depois do item 10 o MVP **funcional** está fechado (ainda no navegador).
 
 ## 17. Próxima ação
 
-Criar os repositórios `voice-plataform-api` e `voice-plataform-client` nesta pasta e começar pelo item **0** da tabela da seção 13.
+Pastas `api/` e `client/` criadas. Instalar Go no WSL, subir o Postgres e começar o item **1** da seção 13 (identidade no client).
