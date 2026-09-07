@@ -34,3 +34,30 @@ export async function createRoom(input: {
 
   return payload;
 }
+
+export async function joinRoom(input: {
+  code: string;
+  uid: string;
+  nickname: string;
+}): Promise<CreatedRoom> {
+  const response = await fetch("/api/rooms/join", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | CreatedRoom
+    | { error?: string }
+    | null;
+
+  if (!response.ok || !payload || !("id" in payload)) {
+    throw new Error(
+      payload && "error" in payload && payload.error
+        ? payload.error
+        : "Não foi possível entrar na sala.",
+    );
+  }
+
+  return payload;
+}

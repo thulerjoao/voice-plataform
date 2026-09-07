@@ -44,6 +44,7 @@ func main() {
 		})
 	})
 	mux.HandleFunc("POST /api/rooms", rooms.HandleCreate(store))
+	mux.HandleFunc("POST /api/rooms/join", rooms.HandleJoin(store))
 
 	server := &http.Server{Addr: ":8080", Handler: mux}
 

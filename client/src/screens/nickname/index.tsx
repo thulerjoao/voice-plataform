@@ -85,7 +85,7 @@ export function NicknameScreen({ onCreated }: NicknameScreenProps) {
           <BrandIcon>
             <MicIcon />
           </BrandIcon>
-          Voice
+          The Voice Chat
         </Brand>
         <Title>Como devemos te chamar?</Title>
         <Subtitle>Escolha um nickname para usar no app.</Subtitle>

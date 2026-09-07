@@ -80,6 +80,27 @@ export const Copied = styled.span`
   min-width: 4.5rem;
 `;
 
+export const LeaveButton = styled.button`
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: #a1a1a6;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #f5f5f7;
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+`;
+
 export const RoomBody = styled.div`
   flex: 1;
   min-height: 0;

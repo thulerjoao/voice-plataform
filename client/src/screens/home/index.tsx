@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { loadBookmarks, saveBookmark, type Bookmark } from "../../bookmarks";
+import { loadBookmarks, removeBookmark, saveBookmark, type Bookmark } from "../../bookmarks";
 import { loadStatus, saveStatus, STATUSES, statusMeta, type StatusId } from "../../presence";
 import {
   NICKNAME_MAX_LENGTH,
@@ -8,6 +8,7 @@ import {
 } from "../../identity";
 import type { CreatedRoom } from "../../api";
 import { CreateRoomScreen } from "../create-room";
+import { JoinRoomScreen } from "../join-room";
 import { RoomScreen } from "../room";
 import {
   Actions,
@@ -57,6 +58,7 @@ type HomeScreenProps = {
 type View =
   | { type: "home" }
   | { type: "create"; created?: CreatedRoom }
+  | { type: "join" }
   | { type: "room"; roomId: string }
   | { type: "settings" };
 
@@ -183,14 +185,14 @@ function EnterIcon() {
   );
 }
 
-function RoomActions({ onCreate }: { onCreate: () => void }) {
+function RoomActions({ onCreate, onJoin }: { onCreate: () => void; onJoin: () => void }) {
   return (
     <Actions style={{ justifyContent: "center" }}>
       <PrimaryButton type="button" onClick={onCreate}>
         <PlusIcon />
         Criar sala
       </PrimaryButton>
-      <SecondaryButton type="button">
+      <SecondaryButton type="button" onClick={onJoin}>
         <EnterIcon />
         Entrar com código
       </SecondaryButton>
@@ -277,19 +279,31 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
     };
   }, [statusOpen]);
 
+  function rememberRoom(room: CreatedRoom) {
+    return saveBookmark({
+      roomId: room.id,
+      name: room.name,
+      code: room.code,
+      role: room.role,
+    });
+  }
+
   function handleCreated(room: CreatedRoom) {
-    setRooms(
-      saveBookmark({
-        roomId: room.id,
-        name: room.name,
-        code: room.code,
-        role: room.role,
-      }),
-    );
+    setRooms(rememberRoom(room));
     setView({ type: "create", created: room });
   }
 
+  function handleJoined(room: CreatedRoom) {
+    setRooms(rememberRoom(room));
+    setView({ type: "room", roomId: room.id });
+  }
+
   function backToHome() {
+    setView({ type: "home" });
+  }
+
+  function leaveRoomList(roomId: string) {
+    setRooms(removeBookmark(roomId));
     setView({ type: "home" });
   }
 
@@ -305,7 +319,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
           <BrandIcon>
             <MicIcon />
           </BrandIcon>
-          Voice
+          The Voice Chat
         </Brand>
         {editing ? (
           <NickEdit ref={nickEditRef} onSubmit={handleSave}>
@@ -417,6 +431,8 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             onCreated={handleCreated}
             onEnter={enterCreatedRoom}
           />
+        ) : view.type === "join" ? (
+          <JoinRoomScreen identity={identity} onCancel={backToHome} onJoined={handleJoined} />
         ) : view.type === "settings" ? (
           <>
             <Header>
@@ -427,7 +443,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             </Header>
           </>
         ) : openRoom ? (
-          <RoomScreen room={openRoom} identity={identity} />
+          <RoomScreen room={openRoom} identity={identity} onLeave={() => leaveRoomList(openRoom.roomId)} />
         ) : (
           <>
             <Header>
@@ -446,7 +462,10 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
                   ? "Crie sua primeira sala ou entre em uma existente para começar."
                   : "Suas salas estão à esquerda. Crie outra ou entre com um código."}
               </EmptyText>
-              <RoomActions onCreate={() => setView({ type: "create" })} />
+              <RoomActions
+                onCreate={() => setView({ type: "create" })}
+                onJoin={() => setView({ type: "join" })}
+              />
             </Empty>
           </>
         )}

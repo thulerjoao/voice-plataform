@@ -14,6 +14,12 @@ type createRequest struct {
 	Nickname string `json:"nickname"`
 }
 
+type joinRequest struct {
+	Code     string `json:"code"`
+	UID      string `json:"uid"`
+	Nickname string `json:"nickname"`
+}
+
 func HandleCreate(store *db.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req createRequest
@@ -46,6 +52,43 @@ func HandleCreate(store *db.DB) http.HandlerFunc {
 			"name": created.Name,
 			"code": created.Code,
 			"role": created.Role,
+		})
+	}
+}
+
+func HandleJoin(store *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req joinRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "Dados inválidos.")
+			return
+		}
+
+		joined, err := Join(r.Context(), store, JoinInput{
+			Code:     req.Code,
+			UID:      req.UID,
+			Nickname: req.Nickname,
+		})
+		if err != nil {
+			switch {
+			case errors.Is(err, ErrInvalidCode):
+				writeError(w, http.StatusBadRequest, "Código inválido.")
+			case errors.Is(err, ErrRoomNotFound):
+				writeError(w, http.StatusNotFound, "Sala não encontrada.")
+			case errors.Is(err, ErrMissingIdentity):
+				writeError(w, http.StatusBadRequest, "Identidade inválida.")
+			default:
+				writeError(w, http.StatusInternalServerError, "Não foi possível entrar na sala.")
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"id":   joined.ID,
+			"name": joined.Name,
+			"code": joined.Code,
+			"role": joined.Role,
 		})
 	}
 }

@@ -4,7 +4,24 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"strings"
+	"unicode"
 )
+
+func normalizeCode(raw string) string {
+	var b strings.Builder
+	for _, r := range strings.TrimSpace(raw) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(unicode.ToUpper(r))
+		}
+	}
+
+	s := b.String()
+	if len(s) <= 3 {
+		return s
+	}
+	return s[:3] + "-" + s[3:]
+}
 
 const prefixAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 

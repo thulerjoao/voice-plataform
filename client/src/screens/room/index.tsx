@@ -8,6 +8,7 @@ import {
   CopyButton,
   Invite,
   InviteCode,
+  LeaveButton,
   Member,
   MemberDot,
   MemberName,
@@ -29,6 +30,7 @@ import {
 type RoomScreenProps = {
   room: Bookmark;
   identity: Identity;
+  onLeave: () => void;
 };
 
 function CopyIcon() {
@@ -60,7 +62,7 @@ function roleCopy(role: Bookmark["role"]) {
   return "Você está nesta sala.";
 }
 
-export function RoomScreen({ room, identity }: RoomScreenProps) {
+export function RoomScreen({ room, identity, onLeave }: RoomScreenProps) {
   const [copied, setCopied] = useState(false);
   const badge = roleLabel(room.role);
 
@@ -94,6 +96,9 @@ export function RoomScreen({ room, identity }: RoomScreenProps) {
             Copiar
           </CopyButton>
           <Copied aria-live="polite">{copied ? "Copiado!" : ""}</Copied>
+          <LeaveButton type="button" onClick={onLeave} title="Só tira esta sala da sua lista">
+            Remover da lista
+          </LeaveButton>
         </Invite>
       </RoomHeader>
 

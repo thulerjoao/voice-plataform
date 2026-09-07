@@ -115,7 +115,7 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. Sem invisível 
 
 ### Lista de salas
 
-Só no computador, **apenas na sidebar**. O centro da home mostra o empty ou a sala aberta — nunca a listagem.
+Só no computador, **apenas na sidebar**. O centro da home mostra o empty ou a sala aberta — nunca a listagem. **Remover da lista** tira só o bookmark local; a sala continua no banco.
 
 ### Código vazou
 
@@ -332,4 +332,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Item **2** restante: entrar com código. A tela da sala (árvore + rodapé, sem voz) e a troca pela sidebar já existem.
+Item **3** da seção 13: tela da sala com presença real (WebSocket). Entrar com código já existe.
