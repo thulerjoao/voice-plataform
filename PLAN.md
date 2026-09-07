@@ -133,7 +133,7 @@ No MVP: o dono **cria outro servidor**. O código serve para copiar e chamar gen
 
 ## 7. Papéis e presença
 
-Quem tem o código entra em qualquer canal. Status na árvore: só a bolinha (online / ocupado / volto logo). Mudo / ensurdecido: ícone azul à direita do nick. Quem está falando: bolinha piscando.
+Quem tem o código entra em qualquer canal. Status na árvore: bolinha **oca** (online / ocupado / volto logo). Mudo / ensurdecido: ícone azul à direita do nick. Quem está falando: a bolinha pisca **sólida**.
 
 Cargos mínimos:
 
@@ -152,8 +152,8 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume loc
 ## 8. Salas e voz
 
 - Um servidor tem N **salas** (layout tipo TS3: árvore + chat embaixo). Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva neste PC). “Excluir sala” no fim da ficha. **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC.
-- Na listagem, **Espera** fica fixa no topo (não exclui, não desce). Nela **todos ficam mutados**. Excluir outra sala manda quem estava lá para a Espera.
-- Ao abrir um servidor na sidebar, o client cai no `Geral` (ou no último canal do bookmark). Sem som.
+- Na listagem, **Sala de espera** fica fixa no topo (sem engrenagem, sem descrição, não exclui). Nela **todos ficam mutados**. Excluir outra sala: o **client** manda quem estava lá para a Sala de espera (não é rota da API).
+- Um clique no servidor da sidebar abre no `Geral` (sem som). Dois cliques entram direto na **Sala de espera**.
 - **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda no mesmo servidor. Clique no canal ou arrastar o nick.
 - Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Ensurdecido = sem som.
 - Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.

@@ -55,6 +55,7 @@ import {
   SalaHint,
   SalaField,
   SalaLabel,
+  SalaLocked,
   SalaNameButton,
   SalaNameEdit,
   SalaNameIcon,
@@ -114,6 +115,7 @@ type RoomScreenProps = {
   identity: Identity;
   muted?: boolean;
   deafened?: boolean;
+  startInWaiting?: boolean;
   onLeave: () => void;
 };
 
@@ -235,8 +237,7 @@ function mockChannels(): MockChannel[] {
   return [
     {
       id: "espera",
-      name: "Espera",
-      description: "Todos mutados. Fila pra entrar.",
+      name: "Sala de espera",
       users: [
         { id: "gui", nick: "Gui", presence: "online", muted: true, onlineSince: minutesAgo(2) },
         { id: "duda", nick: "Duda", presence: "brb", muted: true, onlineSince: minutesAgo(28) },
@@ -293,6 +294,7 @@ const SEED_CHAT: Record<string, ChatMessage[]> = {
 };
 
 const WAITING_ID = "espera";
+const WAITING_NAME = "Sala de espera";
 const CHANNEL_CAP = 12;
 const CHANNEL_NAME_MAX = 24;
 const CHANNEL_DESC_MAX = 80;
@@ -376,11 +378,11 @@ function saveSalaMeta(roomId: string, roster: MockChannel[]) {
 }
 
 function pinWaitingFirst(channels: MockChannel[]): MockChannel[] {
-  const waiting = channels.find((channel) => channel.id === WAITING_ID) ?? {
+  const found = channels.find((channel) => channel.id === WAITING_ID);
+  const waiting: MockChannel = {
     id: WAITING_ID,
-    name: "Espera",
-    description: "Todos mutados. Fila pra entrar.",
-    users: [],
+    name: WAITING_NAME,
+    users: found?.users ?? [],
   };
   return [waiting, ...channels.filter((channel) => channel.id !== WAITING_ID)];
 }
@@ -390,6 +392,7 @@ function applySalaMeta(channels: MockChannel[], meta: SalaMeta[] | null): MockCh
   const byId = new Map(meta.map((item) => [item.id, item]));
   const merged = channels.map((channel) => {
     const hit = byId.get(channel.id);
+    if (channel.id === WAITING_ID) return channel;
     return hit ? { ...channel, name: hit.name, description: hit.description } : channel;
   });
   const extras = meta
@@ -398,9 +401,10 @@ function applySalaMeta(channels: MockChannel[], meta: SalaMeta[] | null): MockCh
   return pinWaitingFirst([...merged, ...extras]);
 }
 
-export function RoomScreen({ room, identity, muted, deafened, onLeave }: RoomScreenProps) {
+export function RoomScreen({ room, identity, muted, deafened, startInWaiting, onLeave }: RoomScreenProps) {
   const [roster, setRoster] = useState(() => applySalaMeta(mockChannels(), loadSalaMeta(room.roomId)));
-  const [currentId, setCurrentId] = useState("geral");
+  const [currentId, setCurrentId] = useState(() => (startInWaiting ? WAITING_ID : "geral"));
+  const roomReadyRef = useRef(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileState | null>(null);
@@ -442,6 +446,22 @@ export function RoomScreen({ room, identity, muted, deafened, onLeave }: RoomScr
   useEffect(() => {
     saveSalaOpen(room.roomId, open);
   }, [room.roomId, open]);
+
+  useEffect(() => {
+    if (!startInWaiting) {
+      roomReadyRef.current = true;
+      return;
+    }
+    setCurrentId((id) => {
+      if (roomReadyRef.current && id !== WAITING_ID) {
+        if (!deafened) playConnectSound();
+        setDraft("");
+      }
+      return WAITING_ID;
+    });
+    setOpen((prev) => ({ ...prev, [WAITING_ID]: true }));
+    roomReadyRef.current = true;
+  }, [startInWaiting]);
 
   const you: MockUser = {
     id: "you",
@@ -819,6 +839,7 @@ export function RoomScreen({ room, identity, muted, deafened, onLeave }: RoomScr
           return (
             <ChannelBlock
               key={channel.id}
+              $waiting={channel.id === WAITING_ID}
               $drop={dropId === channel.id}
               onDragOver={(event) => handleChannelDragOver(event, channel.id)}
               onDragLeave={(event) => {
@@ -844,7 +865,7 @@ export function RoomScreen({ room, identity, muted, deafened, onLeave }: RoomScr
                     {channel.users.length}/{CHANNEL_CAP}
                   </ChannelCount>
                 </ChannelHit>
-                {canManageChannels ? (
+                {canManageChannels && channel.id !== WAITING_ID ? (
                   <ChannelEdit type="button" title="Configurar sala" onClick={(event) => openSalaCard(event, channel.id)}>
                     <GearIcon />
                   </ChannelEdit>
@@ -951,7 +972,9 @@ export function RoomScreen({ room, identity, muted, deafened, onLeave }: RoomScr
         <ProfileCard ref={salaCardRef} $x={salaCard.x} $y={salaCard.y}>
           <SalaField>
             <SalaLabel>Nome</SalaLabel>
-            {editingSala ? (
+            {salaChannel.id === WAITING_ID ? (
+              <SalaLocked>{salaChannel.name}</SalaLocked>
+            ) : editingSala ? (
               <SalaNameEdit ref={salaEditRef} onSubmit={saveSalaName}>
                 <SalaNameInput
                   autoFocus
@@ -985,7 +1008,11 @@ export function RoomScreen({ room, identity, muted, deafened, onLeave }: RoomScr
           </SalaField>
           <SalaField>
             <SalaLabel>Descrição</SalaLabel>
-            {editingDesc ? (
+            {salaChannel.id === WAITING_ID ? (
+              <SalaLocked $empty={!salaChannel.description?.trim()}>
+                {salaChannel.description?.trim() || "Opcional"}
+              </SalaLocked>
+            ) : editingDesc ? (
               <SalaNameEdit ref={salaDescRef} onSubmit={saveSalaDesc}>
                 <SalaNameInput
                   autoFocus

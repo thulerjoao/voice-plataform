@@ -59,7 +59,7 @@ type View =
   | { type: "home" }
   | { type: "create"; created?: CreatedRoom }
   | { type: "join" }
-  | { type: "room"; roomId: string }
+  | { type: "room"; roomId: string; waiting?: boolean }
   | { type: "settings" };
 
 function MicIcon() {
@@ -162,6 +162,17 @@ function HeadsetIcon() {
   );
 }
 
+function HeadsetOffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 13V11a7 7 0 0 1 14 0v2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <rect x="3.5" y="12.2" width="4.2" height="6.2" rx="1.4" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="16.3" y="12.2" width="4.2" height="6.2" rx="1.4" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M5 5l14 14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function GearIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -211,6 +222,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
   const [draft, setDraft] = useState(identity.nickname);
   const statusRef = useRef<HTMLDivElement>(null);
   const nickEditRef = useRef<HTMLFormElement>(null);
+  const roomClickTimer = useRef(0);
   const currentStatus = statusMeta(status);
   const created = view.type === "create" ? view.created : undefined;
   const openRoom = view.type === "room" ? rooms.find((room) => room.roomId === view.roomId) : undefined;
@@ -293,9 +305,21 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
     setView({ type: "create", created: room });
   }
 
-  function enterRoom(roomId: string) {
-    setView({ type: "room", roomId });
+  function enterRoom(roomId: string, waiting = false) {
+    window.clearTimeout(roomClickTimer.current);
+    setView({ type: "room", roomId, waiting });
   }
+
+  function handleRoomClick(roomId: string) {
+    window.clearTimeout(roomClickTimer.current);
+    roomClickTimer.current = window.setTimeout(() => enterRoom(roomId), 220);
+  }
+
+  function handleRoomDoubleClick(roomId: string) {
+    enterRoom(roomId, true);
+  }
+
+  useEffect(() => () => window.clearTimeout(roomClickTimer.current), []);
 
   function handleJoined(room: CreatedRoom) {
     setRooms(rememberRoom(room));
@@ -358,7 +382,9 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
                 <SidebarRoomButton
                   type="button"
                   $active={openRoom?.roomId === room.roomId}
-                  onClick={() => enterRoom(room.roomId)}
+                  onClick={() => handleRoomClick(room.roomId)}
+                  onDoubleClick={() => handleRoomDoubleClick(room.roomId)}
+                  title="Clique: Geral · dois cliques: Sala de espera"
                 >
                   <SidebarRoomIcon>
                     <PeopleIcon />
@@ -393,7 +419,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
               });
             }}
           >
-            <HeadsetIcon />
+            {deafened ? <HeadsetOffIcon /> : <HeadsetIcon />}
           </DockButton>
           <DockButton type="button" title="Configurações" onClick={() => setView({ type: "settings" })}>
             <GearIcon />
@@ -448,10 +474,12 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
           </>
         ) : openRoom ? (
           <RoomScreen
+            key={openRoom.roomId}
             room={openRoom}
             identity={identity}
             muted={muted}
             deafened={deafened}
+            startInWaiting={view.type === "room" && view.waiting}
             onLeave={() => leaveRoomList(openRoom.roomId)}
           />
         ) : (

@@ -161,11 +161,13 @@ export const StatusButton = styled.button`
 `;
 
 export const StatusDot = styled.span<{ $color: string }>`
+  box-sizing: border-box;
   width: 0.5rem;
   height: 0.5rem;
   flex-shrink: 0;
   border-radius: 999px;
-  background: ${(p) => p.$color};
+  border: 1.5px solid ${(p) => p.$color};
+  background: transparent;
 `;
 
 export const StatusLabel = styled.span`

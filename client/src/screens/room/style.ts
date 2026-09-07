@@ -154,7 +154,7 @@ export const Tree = styled.div`
   font-size: 0.88rem;
 `;
 
-export const ChannelBlock = styled.div<{ $drop?: boolean }>`
+export const ChannelBlock = styled.div<{ $drop?: boolean; $waiting?: boolean }>`
   position: relative;
   border-radius: 0.35rem;
   background: ${(p) => (p.$drop ? "rgba(10, 132, 255, 0.14)" : "transparent")};
@@ -173,6 +173,25 @@ export const ChannelBlock = styled.div<{ $drop?: boolean }>`
     height: 1px;
     background: rgba(255, 255, 255, 0.07);
   }
+
+  ${(p) =>
+    p.$waiting &&
+    css`
+      margin-bottom: 0.15rem;
+      padding-bottom: 0.55rem;
+
+      &::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 4px;
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)) 0 0 / 100% 1px no-repeat,
+          linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)) 0 100% / 100% 1px no-repeat;
+      }
+    `}
 `;
 
 export const ChannelRow = styled.div<{ $current?: boolean }>`
@@ -261,9 +280,9 @@ export const UserList = styled.ul`
   padding: 0 0 0 1.35rem;
 `;
 
-const pulse = keyframes`
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+const talkPulse = keyframes`
+  0%, 100% { background-color: var(--dot); }
+  50% { background-color: transparent; }
 `;
 
 export const UserRow = styled.li<{ $you?: boolean; $dragging?: boolean; $movable?: boolean }>`
@@ -326,6 +345,17 @@ export const SalaLabel = styled.div`
   color: #8d8d93;
   font-size: 0.7rem;
   font-weight: 700;
+`;
+
+export const SalaLocked = styled.div<{ $empty?: boolean }>`
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: 2rem;
+  padding: 0 0.45rem;
+  color: ${(p) => (p.$empty ? "#8d8d93" : "#f5f5f7")};
+  font-size: 0.95rem;
+  font-weight: 600;
 `;
 
 export const SalaNameButton = styled.button<{ $empty?: boolean }>`
@@ -679,15 +709,18 @@ export const PokeAlertNote = styled.p`
 `;
 
 export const StatusDot = styled.span<{ $color: string; $talking?: boolean }>`
-  width: 0.42rem;
-  height: 0.42rem;
+  box-sizing: border-box;
+  width: 0.5rem;
+  height: 0.5rem;
   flex-shrink: 0;
   border-radius: 999px;
-  background: ${(p) => p.$color};
+  border: 1.5px solid ${(p) => p.$color};
+  background: transparent;
+  --dot: ${(p) => p.$color};
   ${(p) =>
     p.$talking &&
     css`
-      animation: ${pulse} 1s ease-in-out infinite;
+      animation: ${talkPulse} 1s ease-in-out infinite;
     `}
 `;
 
