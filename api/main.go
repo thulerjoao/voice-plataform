@@ -1,19 +1,59 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/thulerjoao/voice-plataform/api/internal/db"
 )
 
+//go:generate sqlc generate
+
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	store, err := db.Connect(ctx)
+	if err != nil {
+		log.Fatalf("db: %v", err)
+	}
+	defer store.Close()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+
+		status := "ok"
+		dbStatus := "ok"
+		if err := store.Pool.Ping(r.Context()); err != nil {
+			status = "degraded"
+			dbStatus = "down"
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"status": status,
+			"db":     dbStatus,
+		})
 	})
 
-	addr := ":8080"
-	log.Printf("api listening on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	server := &http.Server{Addr: ":8080", Handler: mux}
+
+	go func() {
+		log.Printf("api listening on %s", server.Addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_ = server.Shutdown(shutdownCtx)
 }
