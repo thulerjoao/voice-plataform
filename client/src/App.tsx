@@ -1,8 +1,20 @@
+import { useState } from "react";
+import { loadIdentity } from "./identity";
+import { HomeScreen } from "./screens/home";
+import { NicknameScreen } from "./screens/nickname";
+
 export default function App() {
-  return (
-    <main>
-      <h1>Voice</h1>
-      <p>Client no ar. Próximo passo: nickname e salas.</p>
-    </main>
-  );
+  const [identity, setIdentity] = useState(loadIdentity);
+
+  if (!identity) {
+    return (
+      <NicknameScreen
+        onCreated={() => {
+          setIdentity(loadIdentity());
+        }}
+      />
+    );
+  }
+
+  return <HomeScreen identity={identity} onNicknameChange={setIdentity} />;
 }
