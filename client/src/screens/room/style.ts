@@ -97,20 +97,82 @@ export const LeaveButton = styled.button`
   }
 `;
 
+export const TreeWrap = styled.div`
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.55rem;
+  background: #242426;
+`;
+
+export const TreeBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.35rem 0.5rem 0.3rem 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #8d8d93;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+`;
+
+export const ChannelEdit = styled.button`
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.45rem;
+  height: 1.45rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: #8d8d93;
+  cursor: pointer;
+
+  svg {
+    width: 0.78rem;
+    height: 0.78rem;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+  }
+`;
+
 export const Tree = styled.div`
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding: 0.45rem 0.35rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.55rem;
-  background: #242426;
   font-size: 0.88rem;
 `;
 
 export const ChannelBlock = styled.div<{ $drop?: boolean }>`
+  position: relative;
   border-radius: 0.35rem;
   background: ${(p) => (p.$drop ? "rgba(10, 132, 255, 0.14)" : "transparent")};
+
+  & + & {
+    margin-top: 0.35rem;
+    padding-top: 0.4rem;
+  }
+
+  & + &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.07);
+  }
 `;
 
 export const ChannelRow = styled.div<{ $current?: boolean }>`
@@ -153,9 +215,10 @@ export const Chevron = styled.button<{ $open?: boolean }>`
 export const ChannelHit = styled.button`
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
   height: 1.55rem;
   padding: 0 0.4rem 0 0;
   border: 0;
@@ -167,14 +230,26 @@ export const ChannelHit = styled.button`
 `;
 
 export const ChannelName = styled.span`
-  min-width: 0;
-  flex: 1;
+  flex: 0 0 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
 
+export const ChannelDesc = styled.span`
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8d8d93;
+  font-size: 0.75rem;
+  font-weight: 500;
+`;
+
 export const ChannelCount = styled.span`
+  flex-shrink: 0;
+  margin-left: auto;
   color: #8d8d93;
   font-size: 0.72rem;
   font-weight: 600;
@@ -182,7 +257,7 @@ export const ChannelCount = styled.span`
 
 export const UserList = styled.ul`
   list-style: none;
-  margin: 0 0 0.25rem;
+  margin: 0.3rem 0 0.25rem;
   padding: 0 0 0 1.35rem;
 `;
 
@@ -225,7 +300,7 @@ export const ProfileCard = styled.div<{ $x: number; $y: number }>`
 
 export const ProfileHead = styled.div`
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
 `;
@@ -234,6 +309,152 @@ export const ProfileName = styled.div`
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+`;
+
+export const SalaField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+
+  & + & {
+    margin-top: 0.7rem;
+  }
+`;
+
+export const SalaLabel = styled.div`
+  padding: 0 0.45rem;
+  color: #8d8d93;
+  font-size: 0.7rem;
+  font-weight: 700;
+`;
+
+export const SalaNameButton = styled.button<{ $empty?: boolean }>`
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  height: 2rem;
+  padding: 0 0.45rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: ${(p) => (p.$empty ? "#8d8d93" : "#f5f5f7")};
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  span {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 2rem;
+  }
+
+  svg {
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    color: #a1a1a6;
+  }
+`;
+
+export const SalaNameEdit = styled.form`
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  height: 2rem;
+  padding: 0 0.2rem 0 0.45rem;
+  border-radius: 0.7rem;
+  background: #1c1c1e;
+`;
+
+export const SalaNameInput = styled.input`
+  box-sizing: border-box;
+  min-width: 0;
+  flex: 1;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #f5f5f7;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 2rem;
+  outline: none;
+
+  &::placeholder {
+    color: #8d8d93;
+  }
+`;
+
+export const SalaNameIcon = styled.button`
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: #a1a1a6;
+  cursor: pointer;
+
+  svg {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+  }
+`;
+
+export const SalaCreateWrap = styled.div`
+  position: relative;
+  margin-top: 0.35rem;
+  padding-top: 0.4rem;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.07);
+  }
+`;
+
+export const SalaCreate = styled.button`
+  display: block;
+  width: 100%;
+  max-width: 8.5rem;
+  margin: 0.35rem auto 0;
+  height: 2rem;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #a1a1a6;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #f5f5f7;
+  }
 `;
 
 export const ProfileRole = styled.div`
@@ -256,6 +477,33 @@ export const ProfileAdminLink = styled.button<{ $tone?: "default" | "danger" }>`
 
   &:hover {
     color: ${(p) => (p.$tone === "danger" ? "#ff8a80" : "#d1d1d6")};
+    text-decoration: underline;
+  }
+`;
+
+export const SalaHint = styled.div`
+  margin-top: 0.55rem;
+  padding: 0 0.45rem;
+  color: #8d8d93;
+  font-size: 0.72rem;
+  font-weight: 600;
+`;
+
+export const SalaDelete = styled.button`
+  display: block;
+  width: 100%;
+  margin-top: 0.85rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ff8a80;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+
+  &:hover {
+    color: #ff453a;
     text-decoration: underline;
   }
 `;
@@ -443,18 +691,23 @@ export const StatusDot = styled.span<{ $color: string; $talking?: boolean }>`
     `}
 `;
 
+export const UserFlag = styled.span`
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #0a84ff;
+
+  svg {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+`;
+
 export const UserName = styled.span`
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
-
-export const UserMeta = styled.span`
-  color: #8d8d93;
-  font-size: 0.7rem;
-  font-weight: 600;
-  flex-shrink: 0;
 `;
 
 export const Splitter = styled.div`

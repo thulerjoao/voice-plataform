@@ -95,7 +95,7 @@ export function JoinRoomScreen({ identity, onCancel, onJoined }: JoinRoomScreenP
       });
       onJoined(room);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível entrar na sala.");
+      setError(err instanceof Error ? err.message : "Não foi possível entrar no servidor.");
       setJoining(false);
     }
   }
@@ -112,7 +112,7 @@ export function JoinRoomScreen({ identity, onCancel, onJoined }: JoinRoomScreenP
         <HeroIcon>
           <KeyIcon />
         </HeroIcon>
-        <Title>Entrar numa sala</Title>
+        <Title>Entrar num servidor</Title>
         <Subtitle>Cole o código que alguém compartilhou com você.</Subtitle>
         <Form onSubmit={handleSubmit} noValidate>
           <Field>

@@ -28,7 +28,7 @@ export async function createRoom(input: {
     throw new Error(
       payload && "error" in payload && payload.error
         ? payload.error
-        : "Não foi possível criar a sala.",
+        : "Não foi possível criar o servidor.",
     );
   }
 
@@ -55,7 +55,7 @@ export async function joinRoom(input: {
     throw new Error(
       payload && "error" in payload && payload.error
         ? payload.error
-        : "Não foi possível entrar na sala.",
+        : "Não foi possível entrar no servidor.",
     );
   }
 

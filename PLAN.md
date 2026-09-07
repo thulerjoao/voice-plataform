@@ -8,7 +8,9 @@ Documento de referência. Qualquer mudança de comportamento deve atualizar este
 
 Plataforma de **voz em tempo real** para grupos (squad de jogo). O servidor faz sinalização; o áudio corre **P2P** dentro de cada canal. O primeiro a entrar no canal é o host; um sucessor já está pré-eleito para a call continuar se o host sair.
 
-Inspiração de UX: TeamSpeak — entrar e falar, identidade no PC, árvore sala → canais.
+Inspiração de UX: TeamSpeak — entrar e falar, identidade no PC, árvore servidor → salas.
+
+Vocabulário da UI: **servidor** = o bookmark com código (antes “sala”). **Sala** = o canal de voz (antes “subsala” / “canal”). “Canal” no texto técnico = sala.
 
 Público inicial: Windows, usando o app **junto com o jogo**. Interface simples, direta, leve.
 
@@ -20,10 +22,10 @@ Um VPS pequeno deve aguentar **muitas salas pequenas**.
 
 - Praticidade. Convite vazou → cria outra sala.
 - Identidade no computador.
-- Lista de salas só no PC (bookmarks).
+- Lista de servidores só no PC (bookmarks).
 - API: HTTP + WebSocket de sinalização. Áudio no P2P.
 - Client desatualizado fica de fora de **entradas novas**; quem já está na call continua.
-- Chat e streaming, quando existirem, entram **no mesmo canal**.
+- Chat e streaming, quando existirem, entram **na mesma sala**.
 
 ---
 
@@ -61,7 +63,7 @@ Docker = **banco**. A API pode ir para o Compose depois.
 PC do usuário                         Nosso backend (Go + Postgres)
 ─────────────────                     ────────────────────────────
 Identidade (uid + nickname)           Sala (id, nome, código, ownerUid)
-Bookmarks (servidores na sidebar)     Canais / subsalas
+Bookmarks (servidores na sidebar)     Salas (canais de voz)
 React / depois Tauri                  Membros: uid → papel (owner | admin | member)
 WebRTC ◄── P2P do canal ──► amigos    WebSocket: presença, host, sucessor, ICE
 ```
@@ -69,10 +71,10 @@ WebRTC ◄── P2P do canal ──► amigos    WebSocket: presença, host, su
 Três peças:
 
 1. **Identidade** — quem você é (arquivo no PC).
-2. **Código da sala** — porta para quem ainda vai entrar pela primeira vez.
-3. **Papel na sala** — dono / admin / membro, no banco, por `uid`.
+2. **Código do servidor** — porta para quem ainda vai entrar pela primeira vez.
+3. **Papel no servidor** — dono / admin / membro, no banco, por `uid`.
 
-O endereço estável da sala é o **código**. O nome aparece na UI. O IP do host de voz é interno ao canal.
+O endereço estável do servidor é o **código**. O nome aparece na UI. O IP do host de voz é interno à sala.
 
 ---
 
@@ -95,16 +97,16 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. Sem invisível 
 
 ---
 
-## 6. Salas
+## 6. Servidores
 
 ### Criar
 
-1. Usuário informa o **nome** da sala (3–24 caracteres; sem aviso na UI — o campo simplesmente não passa de 24).
+1. Usuário informa o **nome** do servidor (3–24 caracteres; sem aviso na UI — o campo simplesmente não passa de 24).
 2. A API gera um **código de acesso** (ex.: `K7P-TIGRE`), único.
 3. O `uid` de quem criou fica como **owner** e **admin**.
-4. Canal padrão: `Geral`.
-5. O client **entra sozinho** na sala após criar.
-6. Bookmark salvo **só no PC** (nome, código, id da sala).
+4. Sala padrão: `Geral`.
+5. O client **entra sozinho** no servidor após criar.
+6. Bookmark salvo **só no PC** (nome, código, id do servidor).
 
 ### Entrar
 
@@ -115,31 +117,31 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. Sem invisível 
 
 ### Lista de servidores
 
-A sidebar é a lista local de **servidores** (bookmarks), não de canais. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
+A sidebar é a lista local de **servidores** (bookmarks), não de salas. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
 
 ### Código vazou
 
-No MVP: o dono **cria outra sala**. O código serve para copiar e chamar gente de fora. Membros conhecidos voltam pelo `uid`.
+No MVP: o dono **cria outro servidor**. O código serve para copiar e chamar gente de fora. Membros conhecidos voltam pelo `uid`.
 
 ### Limites
 
 - Muitos grupos pequenos.
-- Por **canal**: teto **12**; alvo confortável para jogo **8**.
-- Canal cheio: recusar entrada.
+- Por **sala**: teto **12** (ex.: `4/12`). Voz Opus no host é leve; 8 era só o alvo confortável.
+- Sala cheia: recusar entrada.
 
 ---
 
 ## 7. Papéis e presença
 
-Quem tem o código entra em qualquer canal. Status na árvore: online, ocupado, volto logo, mudo, ensurdecido. Quem está falando: só a bolinha piscando.
+Quem tem o código entra em qualquer canal. Status na árvore: só a bolinha (online / ocupado / volto logo). Mudo / ensurdecido: ícone azul à direita do nick. Quem está falando: bolinha piscando.
 
 Cargos mínimos:
 
 | Papel | Pode |
 |---|---|
 | **Owner** | tudo de admin + promover / rebaixar admin (ficha no clique) |
-| **Admin** | **única extra:** arrastar outra pessoa para outro canal |
-| **Member** | entrar em canal e arrastar só a si |
+| **Admin** | mover gente + criar / renomear / apagar sala. Não mexe no dono nem rebaixa outro admin |
+| **Member** | entrar em sala e arrastar só a si |
 
 Cargo não aparece na listagem (você se reconhece pelo fundo). Cargo só na ficha.
 
@@ -147,14 +149,15 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume loc
 
 ---
 
-## 8. Canais e voz
+## 8. Salas e voz
 
-- Um servidor tem N canais / subsalas (layout tipo TS3: árvore + chat embaixo).
+- Um servidor tem N **salas** (layout tipo TS3: árvore + chat embaixo). Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva neste PC). “Excluir sala” no fim da ficha. **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC.
+- Na listagem, **Espera** fica fixa no topo (não exclui, não desce). Nela **todos ficam mutados**. Excluir outra sala manda quem estava lá para a Espera.
 - Ao abrir um servidor na sidebar, o client cai no `Geral` (ou no último canal do bookmark). Sem som.
 - **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda no mesmo servidor. Clique no canal ou arrastar o nick.
 - Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Ensurdecido = sem som.
 - Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.
-- Chat por canal: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela subsala na hora. Cada um desses clients guarda o texto **no próprio PC**; quem não estava não vê depois, nem ao entrar. Não é MVP, mas não é difícil.
+- Chat por sala: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela sala na hora. Cada um desses clients guarda o texto **no próprio PC**; quem não estava não vê depois, nem ao entrar. Não é MVP, mas não é difícil.
 - Cada canal = malha **estrela**: um **host** (primeiro que entrou) e os outros como client dele.
 - A API sinaliza: quem está no canal, quem é host, quem é sucessor, troca ICE/SDP.
 
@@ -174,7 +177,7 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume loc
 
 ### Escala
 
-Quem usa CPU/upload da voz é o **host do canal**. Por isso o teto 8–12.  
+Quem usa CPU/upload da voz é o **host do canal**. Teto **12**.  
 O produto cresce em **número de salas**.
 
 STUN público no MVP. **coturn** quando a falha de NAT pedir.
@@ -195,8 +198,8 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 
 1. **Onboarding (uma vez):** nickname.
 2. **Home:** lista de **servidores** só na sidebar; centro = empty ou o servidor aberto; Criar / Entrar no centro.
-3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar na sala” abre o servidor.
-4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha (online, cargo, promover, recado único com som). Só admin/dono arrasta os outros. Altura do chat arrastável. Mute/config na sidebar.
+3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar no servidor”.
+4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
 5. Trocar de servidor pela lista, com o mesmo usuário.
 
 Visual: escuro, poucos botões, janela de app.
@@ -296,7 +299,10 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 ### Comunicação extra (no mesmo canal)
 
 - chat de texto (canal + sala)
-- streaming / câmera
+- **Streaming (depois do MVP), P2P em árvore:** o streamer **não** manda uma cópia para cada um. Elege **2–3 relés** (boa NAT/upload, de preferência quem não está no jogo pesado). Relé **só encaminha** o pacote já codificado — sem decodificar/recodificar. O resto assiste no segundo salto. Até **12** no canal podem ver.
+- Se um relé cair: sucessor já escolhido (igual voz). Máximo **2 saltos**.
+- Voz continua no host do canal — não mistura com vídeo.
+- Até **2 streams** por canal. Qualidade: **720p 30fps** padrão. **1080p 30fps** só se a árvore estiver folgada. Sem 60fps.
 
 ### UX de jogo
 

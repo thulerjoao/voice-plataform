@@ -136,7 +136,7 @@ function CreateStep({
       });
       onCreated(room);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível criar a sala.");
+      setError(err instanceof Error ? err.message : "Não foi possível criar o servidor.");
       setCreating(false);
     }
   }
@@ -146,11 +146,11 @@ function CreateStep({
       <HeroIcon>
         <ServerPlusIcon />
       </HeroIcon>
-      <Title>Nova sala</Title>
-      <Subtitle>Escolha um nome para sua sala. Depois disso geraremos um código para você compartilhar.</Subtitle>
+      <Title>Novo servidor</Title>
+      <Subtitle>Escolha um nome para seu servidor. Depois disso geraremos um código para você compartilhar.</Subtitle>
       <Form onSubmit={handleSubmit} noValidate>
         <Field>
-          <FieldLabel>Nome da sala</FieldLabel>
+          <FieldLabel>Nome do servidor</FieldLabel>
           <FieldBox>
             <FieldIcon>
               <PeopleIcon />
@@ -210,7 +210,7 @@ function CreatedStep({ room, onEnter }: { room: CreatedRoom; onEnter: () => void
       <SuccessIcon>
         <CheckIcon />
       </SuccessIcon>
-      <Title>Sala criada</Title>
+      <Title>Servidor criado</Title>
       <RoomLine>
         <PeopleIcon />
         {room.name}
@@ -223,9 +223,9 @@ function CreatedStep({ room, onEnter }: { room: CreatedRoom; onEnter: () => void
           Copiar código
         </CopyButton>
       </CodeBox>
-      <CodeHint>Quem tiver o código poderá entrar nesta sala.</CodeHint>
+      <CodeHint>Quem tiver o código poderá entrar neste servidor.</CodeHint>
       <Submit type="button" onClick={onEnter}>
-        Entrar na sala
+        Entrar no servidor
       </Submit>
       <Copied aria-live="polite">
         {copied ? (

@@ -190,7 +190,7 @@ function RoomActions({ onCreate, onJoin }: { onCreate: () => void; onJoin: () =>
     <Actions style={{ justifyContent: "center" }}>
       <PrimaryButton type="button" onClick={onCreate}>
         <PlusIcon />
-        Criar sala
+        Criar servidor
       </PrimaryButton>
       <SecondaryButton type="button" onClick={onJoin}>
         <EnterIcon />
@@ -349,7 +349,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
         )}
         <NavItem type="button" onClick={backToHome}>
           <HomeIcon />
-          Salas
+          Servidores
         </NavItem>
         {rooms.length > 0 ? (
           <SidebarRooms>
@@ -450,6 +450,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
           <RoomScreen
             room={openRoom}
             identity={identity}
+            muted={muted}
             deafened={deafened}
             onLeave={() => leaveRoomList(openRoom.roomId)}
           />
@@ -457,19 +458,19 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
           <>
             <Header>
               <HeaderCopy>
-                <Title>Salas</Title>
-                <Subtitle>Crie uma sala ou entre com um código para começar a conversar com seu squad.</Subtitle>
+                <Title>Servidores</Title>
+                <Subtitle>Crie um servidor ou entre com um código para começar a conversar com seu squad.</Subtitle>
               </HeaderCopy>
             </Header>
             <Empty>
               <EmptyArt>
                 <EmptyRoomsArt />
               </EmptyArt>
-              <EmptyTitle>{rooms.length === 0 ? "Nenhuma sala ainda" : "Pronto para conversar"}</EmptyTitle>
+              <EmptyTitle>{rooms.length === 0 ? "Nenhum servidor ainda" : "Pronto para conversar"}</EmptyTitle>
               <EmptyText>
                 {rooms.length === 0
-                  ? "Crie sua primeira sala ou entre em uma existente para começar."
-                  : "Suas salas estão à esquerda. Crie outra ou entre com um código."}
+                  ? "Crie seu primeiro servidor ou entre em um existente para começar."
+                  : "Seus servidores estão à esquerda. Crie outro ou entre com um código."}
               </EmptyText>
               <RoomActions
                 onCreate={() => setView({ type: "create" })}
