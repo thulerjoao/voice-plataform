@@ -293,9 +293,13 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
     setView({ type: "create", created: room });
   }
 
+  function enterRoom(roomId: string) {
+    setView({ type: "room", roomId });
+  }
+
   function handleJoined(room: CreatedRoom) {
     setRooms(rememberRoom(room));
-    setView({ type: "room", roomId: room.id });
+    enterRoom(room.id);
   }
 
   function backToHome() {
@@ -308,7 +312,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
   }
 
   function enterCreatedRoom() {
-    if (created) setView({ type: "room", roomId: created.id });
+    if (created) enterRoom(created.id);
     else backToHome();
   }
 
@@ -354,7 +358,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
                 <SidebarRoomButton
                   type="button"
                   $active={openRoom?.roomId === room.roomId}
-                  onClick={() => setView({ type: "room", roomId: room.roomId })}
+                  onClick={() => enterRoom(room.roomId)}
                 >
                   <SidebarRoomIcon>
                     <PeopleIcon />
@@ -422,7 +426,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
         </SidebarDock>
       </Sidebar>
 
-      <Main>
+      <Main $flush={Boolean(openRoom)}>
         {view.type === "create" ? (
           <CreateRoomScreen
             identity={identity}
@@ -443,7 +447,12 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             </Header>
           </>
         ) : openRoom ? (
-          <RoomScreen room={openRoom} identity={identity} onLeave={() => leaveRoomList(openRoom.roomId)} />
+          <RoomScreen
+            room={openRoom}
+            identity={identity}
+            deafened={deafened}
+            onLeave={() => leaveRoomList(openRoom.roomId)}
+          />
         ) : (
           <>
             <Header>

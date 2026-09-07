@@ -61,7 +61,7 @@ Docker = **banco**. A API pode ir para o Compose depois.
 PC do usuário                         Nosso backend (Go + Postgres)
 ─────────────────                     ────────────────────────────
 Identidade (uid + nickname)           Sala (id, nome, código, ownerUid)
-Bookmarks (lista local de salas)      Canais
+Bookmarks (servidores na sidebar)     Canais / subsalas
 React / depois Tauri                  Membros: uid → papel (owner | admin | member)
 WebRTC ◄── P2P do canal ──► amigos    WebSocket: presença, host, sucessor, ICE
 ```
@@ -113,9 +113,9 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. Sem invisível 
 - Se o `uid` ainda não é membro: valida código → vira `member` → entra.
 - Se o `uid` já é membro: entra a partir do bookmark, sem pedir o código de novo.
 
-### Lista de salas
+### Lista de servidores
 
-Só no computador, **apenas na sidebar**. O centro da home mostra o empty ou a sala aberta — nunca a listagem. **Remover da lista** tira só o bookmark local; a sala continua no banco.
+A sidebar é a lista local de **servidores** (bookmarks), não de canais. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
 
 ### Código vazou
 
@@ -129,25 +129,32 @@ No MVP: o dono **cria outra sala**. O código serve para copiar e chamar gente d
 
 ---
 
-## 7. Papéis
+## 7. Papéis e presença
 
-| Papel | Quem é | No MVP pode |
-|---|---|---|
-| **Owner** | `uid` que criou a sala; gravado no dia 1 | tudo de admin; permanece dono |
-| **Admin** | owner + quem um admin promover | criar/apagar canal; promover outros |
-| **Member** | demais | entrar em canal e falar |
+Quem tem o código entra em qualquer canal. Status na árvore: online, ocupado, volto logo, mudo, ensurdecido. Quem está falando: só a bolinha piscando.
 
-- Só **admin** cria e apaga canal.
-- Admin **promove** outros a admin.
-- Owner permanece owner.
+Cargos mínimos:
+
+| Papel | Pode |
+|---|---|
+| **Owner** | tudo de admin + promover / rebaixar admin (ficha no clique) |
+| **Admin** | **única extra:** arrastar outra pessoa para outro canal |
+| **Member** | entrar em canal e arrastar só a si |
+
+Cargo não aparece na listagem (você se reconhece pelo fundo). Cargo só na ficha.
+
+Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume local daquela pessoa, promover (só dono). Recado rápido: um toque, som no destinatário, some ao fechar, sem histórico.
 
 ---
 
 ## 8. Canais e voz
 
-- Uma sala tem N canais de voz.
-- Ao entrar na sala, o client cai no `Geral` (ou no último canal do bookmark).
-- **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda dentro da sala.
+- Um servidor tem N canais / subsalas (layout tipo TS3: árvore + chat embaixo).
+- Ao abrir um servidor na sidebar, o client cai no `Geral` (ou no último canal do bookmark). Sem som.
+- **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda no mesmo servidor. Clique no canal ou arrastar o nick.
+- Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Ensurdecido = sem som.
+- Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.
+- Chat por canal: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela subsala na hora. Cada um desses clients guarda o texto **no próprio PC**; quem não estava não vê depois, nem ao entrar. Não é MVP, mas não é difícil.
 - Cada canal = malha **estrela**: um **host** (primeiro que entrou) e os outros como client dele.
 - A API sinaliza: quem está no canal, quem é host, quem é sucessor, troca ICE/SDP.
 
@@ -187,10 +194,10 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 ## 10. Telas do MVP
 
 1. **Onboarding (uma vez):** nickname.
-2. **Home:** lista local de salas **só na sidebar**; centro = empty ou a sala; Criar / Entrar no centro.
-3. **Criar sala:** no centro da home; nome → código + copiar → “Entrar na sala” abre a sala.
-4. **Sala:** árvore + painel no centro; código para copiar. Mute, ensurdecer e configurações ficam no **rodapé da sidebar**.
-5. Trocar de sala pela lista, com o mesmo usuário.
+2. **Home:** lista de **servidores** só na sidebar; centro = empty ou o servidor aberto; Criar / Entrar no centro.
+3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar na sala” abre o servidor.
+4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha (online, cargo, promover, recado único com som). Só admin/dono arrasta os outros. Altura do chat arrastável. Mute/config na sidebar.
+5. Trocar de servidor pela lista, com o mesmo usuário.
 
 Visual: escuro, poucos botões, janela de app.
 
@@ -247,7 +254,7 @@ No MVP o app é o navegador. Tauri empacota a **mesma UI** depois.
 | 1 | Identidade no client | nickname na 1ª vez; uid persistido |
 | 2 | Criar / entrar sala (HTTP) | código gerado; owner no banco; bookmark local; auto-join |
 | 3 | Tela da sala + canal Geral | árvore; lista de membros via WS |
-| 4 | Admin cria canal + promove | só admin; owner permanece dono |
+| 4 | Canais extras | qualquer um entra; dono promove admin; admin move gente |
 | 5 | WebRTC no canal | 2 pessoas falam no Geral |
 | 6 | Troca de canal = outro P2P | 3ª pessoa em outro canal fica só naquele |
 | 7 | Host + sucessor | se o host sair, a call continua |
@@ -276,7 +283,6 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 ### Moderação e sala
 
 - kick / ban
-- rebaixar admin (owner permanece)
 - invalidar / girar código
 - senha por canal, canal privado
 - apagar sala, transferir owner

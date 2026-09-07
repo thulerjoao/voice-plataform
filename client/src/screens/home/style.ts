@@ -2,8 +2,9 @@ import styled from "styled-components";
 
 export const Shell = styled.div`
   display: flex;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
+  max-height: 100dvh;
+  overflow: hidden;
   background: #1c1c1e;
   color: #f5f5f7;
 
@@ -15,6 +16,8 @@ export const Shell = styled.div`
 export const Sidebar = styled.aside`
   width: 15.5rem;
   flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -311,12 +314,14 @@ export const SidebarRoomCode = styled.span`
   letter-spacing: 0.04em;
 `;
 
-export const Main = styled.main`
+export const Main = styled.main<{ $flush?: boolean }>`
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  overflow: ${(p) => (p.$flush ? "hidden" : "auto")};
   display: flex;
   flex-direction: column;
-  padding: 2rem 2.25rem 1.5rem;
+  padding: ${(p) => (p.$flush ? "0.85rem 1rem 0.85rem" : "2rem 2.25rem 1.5rem")};
 
   @media (max-width: 800px) {
     padding: 1.25rem 1rem 1.5rem;
