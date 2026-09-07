@@ -52,10 +52,8 @@ import {
   SalaCreate,
   SalaCreateWrap,
   SalaDelete,
-  SalaHint,
   SalaField,
   SalaLabel,
-  SalaLocked,
   SalaNameButton,
   SalaNameEdit,
   SalaNameIcon,
@@ -66,6 +64,7 @@ import {
   TreeBar,
   TreeWrap,
   UserFlag,
+  UserLeave,
   UserList,
   UserName,
   UserRow,
@@ -115,7 +114,6 @@ type RoomScreenProps = {
   identity: Identity;
   muted?: boolean;
   deafened?: boolean;
-  startInWaiting?: boolean;
   onLeave: () => void;
 };
 
@@ -211,6 +209,26 @@ function GearIcon() {
   );
 }
 
+function LeaveSalaIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M6.4 3.2H4.2A1.2 1.2 0 0 0 3 4.4v7.2c0 .66.54 1.2 1.2 1.2h2.2"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M7 8h6.1M10.7 5.5 13.3 8l-2.6 2.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function ChevronIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -236,14 +254,6 @@ function formatOnline(since: number) {
 function mockChannels(): MockChannel[] {
   return [
     {
-      id: "espera",
-      name: "Sala de espera",
-      users: [
-        { id: "gui", nick: "Gui", presence: "online", muted: true, onlineSince: minutesAgo(2) },
-        { id: "duda", nick: "Duda", presence: "brb", muted: true, onlineSince: minutesAgo(28) },
-      ],
-    },
-    {
       id: "geral",
       name: "Geral",
       description: "Conversa da galera.",
@@ -252,6 +262,8 @@ function mockChannels(): MockChannel[] {
         { id: "maria", nick: "Maria", presence: "online", role: "admin", onlineSince: minutesAgo(74) },
         { id: "kadu", nick: "Kadu", presence: "online", muted: true, onlineSince: minutesAgo(21) },
         { id: "lipe", nick: "Lipe", presence: "busy", onlineSince: minutesAgo(3) },
+        { id: "gui", nick: "Gui", presence: "online", onlineSince: minutesAgo(2) },
+        { id: "duda", nick: "Duda", presence: "brb", onlineSince: minutesAgo(28) },
       ],
     },
     {
@@ -289,12 +301,9 @@ const SEED_CHAT: Record<string, ChatMessage[]> = {
     { id: "j1", nick: "Pedro", text: "espera o round" },
     { id: "j2", nick: "Ana", text: "ok" },
   ],
-  espera: [{ id: "e1", nick: "Gui", text: "tem vaga no Jogando?" }],
   afk: [],
 };
 
-const WAITING_ID = "espera";
-const WAITING_NAME = "Sala de espera";
 const CHANNEL_CAP = 12;
 const CHANNEL_NAME_MAX = 24;
 const CHANNEL_DESC_MAX = 80;
@@ -340,7 +349,6 @@ function loadSalaMeta(roomId: string): SalaMeta[] | null {
 const DEFAULT_SALA_OPEN: Record<string, boolean> = {
   geral: true,
   jogando: true,
-  espera: true,
   afk: false,
 };
 
@@ -377,34 +385,22 @@ function saveSalaMeta(roomId: string, roster: MockChannel[]) {
   window.localStorage.setItem(salaMetaKey(roomId), JSON.stringify(meta));
 }
 
-function pinWaitingFirst(channels: MockChannel[]): MockChannel[] {
-  const found = channels.find((channel) => channel.id === WAITING_ID);
-  const waiting: MockChannel = {
-    id: WAITING_ID,
-    name: WAITING_NAME,
-    users: found?.users ?? [],
-  };
-  return [waiting, ...channels.filter((channel) => channel.id !== WAITING_ID)];
-}
-
 function applySalaMeta(channels: MockChannel[], meta: SalaMeta[] | null): MockChannel[] {
-  if (!meta) return pinWaitingFirst(channels);
+  if (!meta) return channels;
   const byId = new Map(meta.map((item) => [item.id, item]));
   const merged = channels.map((channel) => {
     const hit = byId.get(channel.id);
-    if (channel.id === WAITING_ID) return channel;
     return hit ? { ...channel, name: hit.name, description: hit.description } : channel;
   });
   const extras = meta
-    .filter((item) => !channels.some((channel) => channel.id === item.id))
+    .filter((item) => item.id !== "espera" && !channels.some((channel) => channel.id === item.id))
     .map((item) => ({ id: item.id, name: item.name, description: item.description, users: [] }));
-  return pinWaitingFirst([...merged, ...extras]);
+  return [...merged, ...extras];
 }
 
-export function RoomScreen({ room, identity, muted, deafened, startInWaiting, onLeave }: RoomScreenProps) {
+export function RoomScreen({ room, identity, muted, deafened, onLeave }: RoomScreenProps) {
   const [roster, setRoster] = useState(() => applySalaMeta(mockChannels(), loadSalaMeta(room.roomId)));
-  const [currentId, setCurrentId] = useState(() => (startInWaiting ? WAITING_ID : "geral"));
-  const roomReadyRef = useRef(false);
+  const [currentId, setCurrentId] = useState<string | null>("geral");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileState | null>(null);
@@ -447,43 +443,21 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
     saveSalaOpen(room.roomId, open);
   }, [room.roomId, open]);
 
-  useEffect(() => {
-    if (!startInWaiting) {
-      roomReadyRef.current = true;
-      return;
-    }
-    setCurrentId((id) => {
-      if (roomReadyRef.current && id !== WAITING_ID) {
-        if (!deafened) playConnectSound();
-        setDraft("");
-      }
-      return WAITING_ID;
-    });
-    setOpen((prev) => ({ ...prev, [WAITING_ID]: true }));
-    roomReadyRef.current = true;
-  }, [startInWaiting]);
-
   const you: MockUser = {
     id: "you",
     nick: identity.nickname,
     presence: "online",
     role: myRole,
     onlineSince: youSince,
-    muted: currentId === WAITING_ID || muted || deafened,
+    muted: muted || deafened,
     deafened,
-    talking: currentId === WAITING_ID ? false : undefined,
     you: true,
   };
 
-  const channels = pinWaitingFirst(roster).map((channel) => {
-    const users = channel.id === currentId ? [you, ...channel.users] : channel.users;
-    if (channel.id !== WAITING_ID) return { ...channel, users };
-    return {
-      ...channel,
-      users: users.map((user) => ({ ...user, muted: true, talking: false })),
-    };
-  });
-  const current = channels.find((item) => item.id === currentId) ?? channels[0];
+  const channels = roster.map((channel) =>
+    channel.id === currentId ? { ...channel, users: [you, ...channel.users] } : channel,
+  );
+  const current = channels.find((item) => item.id === currentId) ?? null;
   const profileUser =
     profile == null
       ? null
@@ -576,6 +550,14 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
     setCurrentId(id);
     setDraft("");
     if (!deafened) playConnectSound();
+  }
+
+  function leaveChannel(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!currentId) return;
+    setCurrentId(null);
+    setDraft("");
   }
 
   function moveUser(userId: string, channelId: string) {
@@ -756,11 +738,11 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
   }
 
   function deleteChannel(id: string) {
-    if (id === WAITING_ID) return;
+    if (roster.length < 2) return;
 
     const removed = roster.find((channel) => channel.id === id);
     const leftover = roster.filter((channel) => channel.id !== id);
-    const target = leftover.find((channel) => channel.id === WAITING_ID) ?? leftover[0];
+    const target = leftover[0];
     if (!removed || !target) return;
 
     setRoster(
@@ -779,9 +761,8 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
       return next;
     });
     if (currentId === id) {
-      setCurrentId(target.id);
+      setCurrentId(null);
       setDraft("");
-      if (!deafened) playConnectSound();
     }
     setSalaCard(null);
     setEditingSala(false);
@@ -802,7 +783,7 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
   function handleChat(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = draft.trim();
-    if (!text) return;
+    if (!current || !text) return;
 
     setChats((prev) => ({
       ...prev,
@@ -839,7 +820,6 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
           return (
             <ChannelBlock
               key={channel.id}
-              $waiting={channel.id === WAITING_ID}
               $drop={dropId === channel.id}
               onDragOver={(event) => handleChannelDragOver(event, channel.id)}
               onDragLeave={(event) => {
@@ -847,7 +827,7 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
               }}
               onDrop={(event) => handleChannelDrop(event, channel.id)}
             >
-              <ChannelRow $current={channel.id === current.id}>
+              <ChannelRow $current={channel.id === currentId}>
                 <Chevron
                   type="button"
                   $open={expanded}
@@ -865,7 +845,7 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
                     {channel.users.length}/{CHANNEL_CAP}
                   </ChannelCount>
                 </ChannelHit>
-                {canManageChannels && channel.id !== WAITING_ID ? (
+                {canManageChannels ? (
                   <ChannelEdit type="button" title="Configurar sala" onClick={(event) => openSalaCard(event, channel.id)}>
                     <GearIcon />
                   </ChannelEdit>
@@ -897,6 +877,17 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
                         <UserFlag title="Ensurdecido">
                           <HeadsetOffIcon />
                         </UserFlag>
+                      ) : null}
+                      {user.you ? (
+                        <UserLeave
+                          type="button"
+                          title="Sair da sala"
+                          onMouseDown={(event) => event.stopPropagation()}
+                          onClick={leaveChannel}
+                        >
+                          Sair
+                          <LeaveSalaIcon />
+                        </UserLeave>
                       ) : null}
                     </UserRow>
                   ))}
@@ -972,9 +963,7 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
         <ProfileCard ref={salaCardRef} $x={salaCard.x} $y={salaCard.y}>
           <SalaField>
             <SalaLabel>Nome</SalaLabel>
-            {salaChannel.id === WAITING_ID ? (
-              <SalaLocked>{salaChannel.name}</SalaLocked>
-            ) : editingSala ? (
+            {editingSala ? (
               <SalaNameEdit ref={salaEditRef} onSubmit={saveSalaName}>
                 <SalaNameInput
                   autoFocus
@@ -1008,11 +997,7 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
           </SalaField>
           <SalaField>
             <SalaLabel>Descrição</SalaLabel>
-            {salaChannel.id === WAITING_ID ? (
-              <SalaLocked $empty={!salaChannel.description?.trim()}>
-                {salaChannel.description?.trim() || "Opcional"}
-              </SalaLocked>
-            ) : editingDesc ? (
+            {editingDesc ? (
               <SalaNameEdit ref={salaDescRef} onSubmit={saveSalaDesc}>
                 <SalaNameInput
                   autoFocus
@@ -1056,13 +1041,11 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
               </SalaNameButton>
             )}
           </SalaField>
-          {salaChannel.id === WAITING_ID ? (
-            <SalaHint>Sala fixa · todos mutados</SalaHint>
-          ) : (
+          {roster.length > 1 ? (
             <SalaDelete type="button" onClick={() => deleteChannel(salaChannel.id)}>
               Excluir sala
             </SalaDelete>
-          )}
+          ) : null}
         </ProfileCard>
       ) : null}
 
@@ -1097,11 +1080,11 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
       />
 
       <Chat ref={chatRef} $height={chatHeight ?? undefined}>
-        <ChatHead>
-          Chat · {current.name}
-        </ChatHead>
+        <ChatHead>{current ? `Chat · ${current.name}` : "Chat"}</ChatHead>
         <ChatLog>
-          {(chats[current.id] ?? []).length === 0 ? (
+          {!current ? (
+            <ChatLine style={{ color: "#8d8d93" }}>Entre numa sala para conversar.</ChatLine>
+          ) : (chats[current.id] ?? []).length === 0 ? (
             <ChatLine style={{ color: "#8d8d93" }}>Nenhuma mensagem neste canal.</ChatLine>
           ) : (
             (chats[current.id] ?? []).map((line) => (
@@ -1114,10 +1097,13 @@ export function RoomScreen({ room, identity, muted, deafened, startInWaiting, on
         <ChatForm onSubmit={handleChat}>
           <ChatInput
             value={draft}
-            placeholder={`Mensagem em ${current.name}`}
+            disabled={!current}
+            placeholder={current ? `Mensagem em ${current.name}` : "Entre numa sala para conversar"}
             onChange={(event) => setDraft(event.target.value)}
           />
-          <ChatSend type="submit">Enviar</ChatSend>
+          <ChatSend type="submit" disabled={!current}>
+            Enviar
+          </ChatSend>
         </ChatForm>
       </Chat>
     </RoomShell>

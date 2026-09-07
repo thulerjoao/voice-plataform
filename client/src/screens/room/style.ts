@@ -154,7 +154,7 @@ export const Tree = styled.div`
   font-size: 0.88rem;
 `;
 
-export const ChannelBlock = styled.div<{ $drop?: boolean; $waiting?: boolean }>`
+export const ChannelBlock = styled.div<{ $drop?: boolean }>`
   position: relative;
   border-radius: 0.35rem;
   background: ${(p) => (p.$drop ? "rgba(10, 132, 255, 0.14)" : "transparent")};
@@ -173,25 +173,6 @@ export const ChannelBlock = styled.div<{ $drop?: boolean; $waiting?: boolean }>`
     height: 1px;
     background: rgba(255, 255, 255, 0.07);
   }
-
-  ${(p) =>
-    p.$waiting &&
-    css`
-      margin-bottom: 0.15rem;
-      padding-bottom: 0.55rem;
-
-      &::after {
-        content: "";
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: 4px;
-        background:
-          linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)) 0 0 / 100% 1px no-repeat,
-          linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)) 0 100% / 100% 1px no-repeat;
-      }
-    `}
 `;
 
 export const ChannelRow = styled.div<{ $current?: boolean }>`
@@ -347,17 +328,6 @@ export const SalaLabel = styled.div`
   font-weight: 700;
 `;
 
-export const SalaLocked = styled.div<{ $empty?: boolean }>`
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  height: 2rem;
-  padding: 0 0.45rem;
-  color: ${(p) => (p.$empty ? "#8d8d93" : "#f5f5f7")};
-  font-size: 0.95rem;
-  font-weight: 600;
-`;
-
 export const SalaNameButton = styled.button<{ $empty?: boolean }>`
   box-sizing: border-box;
   display: flex;
@@ -509,14 +479,6 @@ export const ProfileAdminLink = styled.button<{ $tone?: "default" | "danger" }>`
     color: ${(p) => (p.$tone === "danger" ? "#ff8a80" : "#d1d1d6")};
     text-decoration: underline;
   }
-`;
-
-export const SalaHint = styled.div`
-  margin-top: 0.55rem;
-  padding: 0 0.45rem;
-  color: #8d8d93;
-  font-size: 0.72rem;
-  font-weight: 600;
 `;
 
 export const SalaDelete = styled.button`
@@ -736,6 +698,34 @@ export const UserFlag = styled.span`
   }
 `;
 
+export const UserLeave = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  flex-shrink: 0;
+  height: 1.2rem;
+  margin-left: auto;
+  padding: 0 0.18rem 0 0.28rem;
+  border: 0;
+  border-radius: 0.28rem;
+  background: transparent;
+  color: #8d8d93;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+
+  svg {
+    width: 0.78rem;
+    height: 0.78rem;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+  }
+`;
+
 export const UserName = styled.span`
   min-width: 0;
   overflow: hidden;
@@ -835,6 +825,11 @@ export const ChatInput = styled.input`
   &:focus {
     border-color: #3b82f6;
   }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 `;
 
 export const ChatSend = styled.button`
@@ -848,11 +843,16 @@ export const ChatSend = styled.button`
   font-weight: 600;
   cursor: pointer;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #3b7cff;
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.99);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 `;

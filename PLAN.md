@@ -151,9 +151,8 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume loc
 
 ## 8. Salas e voz
 
-- Um servidor tem N **salas** (layout tipo TS3: árvore + chat embaixo). Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva neste PC). “Excluir sala” no fim da ficha. **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC.
-- Na listagem, **Sala de espera** fica fixa no topo (sem engrenagem, sem descrição, não exclui). Nela **todos ficam mutados**. Excluir outra sala: o **client** manda quem estava lá para a Sala de espera (não é rota da API).
-- Um clique no servidor da sidebar abre no `Geral` (sem som). Dois cliques entram direto na **Sala de espera**.
+- Um servidor tem N **salas** (layout tipo TS3: árvore + chat embaixo). Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva neste PC). “Excluir sala” no fim da ficha (não apaga a última). **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC.
+- Ao abrir um servidor na sidebar, o client cai no `Geral` (sem som). À direita da **sua** linha, **Sair** tira da sala e fica no servidor sem estar em nenhuma (sem som). Chat só com sala.
 - **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda no mesmo servidor. Clique no canal ou arrastar o nick.
 - Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Ensurdecido = sem som.
 - Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.

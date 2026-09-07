@@ -59,7 +59,7 @@ type View =
   | { type: "home" }
   | { type: "create"; created?: CreatedRoom }
   | { type: "join" }
-  | { type: "room"; roomId: string; waiting?: boolean }
+  | { type: "room"; roomId: string }
   | { type: "settings" };
 
 function MicIcon() {
@@ -222,7 +222,6 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
   const [draft, setDraft] = useState(identity.nickname);
   const statusRef = useRef<HTMLDivElement>(null);
   const nickEditRef = useRef<HTMLFormElement>(null);
-  const roomClickTimer = useRef(0);
   const currentStatus = statusMeta(status);
   const created = view.type === "create" ? view.created : undefined;
   const openRoom = view.type === "room" ? rooms.find((room) => room.roomId === view.roomId) : undefined;
@@ -305,21 +304,9 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
     setView({ type: "create", created: room });
   }
 
-  function enterRoom(roomId: string, waiting = false) {
-    window.clearTimeout(roomClickTimer.current);
-    setView({ type: "room", roomId, waiting });
+  function enterRoom(roomId: string) {
+    setView({ type: "room", roomId });
   }
-
-  function handleRoomClick(roomId: string) {
-    window.clearTimeout(roomClickTimer.current);
-    roomClickTimer.current = window.setTimeout(() => enterRoom(roomId), 220);
-  }
-
-  function handleRoomDoubleClick(roomId: string) {
-    enterRoom(roomId, true);
-  }
-
-  useEffect(() => () => window.clearTimeout(roomClickTimer.current), []);
 
   function handleJoined(room: CreatedRoom) {
     setRooms(rememberRoom(room));
@@ -382,9 +369,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
                 <SidebarRoomButton
                   type="button"
                   $active={openRoom?.roomId === room.roomId}
-                  onClick={() => handleRoomClick(room.roomId)}
-                  onDoubleClick={() => handleRoomDoubleClick(room.roomId)}
-                  title="Clique: Geral · dois cliques: Sala de espera"
+                  onClick={() => enterRoom(room.roomId)}
                 >
                   <SidebarRoomIcon>
                     <PeopleIcon />
@@ -479,7 +464,6 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             identity={identity}
             muted={muted}
             deafened={deafened}
-            startInWaiting={view.type === "room" && view.waiting}
             onLeave={() => leaveRoomList(openRoom.roomId)}
           />
         ) : (
