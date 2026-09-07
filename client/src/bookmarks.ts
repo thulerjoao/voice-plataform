@@ -7,6 +7,12 @@ export type Bookmark = {
   role: "owner" | "admin" | "member";
 };
 
+export function saveBookmark(bookmark: Bookmark): Bookmark[] {
+  const next = [bookmark, ...loadBookmarks().filter((item) => item.roomId !== bookmark.roomId)];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  return next;
+}
+
 export function loadBookmarks(): Bookmark[] {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return [];

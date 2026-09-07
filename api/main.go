@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thulerjoao/voice-plataform/api/internal/db"
+	"github.com/thulerjoao/voice-plataform/api/internal/rooms"
 )
 
 //go:generate sqlc generate
@@ -42,6 +43,7 @@ func main() {
 			"db":     dbStatus,
 		})
 	})
+	mux.HandleFunc("POST /api/rooms", rooms.HandleCreate(store))
 
 	server := &http.Server{Addr: ":8080", Handler: mux}
 

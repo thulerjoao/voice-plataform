@@ -91,13 +91,15 @@ Se o `localStorage` for apagado (reinstalou, limpou dados, formatou o PC): a pes
 
 O backend grava um registro de cliente **por sala** (uid, nickname, papel) quando a pessoa cria ou entra.
 
+Status local (sidebar): **online**, **ocupado**, **volto logo**. Sem invisível — no P2P quem está no canal precisa aparecer. Por enquanto só no PC; a sinalização vem com o WebSocket.
+
 ---
 
 ## 6. Salas
 
 ### Criar
 
-1. Usuário informa o **nome** da sala.
+1. Usuário informa o **nome** da sala (3–24 caracteres; sem aviso na UI — o campo simplesmente não passa de 24).
 2. A API gera um **código de acesso** (ex.: `K7P-TIGRE`), único.
 3. O `uid` de quem criou fica como **owner** e **admin**.
 4. Canal padrão: `Geral`.
@@ -113,7 +115,7 @@ O backend grava um registro de cliente **por sala** (uid, nickname, papel) quand
 
 ### Lista de salas
 
-Só no computador. Home / painel: trocar de sala ou adicionar (colar código).
+Só no computador, **apenas na sidebar**. O centro da home mostra o empty ou a sala aberta — nunca a listagem.
 
 ### Código vazou
 
@@ -185,9 +187,9 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 ## 10. Telas do MVP
 
 1. **Onboarding (uma vez):** nickname.
-2. **Home:** lista local de salas; Criar / Entrar (código).
-3. **Criar sala:** nome → mostra código + copia → entra automático.
-4. **Sala:** árvore à esquerda (nome da sala, canais, nicks, ícones de mute/falando); rodapé (mute, ensurdecer, mic); código visível para copiar convite.
+2. **Home:** lista local de salas **só na sidebar**; centro = empty ou a sala; Criar / Entrar no centro.
+3. **Criar sala:** no centro da home; nome → código + copiar → “Entrar na sala” abre a sala.
+4. **Sala:** árvore + painel no centro; código para copiar. Mute, ensurdecer e configurações ficam no **rodapé da sidebar**.
 5. Trocar de sala pela lista, com o mesmo usuário.
 
 Visual: escuro, poucos botões, janela de app.
@@ -330,4 +332,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Item **1** da seção 13: identidade no client (nickname + `uid` no `localStorage`).
+Item **2** restante: entrar com código. A tela da sala (árvore + rodapé, sem voz) e a troca pela sidebar já existem.

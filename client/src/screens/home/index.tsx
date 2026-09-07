@@ -1,16 +1,18 @@
-import { useState, type FormEvent, type KeyboardEvent } from "react";
-import { loadBookmarks, type Bookmark } from "../../bookmarks";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { loadBookmarks, saveBookmark, type Bookmark } from "../../bookmarks";
+import { loadStatus, saveStatus, STATUSES, statusMeta, type StatusId } from "../../presence";
 import {
   NICKNAME_MAX_LENGTH,
   updateNickname,
   type Identity,
 } from "../../identity";
+import type { CreatedRoom } from "../../api";
+import { CreateRoomScreen } from "../create-room";
+import { RoomScreen } from "../room";
 import {
   Actions,
-  AdminBadge,
   Brand,
   BrandIcon,
-  Chevron,
   Empty,
   EmptyArt,
   EmptyText,
@@ -25,15 +27,24 @@ import {
   NickInput,
   NickName,
   PrimaryButton,
-  RoomCard,
-  RoomCode,
-  RoomIcon,
-  RoomList,
-  RoomMeta,
-  RoomName,
   SecondaryButton,
   Shell,
   Sidebar,
+  SidebarDock,
+  DockButton,
+  SidebarRoom,
+  SidebarRoomButton,
+  SidebarRoomCode,
+  SidebarRoomIcon,
+  SidebarRoomMeta,
+  SidebarRoomName,
+  SidebarRooms,
+  StatusButton,
+  StatusDot,
+  StatusLabel,
+  StatusMenu,
+  StatusOption,
+  StatusWrap,
   Subtitle,
   Title,
 } from "./style";
@@ -42,6 +53,12 @@ type HomeScreenProps = {
   identity: Identity;
   onNicknameChange: (identity: Identity) => void;
 };
+
+type View =
+  | { type: "home" }
+  | { type: "create"; created?: CreatedRoom }
+  | { type: "room"; roomId: string }
+  | { type: "settings" };
 
 function MicIcon() {
   return (
@@ -122,6 +139,41 @@ function PlusIcon() {
   );
 }
 
+function MicOffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M7 11a5 5 0 0 0 6.6 4.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M12 16v3M9 19h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M5 5l14 14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HeadsetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 13V11a7 7 0 0 1 14 0v2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <rect x="3.5" y="12.2" width="4.2" height="6.2" rx="1.4" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="16.3" y="12.2" width="4.2" height="6.2" rx="1.4" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.1" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M19.2 13.1a7.6 7.6 0 0 0 0-2.2l1.7-1.3-1.6-2.8-2 .8a7.7 7.7 0 0 0-1.9-1.1L15 4.2h-6l-.4 2.3a7.7 7.7 0 0 0-1.9 1.1l-2-.8-1.6 2.8 1.7 1.3a7.6 7.6 0 0 0 0 2.2L3.1 14.4l1.6 2.8 2-.8a7.7 7.7 0 0 0 1.9 1.1l.4 2.3h6l.4-2.3a7.7 7.7 0 0 0 1.9-1.1l2 .8 1.6-2.8-1.7-1.3z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function EnterIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -131,10 +183,10 @@ function EnterIcon() {
   );
 }
 
-function RoomActions({ stacked }: { stacked?: boolean }) {
+function RoomActions({ onCreate }: { onCreate: () => void }) {
   return (
-    <Actions style={stacked ? { justifyContent: "center" } : undefined}>
-      <PrimaryButton type="button">
+    <Actions style={{ justifyContent: "center" }}>
+      <PrimaryButton type="button" onClick={onCreate}>
         <PlusIcon />
         Criar sala
       </PrimaryButton>
@@ -146,47 +198,20 @@ function RoomActions({ stacked }: { stacked?: boolean }) {
   );
 }
 
-function Rooms({ rooms }: { rooms: Bookmark[] }) {
-  if (rooms.length === 0) {
-    return (
-      <Empty>
-        <EmptyArt>
-          <EmptyRoomsArt />
-        </EmptyArt>
-        <EmptyTitle>Nenhuma sala ainda</EmptyTitle>
-        <EmptyText>Crie sua primeira sala ou entre em uma existente para começar.</EmptyText>
-        <RoomActions stacked />
-      </Empty>
-    );
-  }
-
-  return (
-    <RoomList>
-      {rooms.map((room) => (
-        <li key={room.roomId}>
-          <RoomCard type="button">
-            <RoomIcon>
-              <PeopleIcon />
-            </RoomIcon>
-            <RoomMeta>
-              <RoomName>
-                {room.name}
-                {room.role !== "member" ? <AdminBadge>Você é admin</AdminBadge> : null}
-              </RoomName>
-              <RoomCode>{room.code}</RoomCode>
-            </RoomMeta>
-            <Chevron aria-hidden>›</Chevron>
-          </RoomCard>
-        </li>
-      ))}
-    </RoomList>
-  );
-}
-
 export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
-  const [rooms] = useState(loadBookmarks);
+  const [rooms, setRooms] = useState(loadBookmarks);
+  const [view, setView] = useState<View>({ type: "home" });
+  const [muted, setMuted] = useState(false);
+  const [deafened, setDeafened] = useState(false);
+  const [status, setStatus] = useState(loadStatus);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(identity.nickname);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const nickEditRef = useRef<HTMLFormElement>(null);
+  const currentStatus = statusMeta(status);
+  const created = view.type === "create" ? view.created : undefined;
+  const openRoom = view.type === "room" ? rooms.find((room) => room.roomId === view.roomId) : undefined;
 
   function openEdit() {
     setDraft(identity.nickname);
@@ -212,6 +237,67 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
     if (event.key === "Escape") cancelEdit();
   }
 
+  function handleStatus(next: StatusId) {
+    setStatus(next);
+    saveStatus(next);
+    setStatusOpen(false);
+  }
+
+  useEffect(() => {
+    if (!editing) return;
+
+    function handlePointer(event: MouseEvent) {
+      if (nickEditRef.current && !nickEditRef.current.contains(event.target as Node)) {
+        cancelEdit();
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointer);
+    return () => document.removeEventListener("mousedown", handlePointer);
+  }, [editing]);
+
+  useEffect(() => {
+    if (!statusOpen) return;
+
+    function handlePointer(event: MouseEvent) {
+      if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
+        setStatusOpen(false);
+      }
+    }
+
+    function handleEscape(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") setStatusOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointer);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointer);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [statusOpen]);
+
+  function handleCreated(room: CreatedRoom) {
+    setRooms(
+      saveBookmark({
+        roomId: room.id,
+        name: room.name,
+        code: room.code,
+        role: room.role,
+      }),
+    );
+    setView({ type: "create", created: room });
+  }
+
+  function backToHome() {
+    setView({ type: "home" });
+  }
+
+  function enterCreatedRoom() {
+    if (created) setView({ type: "room", roomId: created.id });
+    else backToHome();
+  }
+
   return (
     <Shell>
       <Sidebar>
@@ -222,7 +308,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
           Voice
         </Brand>
         {editing ? (
-          <NickEdit onSubmit={handleSave}>
+          <NickEdit ref={nickEditRef} onSubmit={handleSave}>
             <NickInput
               autoFocus
               maxLength={NICKNAME_MAX_LENGTH}
@@ -243,21 +329,127 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             <EditIcon />
           </NickButton>
         )}
-        <NavItem>
+        <NavItem type="button" onClick={backToHome}>
           <HomeIcon />
           Salas
         </NavItem>
+        {rooms.length > 0 ? (
+          <SidebarRooms>
+            {rooms.map((room: Bookmark) => (
+              <SidebarRoom key={room.roomId}>
+                <SidebarRoomButton
+                  type="button"
+                  $active={openRoom?.roomId === room.roomId}
+                  onClick={() => setView({ type: "room", roomId: room.roomId })}
+                >
+                  <SidebarRoomIcon>
+                    <PeopleIcon />
+                  </SidebarRoomIcon>
+                  <SidebarRoomMeta>
+                    <SidebarRoomName>{room.name}</SidebarRoomName>
+                    <SidebarRoomCode>{room.code}</SidebarRoomCode>
+                  </SidebarRoomMeta>
+                </SidebarRoomButton>
+              </SidebarRoom>
+            ))}
+          </SidebarRooms>
+        ) : null}
+        <SidebarDock>
+          <DockButton
+            type="button"
+            $on={muted || deafened}
+            title={muted || deafened ? "Ativar microfone" : "Silenciar microfone"}
+            onClick={() => setMuted((value) => !value)}
+          >
+            {muted || deafened ? <MicOffIcon /> : <MicIcon />}
+          </DockButton>
+          <DockButton
+            type="button"
+            $on={deafened}
+            title={deafened ? "Ouvir de novo" : "Ensurdecer"}
+            onClick={() => {
+              setDeafened((value) => {
+                const next = !value;
+                setMuted(next);
+                return next;
+              });
+            }}
+          >
+            <HeadsetIcon />
+          </DockButton>
+          <DockButton type="button" title="Configurações" onClick={() => setView({ type: "settings" })}>
+            <GearIcon />
+          </DockButton>
+          <StatusWrap ref={statusRef}>
+            <StatusButton
+              type="button"
+              title="Alterar status"
+              onClick={() => setStatusOpen((open) => !open)}
+            >
+              <StatusDot $color={currentStatus.color} />
+              <StatusLabel>{currentStatus.label}</StatusLabel>
+            </StatusButton>
+            {statusOpen ? (
+              <StatusMenu>
+                {STATUSES.map((item) => (
+                  <StatusOption
+                    key={item.id}
+                    type="button"
+                    $active={item.id === status}
+                    onClick={() => handleStatus(item.id)}
+                  >
+                    <StatusDot $color={item.color} />
+                    {item.label}
+                  </StatusOption>
+                ))}
+              </StatusMenu>
+            ) : null}
+          </StatusWrap>
+        </SidebarDock>
       </Sidebar>
 
       <Main>
-        <Header>
-          <HeaderCopy>
-            <Title>Salas</Title>
-            <Subtitle>Crie uma sala ou entre com um código para começar a conversar com seu squad.</Subtitle>
-          </HeaderCopy>
-          {rooms.length > 0 ? <RoomActions /> : null}
-        </Header>
-        <Rooms rooms={rooms} />
+        {view.type === "create" ? (
+          <CreateRoomScreen
+            identity={identity}
+            created={created}
+            onCancel={backToHome}
+            onCreated={handleCreated}
+            onEnter={enterCreatedRoom}
+          />
+        ) : view.type === "settings" ? (
+          <>
+            <Header>
+              <HeaderCopy>
+                <Title>Configurações</Title>
+                <Subtitle>Ajustes do app entram aqui. Por enquanto o nickname se edita na barra à esquerda.</Subtitle>
+              </HeaderCopy>
+            </Header>
+          </>
+        ) : openRoom ? (
+          <RoomScreen room={openRoom} identity={identity} />
+        ) : (
+          <>
+            <Header>
+              <HeaderCopy>
+                <Title>Salas</Title>
+                <Subtitle>Crie uma sala ou entre com um código para começar a conversar com seu squad.</Subtitle>
+              </HeaderCopy>
+            </Header>
+            <Empty>
+              <EmptyArt>
+                <EmptyRoomsArt />
+              </EmptyArt>
+              <EmptyTitle>{rooms.length === 0 ? "Nenhuma sala ainda" : "Pronto para conversar"}</EmptyTitle>
+              <EmptyText>
+                {rooms.length === 0
+                  ? "Crie sua primeira sala ou entre em uma existente para começar."
+                  : "Suas salas estão à esquerda. Crie outra ou entre com um código."}
+              </EmptyText>
+              <RoomActions onCreate={() => setView({ type: "create" })} />
+            </Empty>
+          </>
+        )}
       </Main>
     </Shell>
   );

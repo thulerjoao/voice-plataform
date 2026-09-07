@@ -87,21 +87,228 @@ export const NickName = styled.span`
   font-weight: 600;
 `;
 
-export const NavItem = styled.div`
+export const NavItem = styled.button`
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  width: 100%;
   padding: 0.65rem 0.75rem;
+  border: 0;
   border-radius: 0.75rem;
   background: #0a84ff;
   color: #fff;
   font-size: 0.95rem;
   font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 
   svg {
     width: 1.1rem;
     height: 1.1rem;
   }
+
+  &:hover {
+    background: #1a8cff;
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+`;
+
+export const SidebarDock = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
+`;
+
+export const StatusWrap = styled.div`
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+`;
+
+export const StatusButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  height: 2.4rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5f5f7;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+`;
+
+export const StatusDot = styled.span<{ $color: string }>`
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: ${(p) => p.$color};
+`;
+
+export const StatusLabel = styled.span`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+export const StatusMenu = styled.div`
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.4rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: max-content;
+  min-width: 100%;
+  padding: 0.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.7rem;
+  background: #3a3a3c;
+`;
+
+export const StatusOption = styled.button<{ $active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 0.5rem;
+  background: ${(p) => (p.$active ? "rgba(255, 255, 255, 0.08)" : "transparent")};
+  color: #f5f5f7;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+`;
+
+export const DockButton = styled.button<{ $on?: boolean }>`
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 0;
+  border-radius: 0.65rem;
+  background: ${(p) => (p.$on ? "rgba(255, 69, 58, 0.18)" : "rgba(255, 255, 255, 0.06)")};
+  color: ${(p) => (p.$on ? "#ff453a" : "#f5f5f7")};
+  cursor: pointer;
+
+  svg {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  &:hover {
+    background: ${(p) => (p.$on ? "rgba(255, 69, 58, 0.26)" : "rgba(255, 255, 255, 0.1)")};
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+`;
+
+export const SidebarRooms = styled.ul`
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+`;
+
+export const SidebarRoom = styled.li`
+  min-width: 0;
+`;
+
+export const SidebarRoomButton = styled.button<{ $active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid ${(p) => (p.$active ? "#636366" : "transparent")};
+  border-radius: 0.7rem;
+  background: ${(p) => (p.$active ? "rgba(255, 255, 255, 0.06)" : "transparent")};
+  color: #f5f5f7;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+`;
+
+export const SidebarRoomIcon = styled.span`
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  flex-shrink: 0;
+  color: #8d8d93;
+
+  svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+`;
+
+export const SidebarRoomMeta = styled.span`
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+`;
+
+export const SidebarRoomName = styled.span`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+`;
+
+export const SidebarRoomCode = styled.span`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8d8d93;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
 `;
 
 export const Main = styled.main`
@@ -213,85 +420,6 @@ export const SecondaryButton = styled.button`
   &:active {
     transform: scale(0.99);
   }
-`;
-
-export const RoomList = styled.ul`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-`;
-
-export const RoomCard = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  width: 100%;
-  padding: 0.95rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.9rem;
-  background: #3a3a3c;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    background: #444446;
-  }
-`;
-
-export const RoomIcon = styled.span`
-  display: grid;
-  place-items: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 0.7rem;
-  background: #2c2c2e;
-  color: #0a84ff;
-  flex-shrink: 0;
-
-  svg {
-    width: 1.2rem;
-    height: 1.2rem;
-  }
-`;
-
-export const RoomMeta = styled.span`
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-`;
-
-export const RoomName = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-`;
-
-export const RoomCode = styled.span`
-  color: #a1a1a6;
-  font-size: 0.82rem;
-  letter-spacing: 0.04em;
-`;
-
-export const AdminBadge = styled.span`
-  padding: 0.12rem 0.45rem;
-  border-radius: 999px;
-  background: rgba(10, 132, 255, 0.18);
-  color: #64b5ff;
-  font-size: 0.7rem;
-  font-weight: 600;
-`;
-
-export const Chevron = styled.span`
-  color: #8e8e93;
-  flex-shrink: 0;
 `;
 
 export const Empty = styled.div`
