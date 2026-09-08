@@ -32,6 +32,8 @@ import {
   sendOccupancy,
   subscribeOccupancy,
 } from "../../occupancy";
+import { connectChat } from "../../chat";
+import { connectActivity } from "../../activity";
 import {
   isEditableTarget,
   loadAudioSettings,
@@ -921,7 +923,11 @@ export function HomeScreen({
       onOpen: () => setSyncGen((value) => value + 1),
     });
     const stopOccupancy = connectOccupancy();
+    const stopChat = connectChat();
+    const stopActivity = connectActivity();
     return () => {
+      stopActivity();
+      stopChat();
       stopOccupancy();
       stopData();
     };

@@ -24,7 +24,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func HandleWS(store *db.DB, hub *Hub, presence *Presence) http.HandlerFunc {
+func HandleWS(store *db.DB, hub *Hub, presence *Presence, chat *Chat) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := strings.TrimSpace(r.URL.Query().Get("uid"))
 		if uid == "" {
@@ -48,6 +48,7 @@ func HandleWS(store *db.DB, hub *Hub, presence *Presence) http.HandlerFunc {
 		go c.writePump(conn)
 		c.readPump(conn, func(raw []byte) {
 			presence.HandleMessage(context.Background(), store, uid, raw)
+			chat.HandleMessage(context.Background(), store, uid, raw)
 		})
 		hub.remove(c)
 		close(c.send)

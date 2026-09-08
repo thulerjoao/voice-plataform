@@ -58,6 +58,35 @@ func NewPresence(hub *Hub) *Presence {
 	}
 }
 
+func (p *Presence) SeatOf(uid string) *Seat {
+	if p == nil || uid == "" {
+		return nil
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	seat := p.seats[uid]
+	if seat == nil {
+		return nil
+	}
+	copy := *seat
+	return &copy
+}
+
+func (p *Presence) UIDsInChannel(channelID string) []string {
+	out := make([]string, 0)
+	if p == nil || channelID == "" {
+		return out
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, seat := range p.seats {
+		if seat.ChannelID == channelID {
+			out = append(out, seat.UID)
+		}
+	}
+	return out
+}
+
 func (p *Presence) Occupancy(roomID string) []Occupant {
 	out := make([]Occupant, 0)
 	if p == nil || roomID == "" {

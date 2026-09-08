@@ -74,7 +74,7 @@ type renameRequest struct {
 	UID  string `json:"uid"`
 }
 
-func HandleRename(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleRename(store *db.DB, hub *realtime.Hub, activity *realtime.Activity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req renameRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -82,7 +82,9 @@ func HandleRename(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 
-		details, err := Rename(r.Context(), store, r.PathValue("id"), req.UID, req.Name)
+		roomID := r.PathValue("id")
+		oldName := peekRoomName(r.Context(), store, roomID)
+		details, err := Rename(r.Context(), store, roomID, req.UID, req.Name)
 		if err != nil {
 			writeRoomErr(w, err, "Não foi possível alterar o nome.")
 			return
@@ -92,6 +94,7 @@ func HandleRename(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			Type: "room.renamed",
 			Name: details.Name,
 		})
+		logServerRenamed(r.Context(), store, activity, details.ID, req.UID, oldName, details.Name)
 	}
 }
 
@@ -221,7 +224,7 @@ type channelWriteRequest struct {
 	Description string `json:"description"`
 }
 
-func HandleCreateChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleCreateChannel(store *db.DB, hub *realtime.Hub, activity *realtime.Activity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req channelWriteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -229,7 +232,8 @@ func HandleCreateChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 
-		channel, err := CreateSala(r.Context(), store, r.PathValue("id"), req.UID, req.Name, req.Description)
+		roomID := r.PathValue("id")
+		channel, err := CreateSala(r.Context(), store, roomID, req.UID, req.Name, req.Description)
 		if err != nil {
 			if errors.Is(err, ErrInvalidName) {
 				writeError(w, http.StatusBadRequest, "O nome da sala precisa ter de 1 a 24 caracteres.")
@@ -239,16 +243,17 @@ func HandleCreateChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusCreated, channel)
-		publish(r.Context(), store, hub, r.PathValue("id"), nil, realtime.Event{
+		publish(r.Context(), store, hub, roomID, nil, realtime.Event{
 			Type:        "channel.created",
 			ID:          channel.ID,
 			Name:        channel.Name,
 			Description: channel.Description,
 		})
+		logSalaCreated(r.Context(), store, activity, roomID, req.UID, channel.Name)
 	}
 }
 
-func HandleUpdateChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleUpdateChannel(store *db.DB, hub *realtime.Hub, activity *realtime.Activity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req channelWriteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -256,7 +261,10 @@ func HandleUpdateChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 
-		channel, err := UpdateSala(r.Context(), store, r.PathValue("id"), r.PathValue("channelId"), req.UID, req.Name, req.Description)
+		roomID := r.PathValue("id")
+		channelID := r.PathValue("channelId")
+		prev, found := peekChannel(r.Context(), store, roomID, channelID)
+		channel, err := UpdateSala(r.Context(), store, roomID, channelID, req.UID, req.Name, req.Description)
 		if err != nil {
 			if errors.Is(err, ErrInvalidName) {
 				writeError(w, http.StatusBadRequest, "O nome da sala precisa ter de 1 a 24 caracteres.")
@@ -266,28 +274,34 @@ func HandleUpdateChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, channel)
-		publish(r.Context(), store, hub, r.PathValue("id"), nil, realtime.Event{
+		publish(r.Context(), store, hub, roomID, nil, realtime.Event{
 			Type:        "channel.updated",
 			ID:          channel.ID,
 			Name:        channel.Name,
 			Description: channel.Description,
 		})
+		logSalaUpdated(r.Context(), store, activity, roomID, channel.ID, req.UID, prev, found, channel)
 	}
 }
 
-func HandleDeleteChannel(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
+func HandleDeleteChannel(store *db.DB, hub *realtime.Hub, presence *realtime.Presence, activity *realtime.Activity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := DeleteSala(r.Context(), store, r.PathValue("id"), r.PathValue("channelId"), r.URL.Query().Get("uid"))
+		roomID := r.PathValue("id")
+		channelID := r.PathValue("channelId")
+		actorUID := r.URL.Query().Get("uid")
+		prev, _ := peekChannel(r.Context(), store, roomID, channelID)
+		err := DeleteSala(r.Context(), store, roomID, channelID, actorUID)
 		if err != nil {
 			writeRoomErr(w, err, "Não foi possível apagar a sala.")
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
-		presence.DropChannel(r.PathValue("channelId"))
-		publish(r.Context(), store, hub, r.PathValue("id"), nil, realtime.Event{
+		presence.DropChannel(channelID)
+		publish(r.Context(), store, hub, roomID, nil, realtime.Event{
 			Type:      "channel.deleted",
-			ChannelID: r.PathValue("channelId"),
+			ChannelID: channelID,
 		})
+		logSalaDeleted(r.Context(), store, activity, roomID, actorUID, prev.Name)
 	}
 }
 
@@ -305,7 +319,7 @@ type blockRequest struct {
 	TargetUID string `json:"targetUid"`
 }
 
-func HandleSetRole(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
+func HandleSetRole(store *db.DB, hub *realtime.Hub, presence *realtime.Presence, activity *realtime.Activity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req roleRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -326,10 +340,11 @@ func HandleSetRole(store *db.DB, hub *realtime.Hub, presence *realtime.Presence)
 			UID:  memberUID,
 			Role: req.Role,
 		})
+		logRoleChanged(r.Context(), store, activity, details.ID, req.UID, memberUID, req.Role)
 	}
 }
 
-func HandleKick(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
+func HandleKick(store *db.DB, hub *realtime.Hub, presence *realtime.Presence, activity *realtime.Activity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req actorRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -349,10 +364,11 @@ func HandleKick(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) ht
 			Type: "member.kicked",
 			UID:  memberUID,
 		})
+		logKicked(r.Context(), store, activity, details.ID, req.UID, memberUID)
 	}
 }
 
-func HandleBlock(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
+func HandleBlock(store *db.DB, hub *realtime.Hub, presence *realtime.Presence, activity *realtime.Activity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req blockRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -376,13 +392,15 @@ func HandleBlock(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) h
 			UID:      req.TargetUID,
 			Nickname: nickname,
 		})
+		logBlocked(r.Context(), store, activity, details.ID, req.UID, req.TargetUID)
 	}
 }
 
-func HandleUnblock(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleUnblock(store *db.DB, hub *realtime.Hub, activity *realtime.Activity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		memberUID := r.PathValue("memberUid")
-		details, err := Unblock(r.Context(), store, r.PathValue("id"), r.URL.Query().Get("uid"), memberUID)
+		actorUID := r.URL.Query().Get("uid")
+		details, err := Unblock(r.Context(), store, r.PathValue("id"), actorUID, memberUID)
 		if err != nil {
 			writeRoomErr(w, err, "Não foi possível desbloquear.")
 			return
@@ -392,6 +410,7 @@ func HandleUnblock(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			Type: "member.unblocked",
 			UID:  memberUID,
 		})
+		logUnblocked(r.Context(), store, activity, details.ID, actorUID, memberUID)
 	}
 }
 

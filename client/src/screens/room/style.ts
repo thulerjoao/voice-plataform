@@ -768,7 +768,7 @@ export const ChatTabs = styled.div`
   overflow-x: auto;
 `;
 
-export const ChatTab = styled.div<{ $active?: boolean }>`
+export const ChatTab = styled.div<{ $active?: boolean; $unread?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -780,8 +780,13 @@ export const ChatTab = styled.div<{ $active?: boolean }>`
   padding: 0 0.4rem 0 0.55rem;
   border: 0;
   border-bottom: 2px solid ${(p) => (p.$active ? "#2f6fed" : "transparent")};
-  background: ${(p) => (p.$active ? "rgba(255, 255, 255, 0.06)" : "transparent")};
-  color: ${(p) => (p.$active ? "#f5f5f7" : "#8d8d93")};
+  background: ${(p) =>
+    p.$unread
+      ? "rgba(47, 111, 237, 0.38)"
+      : p.$active
+        ? "rgba(255, 255, 255, 0.06)"
+        : "transparent"};
+  color: ${(p) => (p.$active || p.$unread ? "#f5f5f7" : "#8d8d93")};
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -792,7 +797,8 @@ export const ChatTab = styled.div<{ $active?: boolean }>`
 
   &:hover {
     color: #f5f5f7;
-    background: rgba(255, 255, 255, 0.05);
+    background: ${(p) =>
+      p.$unread ? "rgba(47, 111, 237, 0.5)" : "rgba(255, 255, 255, 0.05)"};
   }
 `;
 
@@ -838,15 +844,37 @@ export const ChatLog = styled.div`
   gap: 0.28rem;
 `;
 
-export const ChatLine = styled.p`
+export const ChatLine = styled.p<{ $log?: boolean }>`
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.35;
-  color: #f5f5f7;
+  color: ${(p) => (p.$log ? "#8d8d93" : "#f5f5f7")};
 `;
 
-export const ChatNick = styled.span`
-  color: #7eb0ff;
+export const ChatDay = styled.p`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.35rem 0 0.05rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #8d8d93;
+
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+`;
+
+export const ChatTime = styled.span`
+  color: #8d8d93;
+`;
+
+export const ChatNick = styled.span<{ $you?: boolean }>`
+  color: ${(p) => (p.$you ? "#30d158" : "#7eb0ff")};
   font-weight: 600;
 `;
 

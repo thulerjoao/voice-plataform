@@ -156,7 +156,7 @@ Cargos mínimos:
 
 Cargo não aparece nas linhas dos outros (você se reconhece pelo fundo). Na **sua** linha, o papel fica discreto **à direita** do nick, só quando você está numa sala. Cargo completo na ficha.
 
-Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume local** só na ficha de **outra** pessoa (deste PC, `localStorage` por uid — não é o volume geral). Na sua ficha não tem slider. **Promover a admin** (dono e admin; só em membro). Rebaixar admin: só dono. Recado: envia a primeira mensagem e abre uma **aba** no chat (1:1). Uma conversa visível por vez; clicar na aba troca. Som no destinatário. Sem modal. Sem banco — some ao recarregar. Dá para fechar a aba e reabrir no mesmo uso.
+Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume local** só na ficha de **outra** pessoa (deste PC, `localStorage` por uid — não é o volume geral). Na sua ficha não tem slider. **Promover a admin** (dono e admin; só em membro). Rebaixar admin: só dono. Recado: envia a primeira mensagem e abre uma **aba** no chat (1:1). Uma conversa visível por vez; clicar na aba troca. Som no destinatário. Aba com recado novo (se não estiver aberta) fica com **fundo azul** até clicar. Sem modal. Sem banco — some ao recarregar. Dá para fechar a aba e reabrir no mesmo uso.
 
 ---
 
@@ -167,7 +167,7 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume l
 - **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda no mesmo servidor. Clique no canal ou arrastar o nick.
 - Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Outro som, mais baixo, quando **você** sai (**Sair** ou a sala some) e quando **alguém sai da sua sala**. Trocar de sala: só o de entrada. Ensurdecido = sem som.
 - Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.
-- Chat por sala: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela sala na hora. Cada um desses clients guarda o texto **no próprio PC**; quem não estava não vê depois, nem ao entrar. Não é MVP, mas não é difícil.
+- Chat por sala: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela sala na hora. Cada client guarda o log **neste PC** (até 200 linhas por sala); quem não estava não recebe o histórico da API. Recado 1:1 no mesmo módulo (`chat.direct`), só memória da sessão. Linhas de **auditoria** (renomear, cargo, kick…) vêm do módulo de log, cinza no mesmo feed — não são chat e não incluem entrada/saída. Hora local antes de cada linha (`18:12 -`); separador de dia (`Hoje` / `Ontem` / data) quando o dia muda.
 - Cada canal = malha **estrela**: um **host** (primeiro que entrou) e os outros como client dele.
 - A API sinaliza: quem está no canal, quem é host, quem é sucessor, troca ICE/SDP.
 
@@ -240,9 +240,14 @@ Visual: escuro, poucos botões, janela de app.
 
 **WebSocket** (`GET /ws?uid=`)
 
-Um socket (`GET /ws?uid=`). Dois módulos no mesmo fio: o de **dados persistidos** ignora tipos que não conhece; o de **ocupação** só lê `presence.*`.
+Um socket (`GET /ws?uid=`). Quatro módulos no mesmo fio; cada um ignora tipos que não conhece:
 
-Escrita de servidor/sala/membro continua no HTTP; depois do commit a API manda o evento de dados para os membros daquele servidor (nick: para quem compartilha algum servidor com o uid).
+1. **dados** — servidor/sala/membro persistidos (`room.*`, `channel.*`, `member.*`, `user.nickname`)
+2. **ocupação** — assentos em RAM (`presence.*`)
+3. **chat** — texto da sala e recado (`chat.sala`, `chat.direct`)
+4. **log** — auditoria em português (`log.sala`, `log.server`); só a API emite, depois do commit HTTP
+
+Escrita de servidor/sala/membro continua no HTTP; depois do commit a API manda o evento de dados para os membros daquele servidor (nick: para quem compartilha algum servidor com o uid). O módulo de log **não** mistura frase no evento de dados: `channel.updated` continua só id/nome/descrição.
 
 Dados:
 
@@ -256,7 +261,20 @@ Ocupação (RAM, teto 12, um `uid` numa sala; **não** vai no GET do servidor):
 - client → `presence.join` / `presence.leave` / `presence.move` / `presence.sync`
 - API → `presence.joined` / `presence.left` / `presence.full` / `presence.state`
 
-- (depois) chat da sala, host, sucessor, ICE
+Chat (sem banco; teto 120 caracteres):
+
+- client → `chat.sala` `{ roomId, channelId, id, text }` (só se o uid está naquela sala) / `chat.direct` `{ roomId, uid, id, text }` (`uid` = destinatário; ambos membros)
+- API → `chat.sala` `{ roomId, channelId, uid, nickname, id, text, at }` só para quem está na sala; `chat.direct` `{ roomId, uid, to, nickname, toNickname, id, text, at }` só para os dois
+- log de mensagens da sala: `localStorage` neste PC. Recado: some ao recarregar.
+
+Log de atividade (sem banco; frase pronta na API; fanout para **todos** os membros do servidor):
+
+- `log.sala` `{ roomId, channelId, id, text, at }` — nome ou descrição daquela sala
+- `log.server` `{ roomId, id, text, at }` — nome do servidor, criar/apagar sala, cargo, excluir, bloquear, desbloquear
+- **Não** registra quem entra ou sai do servidor nem quem senta/levanta na sala (a árvore e a lista de membros já mostram isso; no chat de squad isso vira ruído)
+- No chat da sala aberta: mensagens + `log.sala` daquela sala + `log.server` do servidor, ordenados por `at`. Linha de log toda cinza. Prefixo de hora local (`18:12 -`); separador de dia (`Hoje` / `Ontem` / `8 de setembro`) quando o dia muda. O **seu** nick é verde; o das outras pessoas, azul. Cada PC guarda até 200 linhas por sala e 200 do servidor.
+
+- (depois) host, sucessor, ICE
 
 Reconexão: o client faz de novo o `GET` do servidor que está na tela.
 
@@ -338,7 +356,7 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
 ### Comunicação extra (no mesmo canal)
 
-- chat de texto (canal + sala)
+- chat de texto (canal + recado; log da sala neste PC)
 - **Streaming (depois do MVP), P2P em árvore:** o streamer **não** manda uma cópia para cada um. Elege **2–3 relés** (boa NAT/upload, de preferência quem não está no jogo pesado). Relé **só encaminha** o pacote já codificado — sem decodificar/recodificar. O resto assiste no segundo salto. Até **12** no canal podem ver.
 - Se um relé cair: sucessor já escolhido (igual voz). Máximo **2 saltos**.
 - Voz continua no host do canal — não mistura com vídeo.
@@ -384,4 +402,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Chat da sala no mesmo WebSocket (sem banco; só quem está na sala na hora). WebRTC / P2P continua depois.
+Chat da sala, recado e log de auditoria (cinza) já estão em módulos WS separados. WebRTC / P2P continua depois.
