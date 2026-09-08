@@ -35,7 +35,11 @@ import {
 import { connectChat } from "../../chat";
 import { connectActivity } from "../../activity";
 import { connectRtc } from "../../rtc";
-import { startRtcSignaling, syncRtcSignaling } from "../../rtc-session";
+import {
+  setRtcMedia,
+  startRtcSignaling,
+  syncRtcSignaling,
+} from "../../rtc-session";
 import {
   isEditableTarget,
   loadAudioSettings,
@@ -965,6 +969,18 @@ export function HomeScreen({
   useEffect(() => {
     syncRtcSignaling();
   }, [call]);
+
+  useEffect(() => {
+    setRtcMedia({
+      send:
+        Boolean(call) &&
+        !muted &&
+        !deafened &&
+        (loadAudioSettings().inputMode !== "ptt" || talking),
+      listen: Boolean(call) && !deafened,
+      volume: outputVolume,
+    });
+  }, [call, muted, deafened, talking, outputVolume]);
 
   useEffect(() => {
     return subscribeRealtimeOpen(() => {

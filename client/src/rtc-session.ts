@@ -1,4 +1,9 @@
 import {
+  loadAudioSettings,
+  subscribeAudioSettings,
+  type AudioSettings,
+} from "./audio-settings";
+import {
   subscribeOccupancy,
   type OccupancyEvent,
   type Occupant,
@@ -16,6 +21,7 @@ type Peer = {
 };
 
 const peers = new Map<string, Peer>();
+const remotes = new Map<string, HTMLAudioElement>();
 let seats: Occupant[] = [];
 let getCall: () => Call | null = () => null;
 let selfUid = "";
@@ -23,6 +29,13 @@ let signalRefs = 0;
 let dropSignal: number | null = null;
 let stopOccupancy: (() => void) | null = null;
 let stopRtc: (() => void) | null = null;
+let stopAudio: (() => void) | null = null;
+let localStream: MediaStream | null = null;
+let micJob: Promise<MediaStreamTrack | null> | null = null;
+let sendEnabled = false;
+let listenEnabled = true;
+let outputVolume = loadAudioSettings().outputVolume;
+let outputDeviceId = loadAudioSettings().outputDeviceId;
 
 function onOccupancy(event: OccupancyEvent) {
   const call = getCall();
@@ -66,6 +79,7 @@ export function startRtcSignaling(
     stopRtc = subscribeRtc((event) => {
       void onRtc(event);
     });
+    stopAudio = subscribeAudioSettings(onAudioSettings);
   }
   signalRefs += 1;
   void reconcile();
@@ -77,9 +91,12 @@ export function startRtcSignaling(
       if (signalRefs > 0) return;
       stopOccupancy?.();
       stopRtc?.();
+      stopAudio?.();
       stopOccupancy = null;
       stopRtc = null;
+      stopAudio = null;
       closeAll();
+      releaseMic();
       seats = [];
       getCall = () => null;
       selfUid = "";
@@ -91,10 +108,24 @@ export function syncRtcSignaling(nextSeats?: Occupant[]): void {
   if (nextSeats) seats = nextSeats;
   if (!getCall()) {
     closeAll();
+    releaseMic();
     seats = [];
     return;
   }
+  void ensureMic();
   void reconcile();
+}
+
+export function setRtcMedia(next: {
+  send: boolean;
+  listen: boolean;
+  volume: number;
+}): void {
+  sendEnabled = next.send;
+  listenEnabled = next.listen;
+  outputVolume = next.volume;
+  applyLocalSend();
+  applyRemoteListen();
 }
 
 function salaSeats(call: Call): Occupant[] {
@@ -124,14 +155,6 @@ async function reconcile(): Promise<void> {
   }
 
   const host = hostUid(call);
-  const seatedCount = seated.size;
-  if (seatedCount > 0) {
-    console.info(
-      "[rtc] sala",
-      seatedCount,
-      host === selfUid ? "host=me" : `host=${host ?? "?"}`,
-    );
-  }
   if (!host || host === selfUid) return;
   const existing = peers.get(host);
   if (existing && peerAlive(existing)) return;
@@ -144,8 +167,10 @@ async function offerTo(call: Call, peerUid: string): Promise<void> {
   if (peer.offered) return;
   peer.offered = true;
   try {
+    await addLocalAudio(peer.pc);
     const offer = await peer.pc.createOffer();
     await peer.pc.setLocalDescription(offer);
+    applyLocalSend();
     await waitIce(peer.pc);
     const sdp = peer.pc.localDescription?.sdp;
     if (!sdp) return;
@@ -188,9 +213,11 @@ async function applyRtc(call: Call, event: RtcEvent): Promise<void> {
       type: "offer",
       sdp: sanitizeSdp(event.sdp),
     });
+    await addLocalAudio(peer.pc);
     await flushIce(peer);
     const answer = await peer.pc.createAnswer();
     await peer.pc.setLocalDescription(answer);
+    applyLocalSend();
     await waitIce(peer.pc);
     const sdp = peer.pc.localDescription?.sdp;
     if (!sdp) return;
@@ -241,9 +268,12 @@ function peerOf(peerUid: string): Peer {
   if (existing) return existing;
 
   const pc = new RTCPeerConnection(STUN);
-  pc.addTransceiver("audio", { direction: "sendrecv" });
   const peer: Peer = { pc, ice: [], offered: false };
   peers.set(peerUid, peer);
+  pc.ontrack = (event) => {
+    if (peerUid === selfUid) return;
+    playRemote(peerUid, event.track, event.streams[0]);
+  };
   pc.onconnectionstatechange = () => {
     console.info("[rtc] pc", peerUid, pc.connectionState);
   };
@@ -276,8 +306,10 @@ function closePeer(uid: string): void {
   const peer = peers.get(uid);
   if (!peer) return;
   peers.delete(uid);
+  peer.pc.ontrack = null;
   peer.pc.onconnectionstatechange = null;
   peer.pc.close();
+  stopRemote(uid);
 }
 
 function closeAll(): void {
@@ -288,4 +320,157 @@ function upsertSeat(list: Occupant[], occupant: Occupant): Occupant[] {
   const next = [...list.filter((item) => item.uid !== occupant.uid), occupant];
   next.sort((a, b) => a.joinedAt - b.joinedAt || a.uid.localeCompare(b.uid));
   return next;
+}
+
+function onAudioSettings(settings: AudioSettings): void {
+  outputVolume = settings.outputVolume;
+  const deviceChanged = outputDeviceId !== settings.outputDeviceId;
+  outputDeviceId = settings.outputDeviceId;
+  applyRemoteListen();
+  if (deviceChanged) applyRemoteSink();
+  if (!getCall()) return;
+  const current = localStream?.getAudioTracks()[0];
+  const sameDevice =
+    !settings.inputDeviceId ||
+    current?.getSettings().deviceId === settings.inputDeviceId;
+  if (sameDevice && localStream) return;
+  void refreshMic(settings);
+}
+
+async function refreshMic(settings: AudioSettings): Promise<void> {
+  const next = await openMic(settings);
+  if (!next) return;
+  localStream?.getTracks().forEach((track) => track.stop());
+  localStream = next;
+  applyLocalSend();
+  for (const peer of peers.values()) {
+    await addLocalAudio(peer.pc);
+  }
+}
+
+async function ensureMic(): Promise<MediaStreamTrack | null> {
+  if (localStream) {
+    applyLocalSend();
+    return localStream.getAudioTracks()[0] ?? null;
+  }
+  if (!micJob) {
+    micJob = openMic(loadAudioSettings())
+      .then((stream) => {
+        if (!stream) return null;
+        localStream = stream;
+        console.info("[rtc] mic", "on");
+        applyLocalSend();
+        return stream.getAudioTracks()[0] ?? null;
+      })
+      .finally(() => {
+        micJob = null;
+      });
+  }
+  return micJob;
+}
+
+async function openMic(settings: AudioSettings): Promise<MediaStream | null> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    console.info("[rtc] mic", "unavailable");
+    return null;
+  }
+  const constraints: MediaTrackConstraints = {
+    echoCancellation: settings.echoCancellation,
+    noiseSuppression: settings.noiseSuppression,
+    autoGainControl: settings.autoGainControl,
+  };
+  try {
+    if (settings.inputDeviceId) {
+      try {
+        return await navigator.mediaDevices.getUserMedia({
+          audio: { ...constraints, deviceId: { exact: settings.inputDeviceId } },
+        });
+      } catch {
+        /* cai no padrão */
+      }
+    }
+    return await navigator.mediaDevices.getUserMedia({ audio: constraints });
+  } catch {
+    console.info("[rtc] mic", "denied");
+    return null;
+  }
+}
+
+async function addLocalAudio(pc: RTCPeerConnection): Promise<void> {
+  const track = await ensureMic();
+  if (!track || !localStream) return;
+  track.enabled = true;
+
+  const transceiver = pc.getTransceivers().find((item) => {
+    const kind = item.receiver.track?.kind ?? item.sender.track?.kind;
+    return kind === "audio";
+  });
+  if (transceiver) {
+    transceiver.direction = "sendrecv";
+    await transceiver.sender.replaceTrack(track);
+    return;
+  }
+  if (pc.getSenders().some((item) => item.track?.id === track.id)) return;
+  pc.addTrack(track, localStream);
+}
+
+function applyLocalSend(): void {
+  const track = localStream?.getAudioTracks()[0];
+  if (track) track.enabled = sendEnabled;
+}
+
+function playRemote(
+  peerUid: string,
+  track: MediaStreamTrack,
+  stream?: MediaStream,
+): void {
+  if (track.kind !== "audio") return;
+  if (localStream?.getTracks().some((item) => item.id === track.id)) return;
+  const media = stream ?? new MediaStream([track]);
+  let audio = remotes.get(peerUid);
+  if (!audio) {
+    audio = new Audio();
+    audio.autoplay = true;
+    remotes.set(peerUid, audio);
+  }
+  audio.srcObject = media;
+  applyRemoteListen();
+  applyRemoteSink();
+  void audio.play().catch((reason) => {
+    console.info("[rtc] hear blocked", reason);
+  });
+  console.info("[rtc] hear", peerUid);
+}
+
+function stopRemote(uid: string): void {
+  const audio = remotes.get(uid);
+  if (!audio) return;
+  remotes.delete(uid);
+  audio.pause();
+  audio.srcObject = null;
+}
+
+function applyRemoteListen(): void {
+  const volume = listenEnabled
+    ? Math.min(1, Math.max(0, outputVolume / 100))
+    : 0;
+  for (const audio of remotes.values()) {
+    audio.muted = !listenEnabled;
+    audio.volume = volume;
+  }
+}
+
+function applyRemoteSink(): void {
+  for (const audio of remotes.values()) {
+    if (!outputDeviceId || !("setSinkId" in audio)) continue;
+    void audio.setSinkId(outputDeviceId).catch(() => {
+      /* fone padrão */
+    });
+  }
+}
+
+function releaseMic(): void {
+  localStream?.getTracks().forEach((track) => track.stop());
+  localStream = null;
+  micJob = null;
 }

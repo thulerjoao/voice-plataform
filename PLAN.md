@@ -169,7 +169,7 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume l
 - Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.
 - Chat por sala: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela sala na hora. Cada client guarda o log **neste PC** (até 200 linhas por sala); quem não estava não recebe o histórico da API. Recado 1:1 no mesmo módulo (`chat.direct`), só memória da sessão. Linhas de **auditoria** (renomear, cargo, kick…) vêm do módulo de log, cinza no mesmo feed — não são chat e não incluem entrada/saída. Hora local antes de cada linha (`18:12 -`); separador de dia (`Hoje` / `Ontem` / data) quando o dia muda.
 - Cada canal = malha **estrela**: um **host** (primeiro que entrou) e os outros como client dele.
-- A API relê SDP/ICE (`rtc.*`) entre quem está na mesma sala. Host = primeiro da ocupação. Áudio ainda não entra no P2P.
+- A API relê SDP/ICE (`rtc.*`) entre quem está na mesma sala. Host = primeiro da ocupação. Duas pessoas na mesma sala se ouvem nesse P2P (mic no client; a API não toca áudio). Mute, ensurdecer e PTT cortam o envio. VAD só acende a tua bolinha. Volume geral vale no que chega.
 
 ### Host e sucessor (MVP)
 
@@ -279,9 +279,10 @@ Sinalização de voz (sem áudio no fio; STUN público no client):
 
 - client → `rtc.offer` / `rtc.answer` `{ roomId, channelId, to, sdp }` (ICE vai no SDP; `rtc.ice` existe no fio mas o client ainda não pinga candidato a candidato)
 - API → o mesmo + `uid` do remetente, só para o `to`, e só se os dois estão sentados naquela sala
-- host = primeiro assento da ocupação (`joinedAt`). Quem não é host manda a offer. Sem sucessor ainda. Sem tocar áudio — só SDP (console `[rtc]`)
+- host = primeiro assento da ocupação (`joinedAt`). Quem não é host manda a offer. Sem sucessor ainda
+- Áudio: `getUserMedia` no client, track no `RTCPeerConnection` (offer: `addTrack`; answer: `setRemoteDescription` e depois `replaceTrack` no transceiver do offer). Mute / ensurdecer / PTT = `track.enabled`. VAD só a bolinha local. Volume geral e ensurdecer no `<audio>` remoto
 
-- (depois) ouvir de verdade, sucessor, bolinha dos outros
+- (depois) terceira pessoa, trocar de sala, sucessor, bolinha de fala dos outros
 
 Reconexão: o client faz de novo o `GET` do servidor que está na tela.
 
@@ -409,4 +410,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Sinalização WebRTC (`rtc.*`) já relê offer/answer/ICE no mesmo socket. Próximo: duas pessoas se ouvirem no Geral.
+Duas pessoas na mesma sala já se ouvem no P2P. Próximo: terceira pessoa, trocar de sala, sucessor, bolinha de fala dos outros.

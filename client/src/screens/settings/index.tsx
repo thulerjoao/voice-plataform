@@ -349,7 +349,9 @@ export function SettingsScreen({
   deafenedRef.current = deafened;
 
   function commit(patch: Partial<AudioSettings>) {
-    setSettings((prev) => saveAudioSettings({ ...prev, ...patch }));
+    const next = saveAudioSettings({ ...settingsRef.current, ...patch });
+    settingsRef.current = next;
+    setSettings(next);
   }
 
   function cancelNickEdit() {
