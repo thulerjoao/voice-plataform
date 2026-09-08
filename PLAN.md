@@ -169,7 +169,7 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume l
 - Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.
 - Chat por sala: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela sala na hora. Cada client guarda o log **neste PC** (até 200 linhas por sala); quem não estava não recebe o histórico da API. Recado 1:1 no mesmo módulo (`chat.direct`), só memória da sessão. Linhas de **auditoria** (renomear, cargo, kick…) vêm do módulo de log, cinza no mesmo feed — não são chat e não incluem entrada/saída. Hora local antes de cada linha (`18:12 -`); separador de dia (`Hoje` / `Ontem` / data) quando o dia muda.
 - Cada canal = malha **estrela**: um **host** (primeiro que entrou) e os outros como client dele.
-- A API sinaliza: quem está no canal, quem é host, quem é sucessor, troca ICE/SDP.
+- A API relê SDP/ICE (`rtc.*`) entre quem está na mesma sala. Host = primeiro da ocupação. Áudio ainda não entra no P2P.
 
 ### Host e sucessor (MVP)
 
@@ -240,12 +240,13 @@ Visual: escuro, poucos botões, janela de app.
 
 **WebSocket** (`GET /ws?uid=`)
 
-Um socket (`GET /ws?uid=`). Quatro módulos no mesmo fio; cada um ignora tipos que não conhece:
+Um socket (`GET /ws?uid=`). Cinco módulos no mesmo fio; cada um ignora tipos que não conhece:
 
 1. **dados** — servidor/sala/membro persistidos (`room.*`, `channel.*`, `member.*`, `user.nickname`)
 2. **ocupação** — assentos em RAM (`presence.*`)
 3. **chat** — texto da sala e recado (`chat.sala`, `chat.direct`)
 4. **log** — auditoria em português (`log.sala`, `log.server`); só a API emite, depois do commit HTTP
+5. **rtc** — sinalização WebRTC (`rtc.offer`, `rtc.answer`, `rtc.ice`); a API só relê se os dois uids estão na mesma sala; sem áudio no servidor
 
 Escrita de servidor/sala/membro continua no HTTP; depois do commit a API manda o evento de dados para os membros daquele servidor (nick: para quem compartilha algum servidor com o uid). O módulo de log **não** mistura frase no evento de dados: `channel.updated` continua só id/nome/descrição.
 
@@ -274,7 +275,13 @@ Log de atividade (sem banco; frase pronta na API; fanout para **todos** os membr
 - **Não** registra quem entra ou sai do servidor nem quem senta/levanta na sala (a árvore e a lista de membros já mostram isso; no chat de squad isso vira ruído)
 - No chat da sala aberta: mensagens + `log.sala` daquela sala + `log.server` do servidor, ordenados por `at`. Linha de log toda cinza. Prefixo de hora local (`18:12 -`); separador de dia (`Hoje` / `Ontem` / `8 de setembro`) quando o dia muda. O **seu** nick é verde; o das outras pessoas, azul. Cada PC guarda até 200 linhas por sala e 200 do servidor.
 
-- (depois) host, sucessor, ICE
+Sinalização de voz (sem áudio no fio; STUN público no client):
+
+- client → `rtc.offer` / `rtc.answer` `{ roomId, channelId, to, sdp }` (ICE vai no SDP; `rtc.ice` existe no fio mas o client ainda não pinga candidato a candidato)
+- API → o mesmo + `uid` do remetente, só para o `to`, e só se os dois estão sentados naquela sala
+- host = primeiro assento da ocupação (`joinedAt`). Quem não é host manda a offer. Sem sucessor ainda. Sem tocar áudio — só SDP (console `[rtc]`)
+
+- (depois) ouvir de verdade, sucessor, bolinha dos outros
 
 Reconexão: o client faz de novo o `GET` do servidor que está na tela.
 
@@ -391,7 +398,7 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 - [x] Identidade local (nick + uid)
 - [x] Criar sala com nome → código; auto-join; creator = owner/admin
 - [x] Entrar com código; bookmarks só no PC
-- [x] Canais; cada um P2P; host + sucessor
+- [ ] Canais; cada um P2P; host + sucessor
 - [x] Admin cria canal e promove
 - [x] Teto 8–12 por canal
 - [x] Update: trava no entrar; call atual segue
@@ -402,4 +409,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Chat da sala, recado e log de auditoria (cinza) já estão em módulos WS separados. WebRTC / P2P continua depois.
+Sinalização WebRTC (`rtc.*`) já relê offer/answer/ICE no mesmo socket. Próximo: duas pessoas se ouvirem no Geral.

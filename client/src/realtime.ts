@@ -74,71 +74,108 @@ export function sendRealtimePayload(value: unknown): boolean {
   return true;
 }
 
+type LiveSocket = {
+  uid: string;
+  refs: number;
+  closed: boolean;
+  socket: WebSocket | null;
+  timer: number | null;
+  delay: number;
+  skipFirstOpen: boolean;
+  onOpen?: () => void;
+};
+
+let live: LiveSocket | null = null;
+let dropTimer: number | null = null;
+
+function emitRealtime(event: RealtimeEvent) {
+  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: event }));
+}
+
+function socketUrl(uid: string): string {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${window.location.host}/ws?uid=${encodeURIComponent(uid)}`;
+}
+
+function dropLive(session: LiveSocket) {
+  session.closed = true;
+  if (session.timer != null) window.clearTimeout(session.timer);
+  session.timer = null;
+  if (activeSocket === session.socket) activeSocket = null;
+  session.socket?.close();
+  session.socket = null;
+  if (live === session) live = null;
+}
+
+function openLive(session: LiveSocket) {
+  if (session.closed) return;
+  const next = new WebSocket(socketUrl(session.uid));
+  session.socket = next;
+
+  next.onopen = () => {
+    session.delay = 800;
+    activeSocket = next;
+    for (const listener of openListeners) listener();
+    if (session.skipFirstOpen) {
+      session.skipFirstOpen = false;
+      return;
+    }
+    session.onOpen?.();
+  };
+
+  next.onmessage = (message) => {
+    if (typeof message.data !== "string") return;
+    const parsed = parseEvent(message.data);
+    if (parsed) emitRealtime(parsed);
+    for (const listener of frameListeners) listener(message.data);
+  };
+
+  next.onclose = () => {
+    if (session.socket === next) session.socket = null;
+    if (activeSocket === next) activeSocket = null;
+    if (session.closed) return;
+    session.timer = window.setTimeout(() => openLive(session), session.delay);
+    session.delay = Math.min(8000, Math.round(session.delay * 1.6));
+  };
+}
+
 export function connectRealtime(
   uid: string,
   options?: { onOpen?: () => void },
 ): () => void {
-  let closed = false;
-  let socket: WebSocket | null = null;
-  let timer: number | null = null;
-  let delay = 800;
-  let skipFirstOpen = true;
-
-  function emit(event: RealtimeEvent) {
-    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: event }));
+  if (dropTimer != null) {
+    window.clearTimeout(dropTimer);
+    dropTimer = null;
   }
 
-  function schedule() {
-    if (closed) return;
-    timer = window.setTimeout(open, delay);
-    delay = Math.min(8000, Math.round(delay * 1.6));
+  if (!live || live.uid !== uid || live.closed) {
+    if (live && !live.closed) dropLive(live);
+    live = {
+      uid,
+      refs: 0,
+      closed: false,
+      socket: null,
+      timer: null,
+      delay: 800,
+      skipFirstOpen: true,
+      onOpen: options?.onOpen,
+    };
+    openLive(live);
+  } else if (options?.onOpen) {
+    live.onOpen = options.onOpen;
   }
 
-  function open() {
-    if (closed) return;
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const next = new WebSocket(
-      `${protocol}://${window.location.host}/ws?uid=${encodeURIComponent(uid)}`,
-    );
-    socket = next;
-
-    next.onopen = () => {
-      delay = 800;
-      activeSocket = next;
-      for (const listener of openListeners) listener();
-      if (skipFirstOpen) {
-        skipFirstOpen = false;
-        return;
-      }
-      options?.onOpen?.();
-    };
-
-    next.onmessage = (message) => {
-      if (typeof message.data !== "string") return;
-      const parsed = parseEvent(message.data);
-      if (parsed) emit(parsed);
-      for (const listener of frameListeners) listener(message.data);
-    };
-
-    next.onclose = () => {
-      if (socket === next) socket = null;
-      if (activeSocket === next) activeSocket = null;
-      schedule();
-    };
-
-    next.onerror = () => {
-      next.close();
-    };
-  }
-
-  open();
+  live.refs += 1;
+  const session = live;
 
   return () => {
-    closed = true;
-    if (timer != null) window.clearTimeout(timer);
-    if (activeSocket === socket) activeSocket = null;
-    socket?.close();
-    socket = null;
+    session.refs -= 1;
+    if (session.refs > 0) return;
+    dropTimer = window.setTimeout(() => {
+      dropTimer = null;
+      if (session.refs > 0 || live !== session) return;
+      dropLive(session);
+    }, 0);
   };
 }
 

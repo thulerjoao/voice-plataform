@@ -32,6 +32,7 @@ func main() {
 	presence := realtime.NewPresence(hub)
 	chat := realtime.NewChat(hub, presence)
 	activity := realtime.NewActivity(hub)
+	rtc := realtime.NewRTC(hub, presence)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +54,7 @@ func main() {
 	mux.HandleFunc("POST /api/identity", identity.HandleRegister(store))
 	mux.HandleFunc("PATCH /api/identity", identity.HandleRename(store, hub, presence))
 	mux.HandleFunc("POST /api/identity/restore", identity.HandleRestore(store))
-	mux.HandleFunc("GET /ws", realtime.HandleWS(store, hub, presence, chat))
+	mux.HandleFunc("GET /ws", realtime.HandleWS(store, hub, presence, chat, rtc))
 	mux.HandleFunc("POST /api/rooms", rooms.HandleCreate(store))
 	mux.HandleFunc("POST /api/rooms/join", rooms.HandleJoin(store, hub))
 	mux.HandleFunc("GET /api/rooms/{id}", rooms.HandleGet(store))

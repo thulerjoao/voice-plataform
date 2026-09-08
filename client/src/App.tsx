@@ -7,9 +7,13 @@ import { NicknameScreen } from "./screens/nickname";
 
 export default function App() {
   const [identity, setIdentity] = useState(loadIdentity);
+  const [identityReady, setIdentityReady] = useState(false);
 
   useEffect(() => {
-    if (!identity) return;
+    if (!identity) {
+      setIdentityReady(false);
+      return;
+    }
     let cancelled = false;
     void registerIdentity({
       uid: identity.uid,
@@ -25,6 +29,9 @@ export default function App() {
       })
       .catch(() => {
         /* API fora: segue neste PC */
+      })
+      .finally(() => {
+        if (!cancelled) setIdentityReady(true);
       });
     return () => {
       cancelled = true;
@@ -40,6 +47,8 @@ export default function App() {
   if (!identity) {
     return <NicknameScreen onReady={setIdentity} />;
   }
+
+  if (!identityReady) return null;
 
   return (
     <HomeScreen

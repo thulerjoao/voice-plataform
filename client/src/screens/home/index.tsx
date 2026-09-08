@@ -34,6 +34,8 @@ import {
 } from "../../occupancy";
 import { connectChat } from "../../chat";
 import { connectActivity } from "../../activity";
+import { connectRtc } from "../../rtc";
+import { startRtcSignaling, syncRtcSignaling } from "../../rtc-session";
 import {
   isEditableTarget,
   loadAudioSettings,
@@ -925,7 +927,11 @@ export function HomeScreen({
     const stopOccupancy = connectOccupancy();
     const stopChat = connectChat();
     const stopActivity = connectActivity();
+    const stopRtc = connectRtc();
+    const stopSignal = startRtcSignaling(identity.uid, () => callRef.current);
     return () => {
+      stopSignal();
+      stopRtc();
       stopActivity();
       stopChat();
       stopOccupancy();
@@ -954,6 +960,10 @@ export function HomeScreen({
       return;
     }
     sendOccupancy({ type: "presence.leave" });
+  }, [call]);
+
+  useEffect(() => {
+    syncRtcSignaling();
   }, [call]);
 
   useEffect(() => {

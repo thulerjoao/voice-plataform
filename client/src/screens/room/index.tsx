@@ -38,6 +38,7 @@ import {
   type ActivityLine,
 } from "../../activity";
 import { playConnectSound, playDisconnectSound, playPokeSound } from "../../sounds";
+import { syncRtcSignaling } from "../../rtc-session";
 import {
   ChannelBlock,
   ChannelCount,
@@ -918,6 +919,11 @@ export function RoomScreen({
     const uids = [...new Set(occupants.map((item) => item.uid))];
     onOccupancyChange?.(room.roomId, uids);
   }, [occupants, room.roomId, onOccupancyChange]);
+
+  useEffect(() => {
+    if (!currentId) return;
+    syncRtcSignaling(occupants);
+  }, [occupants, currentId]);
 
   useEffect(() => {
     const roomId = room.roomId;

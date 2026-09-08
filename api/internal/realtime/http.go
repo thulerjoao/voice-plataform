@@ -24,7 +24,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func HandleWS(store *db.DB, hub *Hub, presence *Presence, chat *Chat) http.HandlerFunc {
+func HandleWS(store *db.DB, hub *Hub, presence *Presence, chat *Chat, rtc *RTC) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := strings.TrimSpace(r.URL.Query().Get("uid"))
 		if uid == "" {
@@ -49,6 +49,7 @@ func HandleWS(store *db.DB, hub *Hub, presence *Presence, chat *Chat) http.Handl
 		c.readPump(conn, func(raw []byte) {
 			presence.HandleMessage(context.Background(), store, uid, raw)
 			chat.HandleMessage(context.Background(), store, uid, raw)
+			rtc.HandleMessage(context.Background(), store, uid, raw)
 		})
 		hub.remove(c)
 		close(c.send)
@@ -58,7 +59,7 @@ func HandleWS(store *db.DB, hub *Hub, presence *Presence, chat *Chat) http.Handl
 
 func (c *client) readPump(conn *websocket.Conn, onMessage func([]byte)) {
 	defer conn.Close()
-	conn.SetReadLimit(2048)
+	conn.SetReadLimit(32 << 10)
 	_ = conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error {
 		return conn.SetReadDeadline(time.Now().Add(pongWait))
