@@ -6,7 +6,7 @@ Documento de referência. Qualquer mudança de comportamento deve atualizar este
 
 ## 1. Visão
 
-Plataforma de **voz em tempo real** para grupos (squad de jogo). O servidor faz sinalização; o áudio corre **P2P** dentro de cada canal. O primeiro a entrar no canal é o host; um sucessor já está pré-eleito para a call continuar se o host sair.
+Plataforma de **voz em tempo real** para grupos (squad de jogo). O servidor faz sinalização; o áudio corre **P2P em malha** dentro de cada canal (cada um manda a voz aos outros). Se alguém sai, os restantes continuam a ouvir-se.
 
 Inspiração de UX: TeamSpeak — entrar e falar, identidade no PC, árvore servidor → salas.
 
@@ -66,7 +66,7 @@ Identidade (uid + nick + recuperação) Servidor (id, nome, código, owner_uid)
 Bookmarks (servidores na sidebar)     Salas (canais: nome + descrição)
 React / depois Tauri                  Membros / bloqueados: uid → users
                                       Users: uid, nickname, hash do código
-WebRTC ◄── P2P do canal ──► amigos    WebSocket: presença, host, sucessor, ICE
+WebRTC ◄── P2P malha do canal ──► amigos    WebSocket: presença, ICE, dados
 ```
 
 Três peças:
@@ -137,7 +137,7 @@ No MVP: o dono **cria outro servidor**. O código serve para copiar e chamar gen
 ### Limites
 
 - Muitos grupos pequenos.
-- Por **sala**: teto **12** (ex.: `4/12`). Voz Opus no host é leve; 8 era só o alvo confortável.
+- Por **sala**: teto **12** (ex.: `4/12`). Cada um manda Opus a até 11 pares; 8 era só o alvo confortável.
 - Sala cheia: recusar entrada.
 
 ---
@@ -168,15 +168,12 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume l
 - Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Outro som, mais baixo, quando **você** sai (**Sair** ou a sala some) e quando **alguém sai da sua sala**. Trocar de sala: só o de entrada. Ensurdecido = sem som.
 - Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.
 - Chat por sala: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela sala na hora. Cada client guarda o log **neste PC** (até 200 linhas por sala); quem não estava não recebe o histórico da API. Recado 1:1 no mesmo módulo (`chat.direct`), só memória da sessão. Linhas de **auditoria** (renomear, cargo, kick…) vêm do módulo de log, cinza no mesmo feed — não são chat e não incluem entrada/saída. Hora local antes de cada linha (`18:12 -`); separador de dia (`Hoje` / `Ontem` / data) quando o dia muda.
-- Cada canal = malha **estrela**: um **host** (primeiro que entrou) e os outros como client dele.
-- A API relê SDP/ICE (`rtc.*`) entre quem está na mesma sala. Host = primeiro da ocupação. Duas pessoas na mesma sala se ouvem nesse P2P (mic no client; a API não toca áudio). Mute, ensurdecer e PTT cortam o envio. VAD só acende a tua bolinha. Volume geral vale no que chega.
+- Cada canal = malha **completa**: cada um manda a voz para os outros da mesma sala (no máximo 11 envios). Quem tem o `uid` menor manda a offer, para os dois não se cruzarem. O primeiro assento (`joinedAt`) ainda marca quem chegou primeiro — **não** relê áudio.
+- A API relê SDP/ICE (`rtc.*`) entre quem está na mesma sala. Mute, ensurdecer e PTT cortam o envio. VAD só acende a tua bolinha. Volume geral vale no que chega.
 
-### Host e sucessor (MVP)
+### Host e sucessor
 
-- Host = primeiro a entrar no canal.
-- Já existe um **sucessor** escolhido (segundo a entrar, ou próximo da lista).
-- Clientes abrem WebRTC **em espera** com o sucessor.
-- Host some (heartbeat ~300–500 ms) → sucessor vira host → a call continua (engasgo curto).
+Na malha, se alguém sai os outros continuam. Não precisa sucessor de áudio no MVP. O primeiro da ocupação não é relé.
 
 ### Áudio no client (MVP)
 
@@ -188,7 +185,7 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume l
 
 ### Escala
 
-Quem usa CPU/upload da voz é o **host do canal**. Teto **12**.  
+Cada um usa CPU/upload da própria voz para até **11** pares. Teto **12**.  
 O produto cresce em **número de salas**.
 
 STUN público no MVP. **coturn** quando a falha de NAT pedir.
@@ -279,10 +276,10 @@ Sinalização de voz (sem áudio no fio; STUN público no client):
 
 - client → `rtc.offer` / `rtc.answer` `{ roomId, channelId, to, sdp }` (ICE vai no SDP; `rtc.ice` existe no fio mas o client ainda não pinga candidato a candidato)
 - API → o mesmo + `uid` do remetente, só para o `to`, e só se os dois estão sentados naquela sala
-- host = primeiro assento da ocupação (`joinedAt`). Quem não é host manda a offer. Sem sucessor ainda
-- Áudio: `getUserMedia` no client, track no `RTCPeerConnection` (offer: `addTrack`; answer: `setRemoteDescription` e depois `replaceTrack` no transceiver do offer). Mute / ensurdecer / PTT = `track.enabled`. VAD só a bolinha local. Volume geral e ensurdecer no `<audio>` remoto
+- um `RTCPeerConnection` por outro assento na mesma sala; offer só se o próprio `uid` < `uid` do par
+- Áudio: `getUserMedia` no client, track em cada PC (offer: `addTrack`; answer: `setRemoteDescription` e depois `replaceTrack`). Mute / ensurdecer / PTT = `track.enabled`. VAD só a bolinha local. Volume geral e ensurdecer no `<audio>` remoto
 
-- (depois) terceira pessoa, trocar de sala, sucessor, bolinha de fala dos outros
+- (depois) trocar de sala, bolinha de fala dos outros
 
 Reconexão: o client faz de novo o `GET` do servidor que está na tela.
 
@@ -367,7 +364,7 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 - chat de texto (canal + recado; log da sala neste PC)
 - **Streaming (depois do MVP), P2P em árvore:** o streamer **não** manda uma cópia para cada um. Elege **2–3 relés** (boa NAT/upload, de preferência quem não está no jogo pesado). Relé **só encaminha** o pacote já codificado — sem decodificar/recodificar. O resto assiste no segundo salto. Até **12** no canal podem ver.
 - Se um relé cair: sucessor já escolhido (igual voz). Máximo **2 saltos**.
-- Voz continua no host do canal — não mistura com vídeo.
+- Voz continua na malha do canal — não mistura com vídeo.
 - Até **2 streams** por canal. Qualidade: **720p 30fps** padrão. **1080p 30fps** só se a árvore estiver folgada. Sem 60fps.
 
 ### UX de jogo
@@ -410,4 +407,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Duas pessoas na mesma sala já se ouvem no P2P. Próximo: terceira pessoa, trocar de sala, sucessor, bolinha de fala dos outros.
+Malha P2P: cada um manda a voz aos outros da sala. Próximo: trocar de sala, bolinha de fala dos outros.

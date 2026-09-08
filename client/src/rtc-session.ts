@@ -132,16 +132,6 @@ function salaSeats(call: Call): Occupant[] {
   return seats.filter((item) => item.channelId === call.salaId);
 }
 
-function hostUid(call: Call): string | null {
-  const seated = salaSeats(call);
-  if (seated.length === 0) return null;
-  return seated.reduce((a, b) =>
-    a.joinedAt < b.joinedAt || (a.joinedAt === b.joinedAt && a.uid < b.uid)
-      ? a
-      : b,
-  ).uid;
-}
-
 async function reconcile(): Promise<void> {
   const call = getCall();
   if (!call || !selfUid) {
@@ -154,12 +144,16 @@ async function reconcile(): Promise<void> {
     if (!seated.has(uid) || uid === selfUid) closePeer(uid);
   }
 
-  const host = hostUid(call);
-  if (!host || host === selfUid) return;
-  const existing = peers.get(host);
-  if (existing && peerAlive(existing)) return;
-  if (existing) closePeer(host);
-  await offerTo(call, host);
+  await Promise.all(
+    [...seated]
+      .filter((uid) => uid !== selfUid && selfUid < uid)
+      .map(async (uid) => {
+        const existing = peers.get(uid);
+        if (existing && peerAlive(existing)) return;
+        if (existing) closePeer(uid);
+        await offerTo(call, uid);
+      }),
+  );
 }
 
 async function offerTo(call: Call, peerUid: string): Promise<void> {
