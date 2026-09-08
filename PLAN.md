@@ -124,7 +124,7 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. A bolinha da **
 
 ### Lista de servidores
 
-A sidebar é a lista local de **servidores** (bookmarks), não de salas. **Servidores** fica separado da lista (atalho + linha). Cada bookmark é um **card** baixo: só o nome; o que você olha destaca; a call ganha o ícone de áudio. Sem código, sem ícone de pessoas. Olhar outro servidor, a home, as configurações de áudio ou as **configurações do servidor** **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Sair do servidor** (membro/admin; confirmar) tira o membro no banco e o bookmark; restore não traz. Bloqueado permanece em `blocked` e o código recusa.
+A sidebar é a lista local de **servidores** (bookmarks), não de salas. **Servidores** é só o título da lista (não clicável, visual sempre o de “não selecionado”). O primeiro card, **Adicionar servidor**, tem o mesmo tamanho dos bookmarks e abre o centro de criar/entrar; uma **linha tracejada** separa esse card dos bookmarks. Cada bookmark é um **card** baixo: só o nome; o que você olha destaca; a call ganha o ícone de áudio. Sem código, sem ícone de pessoas. Olhar outro servidor, a home, as configurações de áudio ou as **configurações do servidor** **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Sair do servidor** (membro/admin; confirmar) tira o membro no banco e o bookmark; restore não traz. Bloqueado permanece em `blocked` e o código recusa.
 
 ### Configurações do servidor
 
@@ -208,7 +208,7 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 ## 10. Telas do MVP
 
 1. **Onboarding (uma vez):** nickname.
-2. **Home:** lista de **servidores** só na sidebar; centro = empty ou o servidor aberto; Criar / Entrar no centro. Home / outro servidor / configurações (áudio ou do servidor) não encerram a call.
+2. **Home:** lista de **servidores** só na sidebar (título estático; card **Adicionar servidor** no topo; bookmarks abaixo); centro = empty ou o servidor aberto; Criar / Entrar no centro. Home / outro servidor / configurações (áudio ou do servidor) não encerram a call.
 3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar no servidor”.
 4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Engrenagem no título abre as **configurações do servidor**. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
 5. Trocar de servidor pela lista, com o mesmo usuário.

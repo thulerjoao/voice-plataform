@@ -90,33 +90,21 @@ export const NickName = styled.span`
   font-weight: 600;
 `;
 
-export const NavItem = styled.button<{ $active?: boolean }>`
+export const NavLabel = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
   width: 100%;
   padding: 0.5rem 0.65rem;
-  border: 0;
-  border-radius: 0.55rem;
-  background: ${(p) =>
-    p.$active ? "rgba(10, 132, 255, 0.18)" : "transparent"};
-  color: ${(p) => (p.$active ? "#f5f5f7" : "#c7c7cc")};
+  color: #c7c7cc;
   font-size: 0.9rem;
   font-weight: 600;
-  text-align: left;
-  cursor: pointer;
 
   svg {
     width: 1.05rem;
     height: 1.05rem;
     flex-shrink: 0;
-    color: ${(p) => (p.$active ? "#0a84ff" : "#8d8d93")};
-  }
-
-  &:hover {
-    color: #f5f5f7;
-    background: ${(p) =>
-      p.$active ? "rgba(10, 132, 255, 0.22)" : "rgba(255, 255, 255, 0.06)"};
+    color: #8d8d93;
   }
 `;
 
@@ -304,6 +292,12 @@ export const SidebarRoom = styled.li`
   min-width: 0;
 `;
 
+export const SidebarDash = styled.li`
+  height: 0;
+  margin: 0.15rem 0.45rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.2);
+`;
+
 export const SidebarRoomButton = styled.button<{
   $active?: boolean;
   $live?: boolean;
@@ -316,6 +310,8 @@ export const SidebarRoomButton = styled.button<{
   padding: 0.5rem 0.65rem;
   border: 0;
   border-radius: 0.55rem;
+  border: 1px solid ${(p) =>
+    p.$active ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.045)"};;
   background: ${(p) =>
     p.$active ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.045)"};
   color: #f5f5f7;
@@ -336,6 +332,20 @@ export const SidebarRoomName = styled.span`
   white-space: nowrap;
   font-size: 0.9rem;
   font-weight: 600;
+`;
+
+export const SidebarAddMark = styled.span`
+  display: grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+  color: #8d8d93;
+
+  svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
 `;
 
 export const SidebarCallMark = styled.span`

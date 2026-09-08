@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { joinRoom, type CreatedRoom } from "../../api";
 import { findBookmarkByCode } from "../../bookmarks";
 import type { Identity } from "../../identity";
+import keyWebsiteIcon from "./key-website-svgrepo-com.svg";
 import {
   BackButton,
   BackRow,
@@ -19,7 +20,7 @@ import {
   Submit,
   Subtitle,
   Title,
-} from "../create-room/style";
+} from "./style";
 
 type JoinRoomScreenProps = {
   identity: Identity;
@@ -36,33 +37,6 @@ function BackIcon() {
         strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function KeyIcon() {
-  return (
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <circle
-        cx="12.2"
-        cy="16"
-        r="5.4"
-        stroke="currentColor"
-        strokeWidth="1.15"
-      />
-      <path
-        d="M16.8 16h9.4l2.2 2.2-2.2 2.2"
-        stroke="currentColor"
-        strokeWidth="1.15"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M22.2 16v2.4"
-        stroke="currentColor"
-        strokeWidth="1.15"
-        strokeLinecap="round"
       />
     </svg>
   );
@@ -157,9 +131,9 @@ export function JoinRoomScreen({
       </BackRow>
       <Body>
         <HeroIcon>
-          <KeyIcon />
+          <img src={keyWebsiteIcon} alt="" aria-hidden="true" />
         </HeroIcon>
-        <Title>Entrar num servidor</Title>
+        <Title>Encontrar servidor</Title>
         <Subtitle>Cole o código que alguém compartilhou com você.</Subtitle>
         <Form onSubmit={handleSubmit} noValidate>
           <Field>

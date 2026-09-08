@@ -51,7 +51,7 @@ import {
   HeaderCopy,
   Main,
   RoomMount,
-  NavItem,
+  NavLabel,
   NickButton,
   NickEdit,
   NickIconButton,
@@ -62,6 +62,7 @@ import {
   Shell,
   Sidebar,
   SidebarDock,
+  SidebarDash,
   SidebarRule,
   DockRow,
   DockVolume,
@@ -70,6 +71,7 @@ import {
   DockButton,
   SidebarRoom,
   SidebarRoomButton,
+  SidebarAddMark,
   SidebarCallMark,
   SidebarRoomName,
   SidebarRooms,
@@ -747,7 +749,7 @@ export function HomeScreen({
       else unmuteOutput();
     }
 
-    function handleMuteHotkey(event: KeyboardEvent) {
+    function handleMuteHotkey(event: globalThis.KeyboardEvent) {
       if (event.repeat || isEditableTarget(event.target)) return;
       const bind = loadAudioSettings().muteToggle;
       if (!bind || !matchKeybind(event, bind)) return;
@@ -870,44 +872,52 @@ export function HomeScreen({
             <EditIcon />
           </NickButton>
         )}
-        <NavItem
-          type="button"
-          $active={
-            view.type === "home" ||
-            view.type === "create" ||
-            view.type === "join"
-          }
-          onClick={backToHome}
-        >
+        <NavLabel>
           <HomeIcon />
           Servidores
-        </NavItem>
-        {rooms.length > 0 ? <SidebarRule /> : null}
-        {rooms.length > 0 ? (
-          <SidebarRooms>
-            {rooms.map((room: Bookmark) => {
-              const live = call?.roomId === room.roomId;
-              return (
-                <SidebarRoom key={room.roomId}>
-                  <SidebarRoomButton
-                    type="button"
-                    $active={viewingRoomId === room.roomId}
-                    $live={live}
-                    onClick={() => enterRoom(room.roomId)}
-                    title={live ? `${room.name} · em uma sala` : room.name}
-                  >
-                    <SidebarRoomName>{room.name}</SidebarRoomName>
-                    {live ? (
-                      <SidebarCallMark aria-hidden="true">
-                        <CallMarkIcon />
-                      </SidebarCallMark>
-                    ) : null}
-                  </SidebarRoomButton>
-                </SidebarRoom>
-              );
-            })}
-          </SidebarRooms>
-        ) : null}
+        </NavLabel>
+        <SidebarRule />
+        <SidebarRooms>
+          <SidebarRoom>
+            <SidebarRoomButton
+              type="button"
+              $active={
+                view.type === "home" ||
+                view.type === "create" ||
+                view.type === "join"
+              }
+              onClick={backToHome}
+              title="Criar ou entrar em um servidor"
+            >
+              <SidebarAddMark>
+                <PlusIcon />
+              </SidebarAddMark>
+              <SidebarRoomName>Adicionar</SidebarRoomName>
+            </SidebarRoomButton>
+          </SidebarRoom>
+          <SidebarDash aria-hidden="true" />
+          {rooms.map((room: Bookmark) => {
+            const live = call?.roomId === room.roomId;
+            return (
+              <SidebarRoom key={room.roomId}>
+                <SidebarRoomButton
+                  type="button"
+                  $active={viewingRoomId === room.roomId}
+                  $live={live}
+                  onClick={() => enterRoom(room.roomId)}
+                  title={live ? `${room.name} · em uma sala` : room.name}
+                >
+                  <SidebarRoomName>{room.name}</SidebarRoomName>
+                  {live ? (
+                    <SidebarCallMark aria-hidden="true">
+                      <CallMarkIcon />
+                    </SidebarCallMark>
+                  ) : null}
+                </SidebarRoomButton>
+              </SidebarRoom>
+            );
+          })}
+        </SidebarRooms>
         <SidebarDock>
           <DockRow>
             <DockButton
