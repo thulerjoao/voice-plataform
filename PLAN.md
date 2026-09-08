@@ -31,16 +31,16 @@ Um VPS pequeno deve aguentar **muitas salas pequenas**.
 
 ## 3. Stack
 
-| Camada | Usar | Onde roda agora |
-|---|---|---|
-| API | **Go** + **sqlc** | WSL2 |
-| Banco | **PostgreSQL 16** | Docker no WSL2 |
-| Sinalização | WebSocket no mesmo processo da API | WSL2 |
-| Client MVP | **React + TypeScript + Vite** (navegador) | código no WSL2; Chrome/Edge no Windows em `localhost` |
-| Client final | mesma UI no **Tauri** | build do `.exe` no Windows, fora do WSL |
-| Voz | **WebRTC** (Opus nativo no browser/WebView) | no client |
-| Hole punching | **STUN** público | no client |
-| TURN | **coturn**, depois do MVP | VPS |
+| Camada        | Usar                                        | Onde roda agora                                       |
+| ------------- | ------------------------------------------- | ----------------------------------------------------- |
+| API           | **Go** + **sqlc**                           | WSL2                                                  |
+| Banco         | **PostgreSQL 16**                           | Docker no WSL2                                        |
+| Sinalização   | WebSocket no mesmo processo da API          | WSL2                                                  |
+| Client MVP    | **React + TypeScript + Vite** (navegador)   | código no WSL2; Chrome/Edge no Windows em `localhost` |
+| Client final  | mesma UI no **Tauri**                       | build do `.exe` no Windows, fora do WSL               |
+| Voz           | **WebRTC** (Opus nativo no browser/WebView) | no client                                             |
+| Hole punching | **STUN** público                            | no client                                             |
+| TURN          | **coturn**, depois do MVP                   | VPS                                                   |
 
 Um repositório, duas pastas:
 
@@ -137,11 +137,11 @@ Quem tem o código entra em qualquer canal. Status na árvore: bolinha **oca** (
 
 Cargos mínimos:
 
-| Papel | Pode |
-|---|---|
-| **Owner** | tudo de admin + promover / rebaixar admin (ficha no clique) |
-| **Admin** | mover gente + criar / renomear / apagar sala. Não mexe no dono nem rebaixa outro admin |
-| **Member** | entrar em sala e arrastar só a si |
+| Papel      | Pode                                                                                   |
+| ---------- | -------------------------------------------------------------------------------------- |
+| **Owner**  | tudo de admin + promover / rebaixar admin (ficha no clique)                            |
+| **Admin**  | mover gente + criar / renomear / apagar sala. Não mexe no dono nem rebaixa outro admin |
+| **Member** | entrar em sala e arrastar só a si                                                      |
 
 Cargo não aparece na listagem (você se reconhece pelo fundo). Cargo só na ficha.
 
@@ -171,7 +171,8 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume loc
 
 - WebRTC (Opus nativo).
 - Mute, ensurdecer, indicador de quem fala, volume **local** por pessoa.
-- VAD. PTT se encaixar fácil nesta entrega.
+- Ensurdecer (fone ou volume em 0): a barra de **volume geral** vai a 0. Ouvir de novo (fone ou subir a barra) restaura o volume e abre o mic.
+- **Configurações** (deste PC, `localStorage`): microfone, fone, ganho de entrada (−30 a +30 dB) e **volume geral** (também no rodapé da sidebar), eco/ruído/AGC (no teste do mic o eco desliga, senão come a própria voz), modo **automático (VAD)** ou **PTT**, atalho de PTT e de **mutar** (tecla ou botão do mouse; o de mutar fecha mic e fone juntos, com um som curto ao mutar e outro ao liberar). Atalhos com o app em foco; PTT/mudo com o jogo na frente entra no instalável.
 - TypeScript orquestra (`getUserMedia`, `RTCPeerConnection`).
 
 ### Escala
@@ -200,6 +201,7 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar no servidor”.
 4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
 5. Trocar de servidor pela lista, com o mesmo usuário.
+6. **Configurações:** uma tela no centro. Dispositivos, medidor, ganho, automático/PTT, atalho de mudo. Vale em todos os servidores.
 
 Visual: escuro, poucos botões, janela de app.
 
@@ -226,8 +228,8 @@ Visual: escuro, poucos botões, janela de app.
 
 **Postgres**
 
-- `rooms` — id, name, code, owner_uid, created_at  
-- `channels` — id, room_id, name  
+- `rooms` — id, name, code, owner_uid, created_at
+- `channels` — id, room_id, name
 - `members` — room_id, uid, nickname, role (`owner` | `admin` | `member`)
 
 O `uid` do client é o mesmo gravado em `rooms.owner_uid` e `members.uid`. Não há e-mail/senha.  
@@ -250,19 +252,19 @@ No MVP o app é o navegador. Tauri empacota a **mesma UI** depois.
 
 ## 13. Ordem de implementação (MVP)
 
-| # | Entrega | Pronto quando |
-|---|---|---|
-| 0 | Pastas `api/` + `client/` + Postgres no Docker | `compose up` sobe o banco; `go run` no `/health`; Vite abre |
-| 1 | Identidade no client | nickname na 1ª vez; uid persistido |
-| 2 | Criar / entrar sala (HTTP) | código gerado; owner no banco; bookmark local; auto-join |
-| 3 | Tela da sala + canal Geral | árvore; lista de membros via WS |
-| 4 | Canais extras | qualquer um entra; dono promove admin; admin move gente |
-| 5 | WebRTC no canal | 2 pessoas falam no Geral |
-| 6 | Troca de canal = outro P2P | 3ª pessoa em outro canal fica só naquele |
-| 7 | Host + sucessor | se o host sair, a call continua |
-| 8 | Áudio básico | mute, deafen, falando, volume local; teto 8–12 |
-| 9 | Gate de versão | entrada nova exige client atual; call atual segue |
-| 10 | Polimento de UI | fluxo contínuo nick → sala → falar |
+| #   | Entrega                                        | Pronto quando                                               |
+| --- | ---------------------------------------------- | ----------------------------------------------------------- |
+| 0   | Pastas `api/` + `client/` + Postgres no Docker | `compose up` sobe o banco; `go run` no `/health`; Vite abre |
+| 1   | Identidade no client                           | nickname na 1ª vez; uid persistido                          |
+| 2   | Criar / entrar sala (HTTP)                     | código gerado; owner no banco; bookmark local; auto-join    |
+| 3   | Tela da sala + canal Geral                     | árvore; lista de membros via WS                             |
+| 4   | Canais extras                                  | qualquer um entra; dono promove admin; admin move gente     |
+| 5   | WebRTC no canal                                | 2 pessoas falam no Geral                                    |
+| 6   | Troca de canal = outro P2P                     | 3ª pessoa em outro canal fica só naquele                    |
+| 7   | Host + sucessor                                | se o host sair, a call continua                             |
+| 8   | Áudio básico                                   | mute, deafen, falando, volume local; teto 8–12              |
+| 9   | Gate de versão                                 | entrada nova exige client atual; call atual segue           |
+| 10  | Polimento de UI                                | fluxo contínuo nick → sala → falar                          |
 
 Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
@@ -318,11 +320,11 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
 ## 15. Custos
 
-| Item | MVP | Depois |
-|---|---|---|
-| VPS + Postgres | um droplet para sinalização de muitas salas | crescer se o WebSocket lotar |
-| STUN | público | — |
-| TURN | — | coturn no VPS; banda pesa de verdade com vídeo |
+| Item           | MVP                                         | Depois                                         |
+| -------------- | ------------------------------------------- | ---------------------------------------------- |
+| VPS + Postgres | um droplet para sinalização de muitas salas | crescer se o WebSocket lotar                   |
+| STUN           | público                                     | —                                              |
+| TURN           | —                                           | coturn no VPS; banda pesa de verdade com vídeo |
 
 ---
 
@@ -343,4 +345,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Item **3** da seção 13: tela da sala com presença real (WebSocket). Entrar com código já existe.
+Primeiro modelo da tela de **Configurações** (áudio local + teclas). Em seguida: item **3** da seção 13 — presença real (WebSocket).

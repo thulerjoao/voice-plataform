@@ -15,7 +15,11 @@ export function normalizeRoomCode(raw: string): string {
 
 export function findBookmarkByCode(code: string): Bookmark | null {
   const normalized = normalizeRoomCode(code);
-  return loadBookmarks().find((item) => normalizeRoomCode(item.code) === normalized) ?? null;
+  return (
+    loadBookmarks().find(
+      (item) => normalizeRoomCode(item.code) === normalized,
+    ) ?? null
+  );
 }
 
 export function removeBookmark(roomId: string): Bookmark[] {
@@ -25,7 +29,10 @@ export function removeBookmark(roomId: string): Bookmark[] {
 }
 
 export function saveBookmark(bookmark: Bookmark): Bookmark[] {
-  const next = [bookmark, ...loadBookmarks().filter((item) => item.roomId !== bookmark.roomId)];
+  const next = [
+    bookmark,
+    ...loadBookmarks().filter((item) => item.roomId !== bookmark.roomId),
+  ];
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   return next;
 }

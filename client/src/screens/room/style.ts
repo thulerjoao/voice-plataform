@@ -266,7 +266,11 @@ const talkPulse = keyframes`
   50% { background-color: transparent; }
 `;
 
-export const UserRow = styled.li<{ $you?: boolean; $dragging?: boolean; $movable?: boolean }>`
+export const UserRow = styled.li<{
+  $you?: boolean;
+  $dragging?: boolean;
+  $movable?: boolean;
+}>`
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -562,7 +566,8 @@ export const ProfileButton = styled.button<{ $tone?: "default" | "danger" }>`
   height: 2rem;
   padding: 0 0.75rem;
   flex-shrink: 0;
-  border: 1px solid ${(p) => (p.$tone === "danger" ? "rgba(255, 69, 58, 0.35)" : "rgba(255, 255, 255, 0.16)")};
+  border: 1px solid
+    ${(p) => (p.$tone === "danger" ? "rgba(255, 69, 58, 0.35)" : "rgba(255, 255, 255, 0.16)")};
   border-radius: 0.45rem;
   background: ${(p) => (p.$tone === "danger" ? "rgba(255, 69, 58, 0.12)" : "rgba(255, 255, 255, 0.06)")};
   color: ${(p) => (p.$tone === "danger" ? "#ff8a80" : "#f5f5f7")};

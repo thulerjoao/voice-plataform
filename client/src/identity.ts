@@ -13,7 +13,12 @@ export function loadIdentity(): Identity | null {
 
   try {
     const parsed = JSON.parse(raw) as Partial<Identity>;
-    if (typeof parsed.uid === "string" && typeof parsed.nickname === "string" && parsed.uid && parsed.nickname) {
+    if (
+      typeof parsed.uid === "string" &&
+      typeof parsed.nickname === "string" &&
+      parsed.uid &&
+      parsed.nickname
+    ) {
       return { uid: parsed.uid, nickname: parsed.nickname };
     }
   } catch {

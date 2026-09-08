@@ -32,7 +32,12 @@ function MicIcon() {
         strokeWidth="1.85"
         strokeLinecap="round"
       />
-      <path d="M12 16.8v3.2M8.8 20h6.4" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" />
+      <path
+        d="M12 16.8v3.2M8.8 20h6.4"
+        stroke="currentColor"
+        strokeWidth="1.85"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -53,9 +58,20 @@ function PersonIcon() {
 
 function AlertIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
       <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M8 5v3.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path
+        d="M8 5v3.4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
       <circle cx="8" cy="11" r="0.7" fill="currentColor" />
     </svg>
   );
@@ -106,14 +122,14 @@ export function NicknameScreen({ onCreated }: NicknameScreenProps) {
             />
           </Field>
           <Submit type="submit">Continuar</Submit>
-            <ErrorText aria-live="polite">
-              {showError ? (
-                <>
-                  <AlertIcon />
-                  Digite um nickname.
-                </>
-              ) : null}
-            </ErrorText>
+          <ErrorText aria-live="polite">
+            {showError ? (
+              <>
+                <AlertIcon />
+                Digite um nickname.
+              </>
+            ) : null}
+          </ErrorText>
         </Form>
       </Content>
     </Screen>

@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { createRoom, ROOM_NAME_MAX, ROOM_NAME_MIN, type CreatedRoom } from "../../api";
+import {
+  createRoom,
+  ROOM_NAME_MAX,
+  ROOM_NAME_MIN,
+  type CreatedRoom,
+} from "../../api";
 import type { Identity } from "../../identity";
 import {
   AdminBadge,
@@ -39,7 +44,13 @@ type CreateRoomScreenProps = {
 function BackIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M10 3.2 5.2 8 10 12.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M10 3.2 5.2 8 10 12.8"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -53,7 +64,11 @@ function ServerPlusIcon() {
           <circle cx="24.2" cy="24.2" r="5.15" fill="#000" />
         </mask>
       </defs>
-      <g mask="url(#create-room-hero-cut)" stroke="currentColor" strokeWidth="1.05">
+      <g
+        mask="url(#create-room-hero-cut)"
+        stroke="currentColor"
+        strokeWidth="1.05"
+      >
         <rect x="4" y="2.4" width="24" height="6.4" rx="1.7" />
         <rect x="4" y="11.8" width="24" height="6.4" rx="1.7" />
         <rect x="4" y="21.2" width="24" height="6.4" rx="1.7" />
@@ -62,8 +77,19 @@ function ServerPlusIcon() {
           strokeLinecap="round"
         />
       </g>
-      <circle cx="24.2" cy="24.2" r="4.35" stroke="currentColor" strokeWidth="1.05" />
-      <path d="M24.2 22.15v4.1M22.15 24.2h4.1" stroke="currentColor" strokeWidth="1.05" strokeLinecap="round" />
+      <circle
+        cx="24.2"
+        cy="24.2"
+        r="4.35"
+        stroke="currentColor"
+        strokeWidth="1.05"
+      />
+      <path
+        d="M24.2 22.15v4.1M22.15 24.2h4.1"
+        stroke="currentColor"
+        strokeWidth="1.05"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -72,9 +98,25 @@ function PeopleIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="9" cy="8" r="2.6" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M4.5 18c.8-2.4 2.4-3.6 4.5-3.6s3.7 1.2 4.5 3.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <circle cx="16.5" cy="9" r="2.1" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M19.5 18c-.4-1.6-1.4-2.6-2.8-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path
+        d="M4.5 18c.8-2.4 2.4-3.6 4.5-3.6s3.7 1.2 4.5 3.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="16.5"
+        cy="9"
+        r="2.1"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M19.5 18c-.4-1.6-1.4-2.6-2.8-3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -82,7 +124,13 @@ function PeopleIcon() {
 function CheckIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M3.2 8.2 6.4 11.4 12.8 4.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M3.2 8.2 6.4 11.4 12.8 4.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -90,17 +138,41 @@ function CheckIcon() {
 function CopyIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="5.2" y="5.2" width="8" height="8" rx="1.4" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M3.4 10.6V3.8A1.4 1.4 0 0 1 4.8 2.4h6.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <rect
+        x="5.2"
+        y="5.2"
+        width="8"
+        height="8"
+        rx="1.4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M3.4 10.6V3.8A1.4 1.4 0 0 1 4.8 2.4h6.8"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function AlertIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
       <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M8 5v3.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path
+        d="M8 5v3.4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
       <circle cx="8" cy="11" r="0.7" fill="currentColor" />
     </svg>
   );
@@ -119,7 +191,10 @@ function CreateStep({
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const trimmed = name.trim();
-  const canSubmit = trimmed.length >= ROOM_NAME_MIN && trimmed.length <= ROOM_NAME_MAX && !creating;
+  const canSubmit =
+    trimmed.length >= ROOM_NAME_MIN &&
+    trimmed.length <= ROOM_NAME_MAX &&
+    !creating;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -136,7 +211,11 @@ function CreateStep({
       });
       onCreated(room);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível criar o servidor.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível criar o servidor.",
+      );
       setCreating(false);
     }
   }
@@ -147,7 +226,10 @@ function CreateStep({
         <ServerPlusIcon />
       </HeroIcon>
       <Title>Novo servidor</Title>
-      <Subtitle>Escolha um nome para seu servidor. Depois disso geraremos um código para você compartilhar.</Subtitle>
+      <Subtitle>
+        Escolha um nome para seu servidor. Depois disso geraremos um código para
+        você compartilhar.
+      </Subtitle>
       <Form onSubmit={handleSubmit} noValidate>
         <Field>
           <FieldLabel>Nome do servidor</FieldLabel>
@@ -186,7 +268,13 @@ function CreateStep({
   );
 }
 
-function CreatedStep({ room, onEnter }: { room: CreatedRoom; onEnter: () => void }) {
+function CreatedStep({
+  room,
+  onEnter,
+}: {
+  room: CreatedRoom;
+  onEnter: () => void;
+}) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -239,7 +327,13 @@ function CreatedStep({ room, onEnter }: { room: CreatedRoom; onEnter: () => void
   );
 }
 
-export function CreateRoomScreen({ identity, onCancel, onCreated, created, onEnter }: CreateRoomScreenProps) {
+export function CreateRoomScreen({
+  identity,
+  onCancel,
+  onCreated,
+  created,
+  onEnter,
+}: CreateRoomScreenProps) {
   return (
     <Panel>
       <BackRow>
@@ -252,7 +346,11 @@ export function CreateRoomScreen({ identity, onCancel, onCreated, created, onEnt
         {created ? (
           <CreatedStep room={created} onEnter={onEnter} />
         ) : (
-          <CreateStep identity={identity} onCancel={onCancel} onCreated={onCreated} />
+          <CreateStep
+            identity={identity}
+            onCancel={onCancel}
+            onCreated={onCreated}
+          />
         )}
       </Body>
     </Panel>

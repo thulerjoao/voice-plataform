@@ -30,7 +30,13 @@ type JoinRoomScreenProps = {
 function BackIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M10 3.2 5.2 8 10 12.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M10 3.2 5.2 8 10 12.8"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -38,9 +44,26 @@ function BackIcon() {
 function KeyIcon() {
   return (
     <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <circle cx="12.2" cy="16" r="5.4" stroke="currentColor" strokeWidth="1.15" />
-      <path d="M16.8 16h9.4l2.2 2.2-2.2 2.2" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M22.2 16v2.4" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
+      <circle
+        cx="12.2"
+        cy="16"
+        r="5.4"
+        stroke="currentColor"
+        strokeWidth="1.15"
+      />
+      <path
+        d="M16.8 16h9.4l2.2 2.2-2.2 2.2"
+        stroke="currentColor"
+        strokeWidth="1.15"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M22.2 16v2.4"
+        stroke="currentColor"
+        strokeWidth="1.15"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -48,22 +71,42 @@ function KeyIcon() {
 function HashIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M10 4 8.2 20M15.8 4 14 20M5 9.5h14M4.5 14.5h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path
+        d="M10 4 8.2 20M15.8 4 14 20M5 9.5h14M4.5 14.5h14"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function AlertIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
       <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M8 5v3.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path
+        d="M8 5v3.4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
       <circle cx="8" cy="11" r="0.7" fill="currentColor" />
     </svg>
   );
 }
 
-export function JoinRoomScreen({ identity, onCancel, onJoined }: JoinRoomScreenProps) {
+export function JoinRoomScreen({
+  identity,
+  onCancel,
+  onJoined,
+}: JoinRoomScreenProps) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [joining, setJoining] = useState(false);
@@ -95,7 +138,11 @@ export function JoinRoomScreen({ identity, onCancel, onJoined }: JoinRoomScreenP
       });
       onJoined(room);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível entrar no servidor.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível entrar no servidor.",
+      );
       setJoining(false);
     }
   }

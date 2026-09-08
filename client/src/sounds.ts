@@ -1,3 +1,5 @@
+import { loadMasterGain } from "./audio-settings";
+
 let ctx: AudioContext | null = null;
 
 function audioContext() {
@@ -12,7 +14,14 @@ function audioContext() {
   return ctx;
 }
 
-function pluck(ctx: AudioContext, dest: AudioNode, time: number, freq: number, duration: number, gain: number) {
+function pluck(
+  ctx: AudioContext,
+  dest: AudioNode,
+  time: number,
+  freq: number,
+  duration: number,
+  gain: number,
+) {
   const osc = ctx.createOscillator();
   osc.type = "sine";
   osc.frequency.setValueAtTime(freq, time);
@@ -61,7 +70,7 @@ export function playPokeSound() {
     const ctx = audioContext();
     const now = ctx.currentTime;
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.28, now);
+    master.gain.setValueAtTime(0.28 * loadMasterGain(), now);
     master.connect(ctx.destination);
 
     pluck(ctx, master, now, 880, 0.16, 0.7);
@@ -72,12 +81,42 @@ export function playPokeSound() {
   }
 }
 
+export function playMuteSound() {
+  try {
+    const ctx = audioContext();
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.09 * loadMasterGain(), now);
+    master.connect(ctx.destination);
+
+    pluck(ctx, master, now, 360, 0.1, 0.45);
+    pluck(ctx, master, now + 0.05, 240, 0.14, 0.35);
+  } catch {
+    // Autoplay bloqueado ou Web Audio indisponível — silêncio.
+  }
+}
+
+export function playUnmuteSound() {
+  try {
+    const ctx = audioContext();
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.09 * loadMasterGain(), now);
+    master.connect(ctx.destination);
+
+    pluck(ctx, master, now, 420, 0.1, 0.4);
+    pluck(ctx, master, now + 0.05, 620, 0.14, 0.38);
+  } catch {
+    // Autoplay bloqueado ou Web Audio indisponível — silêncio.
+  }
+}
+
 export function playConnectSound() {
   try {
     const ctx = audioContext();
     const now = ctx.currentTime;
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.22, now);
+    master.gain.setValueAtTime(0.22 * loadMasterGain(), now);
     master.connect(ctx.destination);
 
     whoosh(ctx, master, now);

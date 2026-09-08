@@ -20,9 +20,7 @@ export async function createRoom(input: {
   });
 
   const payload = (await response.json().catch(() => null)) as
-    | CreatedRoom
-    | { error?: string }
-    | null;
+    CreatedRoom | { error?: string } | null;
 
   if (!response.ok || !payload || !("id" in payload)) {
     throw new Error(
@@ -47,9 +45,7 @@ export async function joinRoom(input: {
   });
 
   const payload = (await response.json().catch(() => null)) as
-    | CreatedRoom
-    | { error?: string }
-    | null;
+    CreatedRoom | { error?: string } | null;
 
   if (!response.ok || !payload || !("id" in payload)) {
     throw new Error(

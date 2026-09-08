@@ -121,11 +121,53 @@ export const NavItem = styled.button`
 
 export const SidebarDock = styled.div`
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
+`;
+
+export const DockRow = styled.div`
+  display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 0.35rem;
-  margin-top: auto;
-  padding-top: 0.75rem;
+`;
+
+export const DockVolume = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  height: 2.1rem;
+  padding: 0 0.55rem;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: #a1a1a6;
+
+  svg {
+    width: 0.95rem;
+    height: 0.95rem;
+    flex-shrink: 0;
+  }
+`;
+
+export const DockSlider = styled.input`
+  flex: 1;
+  min-width: 0;
+  height: 0.35rem;
+  margin: 0;
+  accent-color: #2f6fed;
+  cursor: pointer;
+`;
+
+export const DockVolumeValue = styled.span`
+  width: 2.3rem;
+  flex-shrink: 0;
+  color: #f5f5f7;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: right;
 `;
 
 export const StatusWrap = styled.div`
