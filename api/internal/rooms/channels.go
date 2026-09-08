@@ -38,9 +38,6 @@ func CreateSala(ctx context.Context, store *db.DB, roomID, uid, name, descriptio
 		Description: description,
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
-			return RoomChannel{}, ErrDuplicateName
-		}
 		return RoomChannel{}, err
 	}
 	return roomChannelOf(created), nil
@@ -64,9 +61,6 @@ func UpdateSala(ctx context.Context, store *db.DB, roomID, channelID, uid, name,
 		Description: description,
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
-			return RoomChannel{}, ErrDuplicateName
-		}
 		return RoomChannel{}, err
 	}
 	return roomChannelOf(updated), nil

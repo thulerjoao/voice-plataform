@@ -758,351 +758,370 @@ export function SettingsScreen({
 
         {tab === "account" ? (
           <>
-          <Section>
-            <SectionTitle>Nickname</SectionTitle>
-            <Field>
-              <FieldLabel>Como você aparece</FieldLabel>
-              {editingNick ? (
-                <NameEdit
-                  ref={nickEditRef}
-                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                    void handleSaveNick(event);
-                  }}
-                >
-                  <NameInput
-                    autoFocus
-                    maxLength={NICKNAME_MAX_LENGTH}
-                    value={nickDraft}
-                    onChange={(event) => setNickDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") cancelNickEdit();
+            <Section>
+              <SectionTitle>Nickname</SectionTitle>
+              <Field>
+                <FieldLabel>Como você aparece</FieldLabel>
+                {editingNick ? (
+                  <NameEdit
+                    ref={nickEditRef}
+                    onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                      void handleSaveNick(event);
                     }}
-                  />
-                  <NameIcon
-                    type="submit"
-                    title="Salvar"
-                    disabled={!nickDraft.trim() || savingNick}
                   >
-                    <CheckIcon />
-                  </NameIcon>
-                  <NameIcon
+                    <NameInput
+                      autoFocus
+                      maxLength={NICKNAME_MAX_LENGTH}
+                      value={nickDraft}
+                      onChange={(event) => setNickDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") cancelNickEdit();
+                      }}
+                    />
+                    <NameIcon
+                      type="submit"
+                      title="Salvar"
+                      disabled={!nickDraft.trim() || savingNick}
+                    >
+                      <CheckIcon />
+                    </NameIcon>
+                    <NameIcon
+                      type="button"
+                      title="Cancelar"
+                      onClick={cancelNickEdit}
+                    >
+                      <CloseIcon />
+                    </NameIcon>
+                  </NameEdit>
+                ) : (
+                  <NameButton
                     type="button"
-                    title="Cancelar"
-                    onClick={cancelNickEdit}
+                    title="Alterar nickname"
+                    onClick={() => {
+                      setNickDraft(identity.nickname);
+                      setEditingNick(true);
+                    }}
                   >
-                    <CloseIcon />
-                  </NameIcon>
-                </NameEdit>
-              ) : (
-                <NameButton
+                    <span>{identity.nickname}</span>
+                    <EditIcon />
+                  </NameButton>
+                )}
+              </Field>
+              {nickError ? <ErrorText>{nickError}</ErrorText> : null}
+            </Section>
+            <Section>
+              <SectionTitle>Código de recuperação</SectionTitle>
+              <CodeBox>
+                <RecoveryCode>{identity.recoveryCode}</RecoveryCode>
+                <GhostButton
                   type="button"
-                  title="Alterar nickname"
                   onClick={() => {
-                    setNickDraft(identity.nickname);
-                    setEditingNick(true);
+                    void navigator.clipboard
+                      .writeText(identity.recoveryCode)
+                      .then(() => {
+                        setCopied(true);
+                        window.setTimeout(() => setCopied(false), 1600);
+                      });
                   }}
                 >
-                  <span>{identity.nickname}</span>
-                  <EditIcon />
-                </NameButton>
-              )}
-            </Field>
-            {nickError ? <ErrorText>{nickError}</ErrorText> : null}
-          </Section>
-          <Section>
-            <SectionTitle>Código de recuperação</SectionTitle>
-            <CodeBox>
-              <RecoveryCode>{identity.recoveryCode}</RecoveryCode>
-              <GhostButton
+                  <CopyIcon />
+                  {copied ? "Copiado!" : "Copiar"}
+                </GhostButton>
+              </CodeBox>
+              <Warn>
+                Guarde este código em um lugar seguro. Ele é a única forma de
+                recuperar sua identidade. Não o compartilhe com ninguém.
+              </Warn>
+              <DangerButton
                 type="button"
                 onClick={() => {
-                  void navigator.clipboard
-                    .writeText(identity.recoveryCode)
-                    .then(() => {
-                      setCopied(true);
-                      window.setTimeout(() => setCopied(false), 1600);
-                    });
+                  if (!confirmLogout) {
+                    setConfirmLogout(true);
+                    return;
+                  }
+                  onLogout();
                 }}
               >
-                <CopyIcon />
-                {copied ? "Copiado!" : "Copiar"}
-              </GhostButton>
-            </CodeBox>
-            <Warn>
-              Guarde este código em um lugar seguro. Ele é a única forma de
-              recuperar sua identidade se formatar o computador. Não compartilhe
-              com ninguém.
-            </Warn>
-            <DangerButton
-              type="button"
-              onClick={() => {
-                if (!confirmLogout) {
-                  setConfirmLogout(true);
-                  return;
-                }
-                onLogout();
-              }}
-            >
-              {confirmLogout ? "Confirmar saída deste PC" : "Sair deste PC"}
-            </DangerButton>
-            {confirmLogout ? (
-              <Hint style={{ textAlign: "center" }}>
-                Isto apagará seus dados neste computador.<br /> Você conseguirá entrar novamente com o código de recuperação.
-              </Hint>
-            ) : null}
-          </Section>
+                {confirmLogout ? "Confirmar saída deste PC" : "Sair deste PC"}
+              </DangerButton>
+              {confirmLogout ? (
+                <Hint style={{ textAlign: "center" }}>
+                  Isto apagará seus dados neste computador.
+                  <br /> Você conseguirá entrar novamente com o código de
+                  recuperação.
+                </Hint>
+              ) : null}
+            </Section>
           </>
         ) : (
           <>
-        <Section>
-          <SectionTitle>Entrada e saída</SectionTitle>
-          <DeviceSelect
-            label="Microfone (entrada)"
-            value={settings.inputDeviceId}
-            devices={devices.inputs}
-            fallback="Microfone"
-            emptyHint="Nenhum microfone listado ainda"
-            onChange={(inputDeviceId) => commit({ inputDeviceId })}
-          />
-          <DeviceSelect
-            label="Fone / alto-falante (saída)"
-            value={settings.outputDeviceId}
-            devices={devices.outputs}
-            fallback="Saída"
-            emptyHint="Nenhuma saída encontrada"
-            onChange={(outputDeviceId) => commit({ outputDeviceId })}
-          />
-          <MeterRow>
-            <MeterTrack>
-              <MeterClip>
-                <MeterBar
-                  $level={level}
-                  $cut={
-                    settings.inputMode === "vad" ? threshold : pttHeld ? 0 : 1
-                  }
-                />
-              </MeterClip>
-              {settings.inputMode === "vad" ? (
-                <MeterMark $pct={threshold * 100} />
-              ) : null}
-            </MeterTrack>
-            <GhostButton
-              type="button"
-              data-on={listening ? "true" : "false"}
-              onClick={() => setListening((value) => !value)}
-            >
-              {listening ? "Parar teste" : "Ouvir mic"}
-            </GhostButton>
-            <GhostButton type="button" onClick={() => void playOutputTest()}>
-              Testar fone
-            </GhostButton>
-          </MeterRow>
-          {!hasDeviceNames ? (
-            <>
-              <Hint>Sem nomes dos aparelhos ainda.</Hint>
+            <Section>
+              <SectionTitle>Entrada e saída</SectionTitle>
+              <DeviceSelect
+                label="Microfone (entrada)"
+                value={settings.inputDeviceId}
+                devices={devices.inputs}
+                fallback="Microfone"
+                emptyHint="Nenhum microfone listado ainda"
+                onChange={(inputDeviceId) => commit({ inputDeviceId })}
+              />
+              <DeviceSelect
+                label="Fone / alto-falante (saída)"
+                value={settings.outputDeviceId}
+                devices={devices.outputs}
+                fallback="Saída"
+                emptyHint="Nenhuma saída encontrada"
+                onChange={(outputDeviceId) => commit({ outputDeviceId })}
+              />
               <MeterRow>
-                <GhostButton type="button" onClick={() => void requestMic()}>
-                  Liberar microfone
+                <MeterTrack>
+                  <MeterClip>
+                    <MeterBar
+                      $level={level}
+                      $cut={
+                        settings.inputMode === "vad"
+                          ? threshold
+                          : pttHeld
+                            ? 0
+                            : 1
+                      }
+                    />
+                  </MeterClip>
+                  {settings.inputMode === "vad" ? (
+                    <MeterMark $pct={threshold * 100} />
+                  ) : null}
+                </MeterTrack>
+                <GhostButton
+                  type="button"
+                  data-on={listening ? "true" : "false"}
+                  onClick={() => setListening((value) => !value)}
+                >
+                  {listening ? "Parar teste" : "Ouvir mic"}
+                </GhostButton>
+                <GhostButton
+                  type="button"
+                  onClick={() => void playOutputTest()}
+                >
+                  Testar fone
                 </GhostButton>
               </MeterRow>
-            </>
-          ) : (
-            <Hint>
-              A marca é o corte. Azul fica mudo; verde é o que você ouve no
-              teste.
-            </Hint>
-          )}
-          {error ? <ErrorText>{error}</ErrorText> : null}
-        </Section>
+              {!hasDeviceNames ? (
+                <>
+                  <Hint>Sem nomes dos aparelhos ainda.</Hint>
+                  <MeterRow>
+                    <GhostButton
+                      type="button"
+                      onClick={() => void requestMic()}
+                    >
+                      Liberar microfone
+                    </GhostButton>
+                  </MeterRow>
+                </>
+              ) : (
+                <Hint>
+                  A marca é o corte. Azul fica mudo; verde é o que você ouve no
+                  teste.
+                </Hint>
+              )}
+              {error ? <ErrorText>{error}</ErrorText> : null}
+            </Section>
 
-        <Section>
-          <SectionTitle>Como você fala</SectionTitle>
-          <ModeRow>
-            <ModeButton
-              type="button"
-              $active={settings.inputMode === "vad"}
-              onClick={() => setMode("vad")}
-            >
-              Automático
-            </ModeButton>
-            <ModeButton
-              type="button"
-              $active={settings.inputMode === "ptt"}
-              onClick={() => setMode("ptt")}
-            >
-              Push-to-talk
-            </ModeButton>
-          </ModeRow>
-          {settings.inputMode === "vad" ? (
-            <Field>
-              <FieldLabel>Sensibilidade</FieldLabel>
-              <SliderRow>
-                <Slider
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={settings.vadSensitivity}
-                  onChange={(event) =>
-                    commit({ vadSensitivity: Number(event.target.value) })
+            <Section>
+              <SectionTitle>Como você fala</SectionTitle>
+              <ModeRow>
+                <ModeButton
+                  type="button"
+                  $active={settings.inputMode === "vad"}
+                  onClick={() => setMode("vad")}
+                >
+                  Automático
+                </ModeButton>
+                <ModeButton
+                  type="button"
+                  $active={settings.inputMode === "ptt"}
+                  onClick={() => setMode("ptt")}
+                >
+                  Push-to-talk
+                </ModeButton>
+              </ModeRow>
+              {settings.inputMode === "vad" ? (
+                <Field>
+                  <FieldLabel>Sensibilidade</FieldLabel>
+                  <SliderRow>
+                    <Slider
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={settings.vadSensitivity}
+                      onChange={(event) =>
+                        commit({ vadSensitivity: Number(event.target.value) })
+                      }
+                    />
+                    <Value>{settings.vadSensitivity}%</Value>
+                  </SliderRow>
+                  <Hint>
+                    Mais alto pega voz mais baixa. Só passa o que cruzar a
+                    marca.
+                  </Hint>
+                </Field>
+              ) : (
+                <Hint>
+                  {settings.ptt
+                    ? "Segure a tecla do push-to-talk para abrir o mic. Só vale com o app em foco."
+                    : "Defina a tecla do push-to-talk. Sem ela o mic fica fechado."}
+                </Hint>
+              )}
+              <BindRow>
+                <BindLabel>Tecla do push-to-talk</BindLabel>
+                <BindActions>
+                  {settings.ptt ? (
+                    <ClearBind
+                      type="button"
+                      onClick={() => commit({ ptt: null })}
+                    >
+                      Limpar
+                    </ClearBind>
+                  ) : null}
+                  <BindButton
+                    type="button"
+                    $listening={capturing === "ptt"}
+                    onClick={() =>
+                      setCapturing((value) => (value === "ptt" ? null : "ptt"))
+                    }
+                  >
+                    {bindLabel(settings.ptt, capturing === "ptt")}
+                  </BindButton>
+                </BindActions>
+              </BindRow>
+              <BindRow>
+                <BindLabel>Atalho para mutar mic e fone</BindLabel>
+                <BindActions>
+                  {settings.muteToggle ? (
+                    <ClearBind
+                      type="button"
+                      onClick={() => commit({ muteToggle: null })}
+                    >
+                      Limpar
+                    </ClearBind>
+                  ) : null}
+                  <BindButton
+                    type="button"
+                    $listening={capturing === "muteToggle"}
+                    onClick={() =>
+                      setCapturing((value) =>
+                        value === "muteToggle" ? null : "muteToggle",
+                      )
+                    }
+                  >
+                    {bindLabel(settings.muteToggle, capturing === "muteToggle")}
+                  </BindButton>
+                </BindActions>
+              </BindRow>
+              <Hint>
+                Tecla ou botão do mouse. O mesmo atalho não serve para os dois.
+                Esc cancela; Delete apaga.
+              </Hint>
+            </Section>
+
+            <Section>
+              <SectionTitle>Ganho</SectionTitle>
+              <Field>
+                <FieldLabel>Entrada</FieldLabel>
+                <SliderRow>
+                  <StepButton
+                    type="button"
+                    onClick={() => setGain(settings.inputGainDb - 1)}
+                  >
+                    −
+                  </StepButton>
+                  <Slider
+                    type="range"
+                    min={INPUT_GAIN_MIN}
+                    max={INPUT_GAIN_MAX}
+                    value={settings.inputGainDb}
+                    onChange={(event) => setGain(Number(event.target.value))}
+                  />
+                  <StepButton
+                    type="button"
+                    onClick={() => setGain(settings.inputGainDb + 1)}
+                  >
+                    +
+                  </StepButton>
+                  <Value>{formatGain(settings.inputGainDb)}</Value>
+                </SliderRow>
+              </Field>
+              <Field>
+                <FieldLabel>Saída - Volume geral</FieldLabel>
+                <SliderRow>
+                  <Slider
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={deafened ? 0 : settings.outputVolume}
+                    onChange={(event) =>
+                      onOutputVolume(Number(event.target.value))
+                    }
+                  />
+                  <Value>{deafened ? 0 : settings.outputVolume}%</Value>
+                </SliderRow>
+              </Field>
+            </Section>
+
+            <Section>
+              <SectionTitle>Processamento</SectionTitle>
+              <ToggleRow>
+                <ToggleCopy>
+                  <ToggleTitle>Cancelar eco</ToggleTitle>
+                  <ToggleHint>
+                    Útil com alto-falante. No teste do mic desliga sozinho,
+                    senão come a própria voz.
+                  </ToggleHint>
+                </ToggleCopy>
+                <Switch
+                  type="button"
+                  role="switch"
+                  aria-checked={settings.echoCancellation}
+                  $on={settings.echoCancellation}
+                  onClick={() =>
+                    commit({ echoCancellation: !settings.echoCancellation })
                   }
                 />
-                <Value>{settings.vadSensitivity}%</Value>
-              </SliderRow>
-              <Hint>
-                Mais alto pega voz mais baixa. Só passa o que cruzar a marca.
-              </Hint>
-            </Field>
-          ) : (
-            <Hint>
-              {settings.ptt
-                ? "Segure a tecla do push-to-talk para abrir o mic. Só vale com o app em foco."
-                : "Defina a tecla do push-to-talk. Sem ela o mic fica fechado."}
-            </Hint>
-          )}
-          <BindRow>
-            <BindLabel>Tecla do push-to-talk</BindLabel>
-            <BindActions>
-              {settings.ptt ? (
-                <ClearBind type="button" onClick={() => commit({ ptt: null })}>
-                  Limpar
-                </ClearBind>
-              ) : null}
-              <BindButton
-                type="button"
-                $listening={capturing === "ptt"}
-                onClick={() =>
-                  setCapturing((value) => (value === "ptt" ? null : "ptt"))
-                }
-              >
-                {bindLabel(settings.ptt, capturing === "ptt")}
-              </BindButton>
-            </BindActions>
-          </BindRow>
-          <BindRow>
-            <BindLabel>Atalho para mutar mic e fone</BindLabel>
-            <BindActions>
-              {settings.muteToggle ? (
-                <ClearBind
+              </ToggleRow>
+              <ToggleRow>
+                <ToggleCopy>
+                  <ToggleTitle>Tirar ruído</ToggleTitle>
+                  <ToggleHint>
+                    Corta ventilador e teclado no que der.
+                  </ToggleHint>
+                </ToggleCopy>
+                <Switch
                   type="button"
-                  onClick={() => commit({ muteToggle: null })}
-                >
-                  Limpar
-                </ClearBind>
-              ) : null}
-              <BindButton
-                type="button"
-                $listening={capturing === "muteToggle"}
-                onClick={() =>
-                  setCapturing((value) =>
-                    value === "muteToggle" ? null : "muteToggle",
-                  )
-                }
-              >
-                {bindLabel(settings.muteToggle, capturing === "muteToggle")}
-              </BindButton>
-            </BindActions>
-          </BindRow>
-          <Hint>
-            Tecla ou botão do mouse. O mesmo atalho não serve para os dois. Esc
-            cancela; Delete apaga.
-          </Hint>
-        </Section>
-
-        <Section>
-          <SectionTitle>Ganho</SectionTitle>
-          <Field>
-            <FieldLabel>Entrada</FieldLabel>
-            <SliderRow>
-              <StepButton
-                type="button"
-                onClick={() => setGain(settings.inputGainDb - 1)}
-              >
-                −
-              </StepButton>
-              <Slider
-                type="range"
-                min={INPUT_GAIN_MIN}
-                max={INPUT_GAIN_MAX}
-                value={settings.inputGainDb}
-                onChange={(event) => setGain(Number(event.target.value))}
-              />
-              <StepButton
-                type="button"
-                onClick={() => setGain(settings.inputGainDb + 1)}
-              >
-                +
-              </StepButton>
-              <Value>{formatGain(settings.inputGainDb)}</Value>
-            </SliderRow>
-          </Field>
-          <Field>
-            <FieldLabel>Saída - Volume geral</FieldLabel>
-            <SliderRow>
-              <Slider
-                type="range"
-                min={0}
-                max={100}
-                value={deafened ? 0 : settings.outputVolume}
-                onChange={(event) => onOutputVolume(Number(event.target.value))}
-              />
-              <Value>{deafened ? 0 : settings.outputVolume}%</Value>
-            </SliderRow>
-          </Field>
-        </Section>
-
-        <Section>
-          <SectionTitle>Processamento</SectionTitle>
-          <ToggleRow>
-            <ToggleCopy>
-              <ToggleTitle>Cancelar eco</ToggleTitle>
-              <ToggleHint>
-                Útil com alto-falante. No teste do mic desliga sozinho, senão
-                come a própria voz.
-              </ToggleHint>
-            </ToggleCopy>
-            <Switch
-              type="button"
-              role="switch"
-              aria-checked={settings.echoCancellation}
-              $on={settings.echoCancellation}
-              onClick={() =>
-                commit({ echoCancellation: !settings.echoCancellation })
-              }
-            />
-          </ToggleRow>
-          <ToggleRow>
-            <ToggleCopy>
-              <ToggleTitle>Tirar ruído</ToggleTitle>
-              <ToggleHint>Corta ventilador e teclado no que der.</ToggleHint>
-            </ToggleCopy>
-            <Switch
-              type="button"
-              role="switch"
-              aria-checked={settings.noiseSuppression}
-              $on={settings.noiseSuppression}
-              onClick={() =>
-                commit({ noiseSuppression: !settings.noiseSuppression })
-              }
-            />
-          </ToggleRow>
-          <ToggleRow>
-            <ToggleCopy>
-              <ToggleTitle>Ganho automático do sistema</ToggleTitle>
-              <ToggleHint>
-                Se ligar, o ganho da seção acima vira só um extra.
-              </ToggleHint>
-            </ToggleCopy>
-            <Switch
-              type="button"
-              role="switch"
-              aria-checked={settings.autoGainControl}
-              $on={settings.autoGainControl}
-              onClick={() =>
-                commit({ autoGainControl: !settings.autoGainControl })
-              }
-            />
-          </ToggleRow>
-        </Section>
+                  role="switch"
+                  aria-checked={settings.noiseSuppression}
+                  $on={settings.noiseSuppression}
+                  onClick={() =>
+                    commit({ noiseSuppression: !settings.noiseSuppression })
+                  }
+                />
+              </ToggleRow>
+              <ToggleRow>
+                <ToggleCopy>
+                  <ToggleTitle>Ganho automático do sistema</ToggleTitle>
+                  <ToggleHint>
+                    Se ligar, o ganho da seção acima vira só um extra.
+                  </ToggleHint>
+                </ToggleCopy>
+                <Switch
+                  type="button"
+                  role="switch"
+                  aria-checked={settings.autoGainControl}
+                  $on={settings.autoGainControl}
+                  onClick={() =>
+                    commit({ autoGainControl: !settings.autoGainControl })
+                  }
+                />
+              </ToggleRow>
+            </Section>
           </>
         )}
       </Body>

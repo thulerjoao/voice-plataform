@@ -203,8 +203,6 @@ func writeRoomErr(w http.ResponseWriter, err error, fallback string) {
 		writeError(w, http.StatusNotFound, "Usuário não encontrado.")
 	case errors.Is(err, ErrLastChannel):
 		writeError(w, http.StatusConflict, "Não é possível apagar a última sala.")
-	case errors.Is(err, ErrDuplicateName):
-		writeError(w, http.StatusConflict, "Já existe uma sala com esse nome.")
 	case errors.Is(err, ErrInvalidRole):
 		writeError(w, http.StatusBadRequest, "Papel inválido.")
 	case errors.Is(err, ErrForbidden):

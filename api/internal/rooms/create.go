@@ -27,7 +27,6 @@ var (
 	ErrForbidden       = errors.New("forbidden")
 	ErrLastChannel     = errors.New("cannot delete last channel")
 	ErrChannelNotFound = errors.New("channel not found")
-	ErrDuplicateName   = errors.New("duplicate channel name")
 	ErrInvalidRole     = errors.New("invalid role")
 	ErrMemberNotFound  = errors.New("member not found")
 )

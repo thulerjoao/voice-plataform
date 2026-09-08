@@ -392,6 +392,32 @@ function upsertUid(users: TreeUser[], user: TreeUser): TreeUser[] {
   return next;
 }
 
+function upsertChannel(
+  roster: TreeChannel[],
+  channel: Omit<TreeChannel, "users"> & { users?: TreeUser[] },
+): TreeChannel[] {
+  if (roster.some((item) => item.id === channel.id)) {
+    return roster.map((item) =>
+      item.id === channel.id
+        ? {
+            ...item,
+            name: channel.name,
+            description: channel.description,
+          }
+        : item,
+    );
+  }
+  return [
+    ...roster,
+    {
+      id: channel.id,
+      name: channel.name,
+      description: channel.description,
+      users: channel.users ?? [],
+    },
+  ];
+}
+
 function salaIsFull(channel: TreeChannel | undefined, uid: string): boolean {
   if (!channel) return false;
   return channel.users.filter((user) => user.id !== uid).length >= CHANNEL_CAP;
@@ -649,28 +675,13 @@ export function RoomScreen({
       }
 
       if (event.type === "channel.created") {
-        setRoster((prev) => {
-          if (prev.some((channel) => channel.id === event.id)) {
-            return prev.map((channel) =>
-              channel.id === event.id
-                ? {
-                    ...channel,
-                    name: event.name,
-                    description: event.description,
-                  }
-                : channel,
-            );
-          }
-          return [
-            ...prev,
-            {
-              id: event.id,
-              name: event.name,
-              description: event.description,
-              users: [],
-            },
-          ];
-        });
+        setRoster((prev) =>
+          upsertChannel(prev, {
+            id: event.id,
+            name: event.name,
+            description: event.description,
+          }),
+        );
         return;
       }
 
@@ -1151,15 +1162,13 @@ export function RoomScreen({
         uid: identity.uid,
         name,
       });
-      setRoster((prev) => [
-        ...prev,
-        {
+      setRoster((prev) =>
+        upsertChannel(prev, {
           id: created.id,
           name: created.name,
           description: created.description,
-          users: [],
-        },
-      ]);
+        }),
+      );
       setOpen((prev) => ({ ...prev, [created.id]: true }));
       setChats((prev) => ({ ...prev, [created.id]: [] }));
       setSalaDraft(created.name);
