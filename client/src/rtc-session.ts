@@ -22,6 +22,8 @@ type Peer = {
 
 const peers = new Map<string, Peer>();
 const remotes = new Map<string, HTMLAudioElement>();
+const links = new Map<string, "connecting" | "connected">();
+const linkListeners = new Set<() => void>();
 let seats: Occupant[] = [];
 let getCall: () => Call | null = () => null;
 let selfUid = "";
@@ -36,6 +38,7 @@ let sendEnabled = false;
 let listenEnabled = true;
 let outputVolume = loadAudioSettings().outputVolume;
 let outputDeviceId = loadAudioSettings().outputDeviceId;
+let liveSala: string | null = null;
 
 function onOccupancy(event: OccupancyEvent) {
   const call = getCall();
@@ -58,8 +61,11 @@ function onOccupancy(event: OccupancyEvent) {
     return;
   }
   if (event.type === "presence.left") {
+    const wasHere = seats.some(
+      (item) => item.uid === event.uid && item.channelId === call.salaId,
+    );
     seats = seats.filter((item) => item.uid !== event.uid);
-    closePeer(event.uid);
+    if (wasHere) closePeer(event.uid);
     void reconcile();
   }
 }
@@ -98,6 +104,7 @@ export function startRtcSignaling(
       closeAll();
       releaseMic();
       seats = [];
+      liveSala = null;
       getCall = () => null;
       selfUid = "";
     }, 0);
@@ -110,10 +117,38 @@ export function syncRtcSignaling(nextSeats?: Occupant[]): void {
     closeAll();
     releaseMic();
     seats = [];
+    liveSala = null;
     return;
   }
   void ensureMic();
   void reconcile();
+}
+
+export function subscribeRtcLinks(listener: () => void): () => void {
+  linkListeners.add(listener);
+  return () => {
+    linkListeners.delete(listener);
+  };
+}
+
+export function rtcLinkReady(peerUid: string): boolean {
+  return links.get(peerUid) === "connected";
+}
+
+function notifyLinks() {
+  for (const listener of linkListeners) listener();
+}
+
+function setLink(uid: string, state: "connecting" | "connected") {
+  if (links.get(uid) === state) return;
+  links.set(uid, state);
+  notifyLinks();
+}
+
+function clearLink(uid: string) {
+  if (!links.has(uid)) return;
+  links.delete(uid);
+  notifyLinks();
 }
 
 export function setRtcMedia(next: {
@@ -132,11 +167,32 @@ function salaSeats(call: Call): Occupant[] {
   return seats.filter((item) => item.channelId === call.salaId);
 }
 
+function sameCall(call: Call): boolean {
+  const current = getCall();
+  return Boolean(
+    current &&
+      current.roomId === call.roomId &&
+      current.salaId === call.salaId &&
+      liveSala === callKey(call),
+  );
+}
+
+function callKey(call: Call): string {
+  return `${call.roomId}:${call.salaId}`;
+}
+
 async function reconcile(): Promise<void> {
   const call = getCall();
   if (!call || !selfUid) {
     closeAll();
+    liveSala = null;
     return;
+  }
+
+  const key = callKey(call);
+  if (liveSala !== key) {
+    closeAll();
+    liveSala = key;
   }
 
   const seated = new Set(salaSeats(call).map((item) => item.uid));
@@ -166,6 +222,7 @@ async function offerTo(call: Call, peerUid: string): Promise<void> {
     await peer.pc.setLocalDescription(offer);
     applyLocalSend();
     await waitIce(peer.pc);
+    if (!sameCall(call) || !peers.has(peerUid)) return;
     const sdp = peer.pc.localDescription?.sdp;
     if (!sdp) return;
     sendRtc({
@@ -213,6 +270,7 @@ async function applyRtc(call: Call, event: RtcEvent): Promise<void> {
     await peer.pc.setLocalDescription(answer);
     applyLocalSend();
     await waitIce(peer.pc);
+    if (!sameCall(call) || !peers.has(event.uid)) return;
     const sdp = peer.pc.localDescription?.sdp;
     if (!sdp) return;
     sendRtc({
@@ -268,8 +326,11 @@ function peerOf(peerUid: string): Peer {
     if (peerUid === selfUid) return;
     playRemote(peerUid, event.track, event.streams[0]);
   };
+  setLink(peerUid, "connecting");
   pc.onconnectionstatechange = () => {
     console.info("[rtc] pc", peerUid, pc.connectionState);
+    if (pc.connectionState === "connected") setLink(peerUid, "connected");
+    else if (pc.connectionState !== "closed") setLink(peerUid, "connecting");
   };
   return peer;
 }
@@ -304,6 +365,7 @@ function closePeer(uid: string): void {
   peer.pc.onconnectionstatechange = null;
   peer.pc.close();
   stopRemote(uid);
+  clearLink(uid);
 }
 
 function closeAll(): void {

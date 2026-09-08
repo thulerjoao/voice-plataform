@@ -38,7 +38,11 @@ import {
   type ActivityLine,
 } from "../../activity";
 import { playConnectSound, playDisconnectSound, playPokeSound } from "../../sounds";
-import { syncRtcSignaling } from "../../rtc-session";
+import {
+  rtcLinkReady,
+  subscribeRtcLinks,
+  syncRtcSignaling,
+} from "../../rtc-session";
 import {
   ChannelBlock,
   ChannelCount,
@@ -117,6 +121,7 @@ type TreeUser = {
   role?: Role;
   onlineSince: number;
   talking?: boolean;
+  linking?: boolean;
   muted?: boolean;
   deafened?: boolean;
   you?: boolean;
@@ -628,6 +633,7 @@ export function RoomScreen({
 }: RoomScreenProps) {
   const [roster, setRoster] = useState<TreeChannel[]>([]);
   const [occupants, setOccupants] = useState<Occupant[]>([]);
+  const [linkGen, setLinkGen] = useState(0);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileState | null>(null);
@@ -926,6 +932,10 @@ export function RoomScreen({
   }, [occupants, currentId]);
 
   useEffect(() => {
+    return subscribeRtcLinks(() => setLinkGen((value) => value + 1));
+  }, []);
+
+  useEffect(() => {
     const roomId = room.roomId;
     return () => onOccupancyChange?.(roomId, []);
   }, [room.roomId, onOccupancyChange]);
@@ -942,15 +952,49 @@ export function RoomScreen({
     you: true,
   };
 
+  const myJoined =
+    occupants.find(
+      (item) => item.channelId === currentId && item.uid === identity.uid,
+    )?.joinedAt ?? youSince;
+
+  function salaLinking(userId: string, joinedAt: number): boolean {
+    if (!currentId || linkGen < 0) return false;
+    if (userId === identity.uid) {
+      return occupants.some(
+        (item) =>
+          item.channelId === currentId &&
+          item.uid !== identity.uid &&
+          item.joinedAt < myJoined &&
+          !rtcLinkReady(item.uid),
+      );
+    }
+    return joinedAt > myJoined && !rtcLinkReady(userId);
+  }
+
   const channels = roster.map((channel) => {
+    const inCall = channel.id === currentId;
     const users = occupants
       .filter((item) => item.channelId === channel.id)
       .map((item) => occupantUser(item))
-      .map((user) =>
-        user.id === identity.uid ? { ...you, onlineSince: user.onlineSince } : user,
-      );
-    if (channel.id === currentId && !users.some((user) => user.id === identity.uid)) {
-      return { ...channel, users: [you, ...users] };
+      .map((user) => {
+        const row =
+          user.id === identity.uid
+            ? { ...you, onlineSince: user.onlineSince }
+            : user;
+        if (!inCall) return row;
+        const linking = salaLinking(row.id, row.onlineSince);
+        return {
+          ...row,
+          linking,
+          talking: linking ? false : row.talking,
+        };
+      });
+    if (inCall && !users.some((user) => user.id === identity.uid)) {
+      const linking = salaLinking(identity.uid, you.onlineSince);
+      return {
+        ...channel,
+        users: [{ ...you, linking, talking: linking ? false : you.talking }, ...users],
+      };
     }
     return { ...channel, users };
   });
@@ -1564,6 +1608,7 @@ export function RoomScreen({
                         <StatusDot
                           $color={PRESENCE_COLOR[user.presence]}
                           $talking={user.talking}
+                          $pending={user.linking}
                         />
                         <UserName>{user.nick}</UserName>
                         {user.you ? (
@@ -1638,6 +1683,7 @@ export function RoomScreen({
               <StatusDot
                 $color={PRESENCE_COLOR[profileUser.presence]}
                 $talking={profileUser.talking}
+                $pending={profileUser.linking}
               />
               {PRESENCE_LABEL[profileUser.presence]}
             </ProfileStatus>

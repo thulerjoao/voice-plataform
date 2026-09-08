@@ -279,7 +279,10 @@ Sinalização de voz (sem áudio no fio; STUN público no client):
 - um `RTCPeerConnection` por outro assento na mesma sala; offer só se o próprio `uid` < `uid` do par
 - Áudio: `getUserMedia` no client, track em cada PC (offer: `addTrack`; answer: `setRemoteDescription` e depois `replaceTrack`). Mute / ensurdecer / PTT = `track.enabled`. VAD só a bolinha local. Volume geral e ensurdecer no `<audio>` remoto
 
-- (depois) trocar de sala, bolinha de fala dos outros
+- Trocar de sala (id da sala, não o nome): fecha a malha antiga e abre outra só com quem está na sala nova. Offer/answer a meio do wait ICE são descartados se a call já mudou.
+- Só **quem está a entrar** na sala pisca cinza forte até o P2P com quem já estava fechar (`connected`). Quem já estava sentado mantém a bolinha de presença. Sozinho na sala, ninguém pisca.
+
+- (depois) bolinha de fala dos outros
 
 Reconexão: o client faz de novo o `GET` do servidor que está na tela.
 
@@ -407,4 +410,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Malha P2P: cada um manda a voz aos outros da sala. Próximo: trocar de sala, bolinha de fala dos outros.
+Malha P2P por sala (id). Trocar de sala derruba o P2P antigo. Próximo: bolinha de fala dos outros.

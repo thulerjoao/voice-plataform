@@ -1,4 +1,21 @@
-import styled from "styled-components";
+import styled, { css, keyframes } from "styled-components";
+
+const linkPulse = keyframes`
+  0% {
+    background: #4a4a4e;
+    border-color: #4a4a4e;
+    opacity: 0.35;
+  }
+  100% {
+    background: #e8e8ed;
+    border-color: #e8e8ed;
+    opacity: 1;
+  }
+`;
+
+const pendingPulse = css`
+  animation: ${linkPulse} 0.45s ease-in-out infinite alternate;
+`;
 
 export const RoomShell = styled.div`
   flex: 1;
@@ -651,15 +668,21 @@ export const PokeSend = styled.button`
   }
 `;
 
-export const StatusDot = styled.span<{ $color: string; $talking?: boolean }>`
+export const StatusDot = styled.span<{
+  $color: string;
+  $talking?: boolean;
+  $pending?: boolean;
+}>`
   box-sizing: border-box;
   width: 0.5rem;
   height: 0.5rem;
   flex-shrink: 0;
   border-radius: 999px;
-  border: 1.5px solid ${(p) => p.$color};
-  background: ${(p) => (p.$talking ? p.$color : "transparent")};
-  transition: background-color 80ms linear;
+  border: 1.5px solid ${(p) => (p.$pending ? "#8d8d93" : p.$color)};
+  background: ${(p) =>
+    p.$pending ? "#8d8d93" : p.$talking ? p.$color : "transparent"};
+  ${(p) => (p.$pending ? pendingPulse : "")};
+  transition: background-color 80ms linear, border-color 80ms linear;
 `;
 
 export const UserFlag = styled.span`
