@@ -40,7 +40,9 @@ import {
 import { playConnectSound, playDisconnectSound, playPokeSound } from "../../sounds";
 import {
   rtcLinkReady,
+  rtcPeerTalking,
   subscribeRtcLinks,
+  subscribeRtcTalking,
   syncRtcSignaling,
 } from "../../rtc-session";
 import {
@@ -498,6 +500,8 @@ function occupantUser(occupant: Occupant): TreeUser {
     presence: "online",
     role: occupant.role,
     onlineSince: occupant.joinedAt,
+    muted: occupant.muted || occupant.deafened,
+    deafened: occupant.deafened,
   };
 }
 
@@ -813,6 +817,8 @@ export function RoomScreen({
             role: event.role,
             channelId: event.channelId,
             joinedAt: event.joinedAt,
+            muted: event.muted,
+            deafened: event.deafened,
           }),
         );
         if (
@@ -831,6 +837,17 @@ export function RoomScreen({
         if (event.uid !== identity.uid && wasHere && !deafenedRef.current) {
           playDisconnectSound();
         }
+        return;
+      }
+
+      if (event.type === "presence.media") {
+        setOccupants((prev) =>
+          prev.map((item) =>
+            item.uid === event.uid
+              ? { ...item, muted: event.muted, deafened: event.deafened }
+              : item,
+          ),
+        );
         return;
       }
 
@@ -932,7 +949,13 @@ export function RoomScreen({
   }, [occupants, currentId]);
 
   useEffect(() => {
-    return subscribeRtcLinks(() => setLinkGen((value) => value + 1));
+    const bump = () => setLinkGen((value) => value + 1);
+    const stopLinks = subscribeRtcLinks(bump);
+    const stopTalk = subscribeRtcTalking(bump);
+    return () => {
+      stopLinks();
+      stopTalk();
+    };
   }, []);
 
   useEffect(() => {
@@ -986,7 +1009,11 @@ export function RoomScreen({
         return {
           ...row,
           linking,
-          talking: linking ? false : row.talking,
+          talking: linking
+            ? false
+            : row.you
+              ? row.talking
+              : rtcPeerTalking(row.id),
         };
       });
     if (inCall && !users.some((user) => user.id === identity.uid)) {

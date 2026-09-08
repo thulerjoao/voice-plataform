@@ -11,6 +11,8 @@ export type Occupant = {
   role: RoomRole;
   channelId: string;
   joinedAt: number;
+  muted: boolean;
+  deafened: boolean;
 };
 
 export type OccupancyEvent =
@@ -22,16 +24,26 @@ export type OccupancyEvent =
       nickname: string;
       role: RoomRole;
       joinedAt: number;
+      muted: boolean;
+      deafened: boolean;
     }
   | { type: "presence.left"; roomId: string; channelId: string; uid: string }
   | { type: "presence.full"; roomId: string; channelId: string }
-  | { type: "presence.state"; roomId: string; occupants: Occupant[] };
+  | { type: "presence.state"; roomId: string; occupants: Occupant[] }
+  | {
+      type: "presence.media";
+      roomId: string;
+      uid: string;
+      muted: boolean;
+      deafened: boolean;
+    };
 
 export type OccupancyClientMessage =
   | { type: "presence.join"; roomId: string; channelId: string }
   | { type: "presence.leave" }
   | { type: "presence.move"; roomId: string; channelId: string; uid: string }
-  | { type: "presence.sync"; roomId: string };
+  | { type: "presence.sync"; roomId: string }
+  | { type: "presence.media"; muted: boolean; deafened: boolean };
 
 const EVENT_NAME = "voice-occupancy";
 
@@ -49,7 +61,11 @@ export function subscribeOccupancy(listener: OccupancyListener): () => void {
 
 export function sendOccupancy(message: OccupancyClientMessage): void {
   if (sendRealtimePayload(message)) return;
-  if (
+  if (message.type === "presence.media") {
+    for (let i = pending.length - 1; i >= 0; i -= 1) {
+      if (pending[i].type === "presence.media") pending.splice(i, 1);
+    }
+  } else if (
     message.type === "presence.join" ||
     message.type === "presence.leave" ||
     message.type === "presence.move"
@@ -109,6 +125,8 @@ function parseOccupant(value: unknown): Occupant | null {
     role: item.role,
     channelId: item.channelId,
     joinedAt: typeof item.joinedAt === "number" ? item.joinedAt : Date.now(),
+    muted: item.muted === true,
+    deafened: item.deafened === true,
   };
 }
 
@@ -132,6 +150,8 @@ function parseOccupancy(raw: string): OccupancyEvent | null {
               role: value.role,
               joinedAt:
                 typeof value.joinedAt === "number" ? value.joinedAt : Date.now(),
+              muted: value.muted === true,
+              deafened: value.deafened === true,
             }
           : null;
       case "presence.left":
@@ -166,6 +186,16 @@ function parseOccupancy(raw: string): OccupancyEvent | null {
         }
         return { type: "presence.state", roomId: value.roomId, occupants };
       }
+      case "presence.media":
+        return typeof value.roomId === "string" && typeof value.uid === "string"
+          ? {
+              type: "presence.media",
+              roomId: value.roomId,
+              uid: value.uid,
+              muted: value.muted === true,
+              deafened: value.deafened === true,
+            }
+          : null;
       default:
         return null;
     }

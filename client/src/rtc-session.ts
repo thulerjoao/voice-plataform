@@ -1,5 +1,7 @@
 import {
+  analyserRms,
   loadAudioSettings,
+  rmsToMeter,
   subscribeAudioSettings,
   type AudioSettings,
 } from "./audio-settings";
@@ -24,6 +26,9 @@ const peers = new Map<string, Peer>();
 const remotes = new Map<string, HTMLAudioElement>();
 const links = new Map<string, "connecting" | "connected">();
 const linkListeners = new Set<() => void>();
+const talking = new Map<string, boolean>();
+const talkWatch = new Map<string, { context: AudioContext; frame: number }>();
+const talkListeners = new Set<() => void>();
 let seats: Occupant[] = [];
 let getCall: () => Call | null = () => null;
 let selfUid = "";
@@ -56,6 +61,8 @@ function onOccupancy(event: OccupancyEvent) {
       role: event.role,
       channelId: event.channelId,
       joinedAt: event.joinedAt,
+      muted: event.muted,
+      deafened: event.deafened,
     });
     void reconcile();
     return;
@@ -133,6 +140,17 @@ export function subscribeRtcLinks(listener: () => void): () => void {
 
 export function rtcLinkReady(peerUid: string): boolean {
   return links.get(peerUid) === "connected";
+}
+
+export function subscribeRtcTalking(listener: () => void): () => void {
+  talkListeners.add(listener);
+  return () => {
+    talkListeners.delete(listener);
+  };
+}
+
+export function rtcPeerTalking(peerUid: string): boolean {
+  return talking.get(peerUid) === true;
 }
 
 function notifyLinks() {
@@ -496,14 +514,76 @@ function playRemote(
     console.info("[rtc] hear blocked", reason);
   });
   console.info("[rtc] hear", peerUid);
+  watchTalk(peerUid, media);
 }
 
 function stopRemote(uid: string): void {
+  stopTalk(uid);
   const audio = remotes.get(uid);
   if (!audio) return;
   remotes.delete(uid);
   audio.pause();
   audio.srcObject = null;
+}
+
+function notifyTalk() {
+  for (const listener of talkListeners) listener();
+}
+
+function setTalking(uid: string, next: boolean) {
+  if (talking.get(uid) === next) return;
+  talking.set(uid, next);
+  notifyTalk();
+}
+
+function watchTalk(uid: string, stream: MediaStream) {
+  stopTalk(uid);
+  const context = new AudioContext();
+  const source = context.createMediaStreamSource(stream);
+  const analyser = context.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  void context.resume();
+  const samples = new Float32Array(analyser.fftSize);
+  let displayed = 0;
+  let above = 0;
+  let hangUntil = 0;
+  let last = false;
+  const watch = { context, frame: 0 };
+  talkWatch.set(uid, watch);
+  const tick = () => {
+    if (!talkWatch.has(uid)) return;
+    analyser.getFloatTimeDomainData(samples);
+    const instant = rmsToMeter(analyserRms(samples));
+    displayed = displayed * 0.72 + instant * 0.28;
+    let voice = false;
+    if (displayed >= 0.14 && displayed > 0) {
+      above += 1;
+      if (above >= 4) {
+        voice = true;
+        hangUntil = performance.now() + 160;
+      }
+    } else {
+      above = 0;
+      voice = performance.now() < hangUntil;
+    }
+    if (voice !== last) {
+      last = voice;
+      setTalking(uid, voice);
+    }
+    watch.frame = window.requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+function stopTalk(uid: string) {
+  const watch = talkWatch.get(uid);
+  if (watch) {
+    window.cancelAnimationFrame(watch.frame);
+    void watch.context.close();
+    talkWatch.delete(uid);
+  }
+  if (talking.delete(uid)) notifyTalk();
 }
 
 function applyRemoteListen(): void {

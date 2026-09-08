@@ -626,6 +626,10 @@ export function HomeScreen({
   const callRef = useRef<VoiceCall | null>(null);
   const seatedRef = useRef(false);
   const skipPresenceSendRef = useRef(false);
+  const mutedRef = useRef(muted);
+  const deafenedRef = useRef(deafened);
+  mutedRef.current = muted;
+  deafenedRef.current = deafened;
   const [syncGen, setSyncGen] = useState(0);
   const [occupancyByRoom, setOccupancyByRoom] = useState<
     Record<string, string[]>
@@ -983,6 +987,15 @@ export function HomeScreen({
   }, [call, muted, deafened, talking, outputVolume]);
 
   useEffect(() => {
+    if (!call) return;
+    sendOccupancy({
+      type: "presence.media",
+      muted,
+      deafened,
+    });
+  }, [call, muted, deafened]);
+
+  useEffect(() => {
     return subscribeRealtimeOpen(() => {
       const current = callRef.current;
       if (!current) return;
@@ -990,6 +1003,11 @@ export function HomeScreen({
         type: "presence.join",
         roomId: current.roomId,
         channelId: current.salaId,
+      });
+      sendOccupancy({
+        type: "presence.media",
+        muted: mutedRef.current,
+        deafened: deafenedRef.current,
       });
     });
   }, []);

@@ -144,7 +144,7 @@ No MVP: o dono **cria outro servidor**. O código serve para copiar e chamar gen
 
 ## 7. Papéis e presença
 
-Quem tem o código entra em qualquer canal. Status na árvore: bolinha **oca** (online / ocupado / volto logo). Mudo / ensurdecido: ícone azul à direita do nick. Quem está falando: a bolinha fica **sólida** (sua linha: o mic, corte do VAD ou PTT + voz; mudo/ensurdecido não).
+Quem tem o código entra em qualquer canal. Status na árvore: bolinha **oca** (online / ocupado / volto logo). Mudo / ensurdecido: ícone azul à direita do nick. Quem está falando: a bolinha fica **sólida** (sua linha: VAD/PTT local; as outras: analyser no áudio P2P que chega). Sem `talk.*` no WebSocket.
 
 Cargos mínimos:
 
@@ -169,7 +169,7 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume l
 - Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.
 - Chat por sala: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela sala na hora. Cada client guarda o log **neste PC** (até 200 linhas por sala); quem não estava não recebe o histórico da API. Recado 1:1 no mesmo módulo (`chat.direct`), só memória da sessão. Linhas de **auditoria** (renomear, cargo, kick…) vêm do módulo de log, cinza no mesmo feed — não são chat e não incluem entrada/saída. Hora local antes de cada linha (`18:12 -`); separador de dia (`Hoje` / `Ontem` / data) quando o dia muda.
 - Cada canal = malha **completa**: cada um manda a voz para os outros da mesma sala (no máximo 11 envios). Quem tem o `uid` menor manda a offer, para os dois não se cruzarem. O primeiro assento (`joinedAt`) ainda marca quem chegou primeiro — **não** relê áudio.
-- A API relê SDP/ICE (`rtc.*`) entre quem está na mesma sala. Mute, ensurdecer e PTT cortam o envio. VAD só acende a tua bolinha. Volume geral vale no que chega.
+- A API relê SDP/ICE (`rtc.*`) entre quem está na mesma sala. Mute, ensurdecer e PTT cortam o envio. VAD só acende a tua bolinha. A dos outros vem do áudio remoto. Volume geral vale no que chega.
 
 ### Host e sucessor
 
@@ -256,8 +256,9 @@ Dados:
 
 Ocupação (RAM, teto 12, um `uid` numa sala; **não** vai no GET do servidor):
 
-- client → `presence.join` / `presence.leave` / `presence.move` / `presence.sync`
-- API → `presence.joined` / `presence.left` / `presence.full` / `presence.state`
+- client → `presence.join` / `presence.leave` / `presence.move` / `presence.sync` / `presence.media`
+- API → `presence.joined` / `presence.left` / `presence.full` / `presence.state` / `presence.media`
+- mute / ensurdecer de cada assento via `presence.media` (`muted`, `deafened`); vai no snapshot e no `presence.joined` (troca de sala mantém). Ícones na árvore para todo mundo, iguais aos da sua linha.
 
 Chat (sem banco; teto 120 caracteres):
 
@@ -277,12 +278,13 @@ Sinalização de voz (sem áudio no fio; STUN público no client):
 - client → `rtc.offer` / `rtc.answer` `{ roomId, channelId, to, sdp }` (ICE vai no SDP; `rtc.ice` existe no fio mas o client ainda não pinga candidato a candidato)
 - API → o mesmo + `uid` do remetente, só para o `to`, e só se os dois estão sentados naquela sala
 - um `RTCPeerConnection` por outro assento na mesma sala; offer só se o próprio `uid` < `uid` do par
-- Áudio: `getUserMedia` no client, track em cada PC (offer: `addTrack`; answer: `setRemoteDescription` e depois `replaceTrack`). Mute / ensurdecer / PTT = `track.enabled`. VAD só a bolinha local. Volume geral e ensurdecer no `<audio>` remoto
+- Áudio: `getUserMedia` no client, track em cada PC (offer: `addTrack`; answer: `setRemoteDescription` e depois `replaceTrack`). Mute / ensurdecer / PTT = `track.enabled`. VAD só a bolinha local. Bolinha dos outros: analyser no stream remoto. Volume geral e ensurdecer no `<audio>` remoto
 
 - Trocar de sala (id da sala, não o nome): fecha a malha antiga e abre outra só com quem está na sala nova. Offer/answer a meio do wait ICE são descartados se a call já mudou.
 - Só **quem está a entrar** na sala pisca cinza forte até o P2P com quem já estava fechar (`connected`). Quem já estava sentado mantém a bolinha de presença. Sozinho na sala, ninguém pisca.
+- Bolinha de fala dos outros: analyser no P2P (sem `talk.*` no fio)
 
-- (depois) bolinha de fala dos outros
+- (depois) gate de versão / Tauri
 
 Reconexão: o client faz de novo o `GET` do servidor que está na tela.
 
@@ -410,4 +412,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Malha P2P por sala (id). Trocar de sala derruba o P2P antigo. Próximo: bolinha de fala dos outros.
+Malha P2P por sala; bolinha de fala dos outros no áudio que chega. Próximo: gate de versão / Tauri.
