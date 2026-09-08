@@ -138,6 +138,7 @@ type RoomScreenProps = {
   onOpenSettings: () => void;
   onJoinSala: (salaId: string) => void;
   onLeaveSala: () => void;
+  onOccupancyChange?: (roomId: string, uids: string[]) => void;
 };
 
 const PRESENCE_COLOR: Record<Presence, string> = {
@@ -483,6 +484,7 @@ export function RoomScreen({
   onOpenSettings,
   onJoinSala,
   onLeaveSala,
+  onOccupancyChange,
 }: RoomScreenProps) {
   const [roster, setRoster] = useState<TreeChannel[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -716,6 +718,20 @@ export function RoomScreen({
   useEffect(() => {
     saveSalaOpen(room.roomId, open);
   }, [room.roomId, open]);
+
+  useEffect(() => {
+    const uids = [
+      ...new Set(
+        roster.flatMap((channel) => channel.users.map((user) => user.id)),
+      ),
+    ];
+    onOccupancyChange?.(room.roomId, uids);
+  }, [roster, room.roomId, onOccupancyChange]);
+
+  useEffect(() => {
+    const roomId = room.roomId;
+    return () => onOccupancyChange?.(roomId, []);
+  }, [room.roomId, onOccupancyChange]);
 
   const you: TreeUser = {
     id: identity.uid,

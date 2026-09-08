@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -617,6 +618,9 @@ export function HomeScreen({
   const seatedRef = useRef(false);
   const skipPresenceSendRef = useRef(false);
   const [syncGen, setSyncGen] = useState(0);
+  const [occupancyByRoom, setOccupancyByRoom] = useState<
+    Record<string, string[]>
+  >({});
   callRef.current = call;
   const talking = useTalking(Boolean(call) && !muted && !deafened);
   const [editing, setEditing] = useState(false);
@@ -898,9 +902,34 @@ export function HomeScreen({
 
   function leaveRoomList(roomId: string) {
     setRooms(removeBookmark(roomId));
+    setOccupancyByRoom((prev) => {
+      if (!(roomId in prev)) return prev;
+      const next = { ...prev };
+      delete next[roomId];
+      return next;
+    });
     setCall((prev) => (prev?.roomId === roomId ? null : prev));
     setView({ type: "home" });
   }
+
+  const reportOccupancy = useCallback((roomId: string, uids: string[]) => {
+    setOccupancyByRoom((prev) => {
+      const current = prev[roomId] ?? [];
+      if (
+        current.length === uids.length &&
+        current.every((uid, index) => uid === uids[index])
+      ) {
+        return prev;
+      }
+      if (uids.length === 0) {
+        if (!(roomId in prev)) return prev;
+        const next = { ...prev };
+        delete next[roomId];
+        return next;
+      }
+      return { ...prev, [roomId]: uids };
+    });
+  }, []);
 
   function enterCreatedRoom() {
     if (created) enterRoom(created.id);
@@ -1057,6 +1086,15 @@ export function HomeScreen({
           <SidebarDash aria-hidden="true" />
           {rooms.map((room: Bookmark) => {
             const live = call?.roomId === room.roomId;
+            const busy = (occupancyByRoom[room.roomId] ?? []).some(
+              (uid) => uid !== identity.uid,
+            );
+            const tone = live ? "live" : busy ? "busy" : null;
+            const title = live
+              ? `${room.name} · em uma sala`
+              : busy
+                ? `${room.name} · pessoas em sala`
+                : room.name;
             return (
               <SidebarRoom key={room.roomId}>
                 <SidebarRoomButton
@@ -1064,11 +1102,11 @@ export function HomeScreen({
                   $active={viewingRoomId === room.roomId}
                   $live={live}
                   onClick={() => enterRoom(room.roomId)}
-                  title={live ? `${room.name} · em uma sala` : room.name}
+                  title={title}
                 >
                   <SidebarRoomName>{room.name}</SidebarRoomName>
-                  {live ? (
-                    <SidebarCallMark aria-hidden="true">
+                  {tone ? (
+                    <SidebarCallMark $tone={tone} aria-hidden="true">
                       <CallMarkIcon />
                     </SidebarCallMark>
                   ) : null}
@@ -1167,6 +1205,7 @@ export function HomeScreen({
               onLeaveSala={() =>
                 setCall((prev) => (prev?.roomId === room.roomId ? null : prev))
               }
+              onOccupancyChange={reportOccupancy}
             />
           </RoomMount>
         ))}

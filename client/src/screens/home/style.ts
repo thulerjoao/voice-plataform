@@ -348,13 +348,13 @@ export const SidebarAddMark = styled.span`
   }
 `;
 
-export const SidebarCallMark = styled.span`
+export const SidebarCallMark = styled.span<{ $tone?: "live" | "busy" }>`
   display: grid;
   place-items: center;
   width: 1.05rem;
   height: 1.05rem;
   flex-shrink: 0;
-  color: #0a84ff;
+  color: ${(p) => (p.$tone === "live" ? "#30d158" : "#0a84ff")};
 
   svg {
     width: 0.9rem;
