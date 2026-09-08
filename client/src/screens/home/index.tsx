@@ -37,6 +37,7 @@ import { useTalking } from "../../use-talking";
 import { CreateRoomScreen } from "../create-room";
 import { JoinRoomScreen } from "../join-room";
 import { RoomScreen } from "../room";
+import { ServerSettingsScreen } from "../server-settings";
 import { SettingsScreen } from "../settings";
 import {
   Actions,
@@ -97,6 +98,7 @@ type View =
   | { type: "create"; created?: CreatedRoom }
   | { type: "join" }
   | { type: "room"; roomId: string }
+  | { type: "server-settings"; roomId: string }
   | { type: "settings" };
 
 function MicIcon() {
@@ -453,15 +455,22 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
   const created = view.type === "create" ? view.created : undefined;
   const visibleRoomId = view.type === "room" ? view.roomId : undefined;
   const viewingRoomId =
-    visibleRoomId ??
-    (view.type === "settings" && lastViewRef.current.type === "room"
-      ? lastViewRef.current.roomId
-      : undefined);
+    view.type === "room" || view.type === "server-settings"
+      ? view.roomId
+      : view.type === "settings" &&
+          (lastViewRef.current.type === "room" ||
+            lastViewRef.current.type === "server-settings")
+        ? lastViewRef.current.roomId
+        : undefined;
   const callRoom = call
     ? rooms.find((room) => room.roomId === call.roomId)
     : undefined;
+  const settingsRoom =
+    view.type === "server-settings"
+      ? rooms.find((room) => room.roomId === view.roomId)
+      : undefined;
   const mountedRooms = rooms.filter(
-    (room) => room.roomId === visibleRoomId || room.roomId === call?.roomId,
+    (room) => room.roomId === viewingRoomId || room.roomId === call?.roomId,
   );
 
   function openEdit() {
@@ -640,6 +649,27 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
     setView(previous.type === "settings" ? { type: "home" } : previous);
   }
 
+  function openServerSettings(roomId: string) {
+    setView({ type: "server-settings", roomId });
+  }
+
+  function closeServerSettings(roomId: string) {
+    setView({ type: "room", roomId });
+  }
+
+  function updateRoomBookmark(
+    roomId: string,
+    patch: Pick<Bookmark, "name" | "role">,
+  ) {
+    setRooms((prev) => {
+      const current = prev.find((item) => item.roomId === roomId);
+      if (!current) return prev;
+      if (current.name === patch.name && current.role === patch.role)
+        return prev;
+      return saveBookmark({ ...current, ...patch });
+    });
+  }
+
   function leaveRoomList(roomId: string) {
     setRooms(removeBookmark(roomId));
     setCall((prev) => (prev?.roomId === roomId ? null : prev));
@@ -799,11 +829,10 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
               talking={talking}
               presence={status}
               onLeave={() => leaveRoomList(room.roomId)}
+              onOpenSettings={() => openServerSettings(room.roomId)}
               onJoinSala={(salaId) => setCall({ roomId: room.roomId, salaId })}
               onLeaveSala={() =>
-                setCall((prev) =>
-                  prev?.roomId === room.roomId ? null : prev,
-                )
+                setCall((prev) => (prev?.roomId === room.roomId ? null : prev))
               }
             />
           </RoomMount>
@@ -829,6 +858,17 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             onBack={closeSettings}
             deafened={deafened}
             onOutputVolume={handleOutputVolume}
+          />
+        ) : null}
+        {view.type === "server-settings" && settingsRoom ? (
+          <ServerSettingsScreen
+            room={settingsRoom}
+            uid={identity.uid}
+            nickname={identity.nickname}
+            onBack={() => closeServerSettings(settingsRoom.roomId)}
+            onUpdated={(patch) =>
+              updateRoomBookmark(settingsRoom.roomId, patch)
+            }
           />
         ) : null}
         {view.type === "home" ? (

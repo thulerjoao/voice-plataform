@@ -117,7 +117,11 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. A bolinha da **
 
 ### Lista de servidores
 
-A sidebar é a lista local de **servidores** (bookmarks), não de salas. Cada um é um bloco (nome, sem o código — código só ao criar / entrar). O servidor que você está **olhando** destaca; o da **call** ganha a marca. Olhar outro servidor, a home ou as configurações **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
+A sidebar é a lista local de **servidores** (bookmarks), não de salas. Cada um é um bloco (nome, sem o código — código só ao criar / entrar). O servidor que você está **olhando** destaca; o da **call** ganha a marca. Olhar outro servidor, a home, as configurações de áudio ou as **configurações do servidor** **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
+
+### Configurações do servidor
+
+Engrenagem ao lado do nome, **só dono/admin**. Abre no centro (mesmo padrão do áudio). Nome (3–24; lápis → input → check; bookmark atualiza na hora), código, data de criação e **membros** (você no topo; nick à esquerda; ações; **cargo por último**). Lista inclui gente **mock** só para visualizar. Promover a admin: dono e admin. **Excluir** e **bloquear** (ícone de proibido vermelho): dono e admin em **membro**; se o alvo é **admin**, só o dono. Mock nesta tela. Plano/expiração: depois.
 
 ### Código vazou
 
@@ -139,13 +143,13 @@ Cargos mínimos:
 
 | Papel      | Pode                                                                                   |
 | ---------- | -------------------------------------------------------------------------------------- |
-| **Owner**  | tudo de admin + promover / rebaixar admin (ficha no clique)                            |
-| **Admin**  | mover gente + criar / renomear / apagar sala. Não mexe no dono nem rebaixa outro admin |
+| **Owner**  | tudo de admin + rebaixar admin + **excluir / bloquear** admin                          |
+| **Admin**  | mover gente + criar / renomear / apagar sala + **renomear o servidor** + **promover** membro a admin + **excluir / bloquear membro**. Não mexe no dono nem rebaixa / exclui / bloqueia outro admin |
 | **Member** | entrar em sala e arrastar só a si                                                      |
 
 Cargo não aparece nas linhas dos outros (você se reconhece pelo fundo). Na **sua** linha, o papel fica discreto **à direita** do nick, só quando você está numa sala. Cargo completo na ficha.
 
-Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume local daquela pessoa, promover (só dono). Recado: envia a primeira mensagem e abre uma **aba** no chat (1:1). Uma conversa visível por vez; clicar na aba troca. Som no destinatário. Sem modal. Sem banco — some ao recarregar. Dá para fechar a aba e reabrir no mesmo uso.
+Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume local daquela pessoa, **promover a admin** (dono e admin; só em membro). Rebaixar admin: só dono. Recado: envia a primeira mensagem e abre uma **aba** no chat (1:1). Uma conversa visível por vez; clicar na aba troca. Som no destinatário. Sem modal. Sem banco — some ao recarregar. Dá para fechar a aba e reabrir no mesmo uso.
 
 ---
 
@@ -197,11 +201,12 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 ## 10. Telas do MVP
 
 1. **Onboarding (uma vez):** nickname.
-2. **Home:** lista de **servidores** só na sidebar; centro = empty ou o servidor aberto; Criar / Entrar no centro. Home / outro servidor / configurações não encerram a call.
+2. **Home:** lista de **servidores** só na sidebar; centro = empty ou o servidor aberto; Criar / Entrar no centro. Home / outro servidor / configurações (áudio ou do servidor) não encerram a call.
 3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar no servidor”.
-4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
+4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Engrenagem no título (só dono/admin) abre as **configurações do servidor**. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
 5. Trocar de servidor pela lista, com o mesmo usuário.
-6. **Configurações:** uma tela no centro. Dispositivos, medidor, ganho, automático/PTT, atalho de mudo. Vale em todos os servidores.
+6. **Configurações (áudio):** uma tela no centro. Dispositivos, medidor, ganho, automático/PTT, atalho de mudo. Vale em todos os servidores.
+7. **Configurações do servidor:** só dono/admin. Nome, código, data, membros (você no topo; cargo por último). Promover: dono e admin. Excluir/bloquear membro: dono e admin; excluir/bloquear admin: só dono (mock). Plano/expiração depois.
 
 Visual: escuro, poucos botões, janela de app.
 
@@ -214,6 +219,8 @@ Visual: escuro, poucos botões, janela de app.
 - `POST` criar sala (nome + uid + nickname) → sala + código + canal Geral + owner
 - `POST` entrar por código
 - `POST` reentrar (uid já membro)
+- `GET` servidor (membro) → nome, código, criado em, papel, membros
+- `PATCH` servidor (dono/admin) → nome
 - canais: listar; admin cria/apaga
 - promover admin
 - `GET` versão mínima do client
@@ -286,7 +293,7 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
 ### Moderação e sala
 
-- kick / ban
+- kick / ban: dono e admin em **membro**; só o dono em **admin**
 - invalidar / girar código
 - senha por canal, canal privado
 - apagar sala, transferir owner
@@ -296,6 +303,7 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
 - planos 1 / 3 / 12 meses na **criação da sala**
 - sala vencida → tela de renovar; **qualquer um** pode pagar
+- status do plano (ativo / tempo restante) nas **configurações do servidor**
 
 ### Comunicação extra (no mesmo canal)
 
@@ -345,4 +353,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Primeiro modelo da tela de **Configurações** (áudio local + teclas). Em seguida: item **3** da seção 13 — presença real (WebSocket).
+Presença real (WebSocket) — item **3** da seção 13.

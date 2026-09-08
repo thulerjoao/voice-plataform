@@ -56,6 +56,39 @@ func HandleCreate(store *db.DB) http.HandlerFunc {
 	}
 }
 
+func HandleGet(store *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		details, err := Get(r.Context(), store, r.PathValue("id"), r.URL.Query().Get("uid"))
+		if err != nil {
+			writeRoomErr(w, err, "Não foi possível carregar o servidor.")
+			return
+		}
+		writeRoom(w, http.StatusOK, details)
+	}
+}
+
+type renameRequest struct {
+	Name string `json:"name"`
+	UID  string `json:"uid"`
+}
+
+func HandleRename(store *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req renameRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "Dados inválidos.")
+			return
+		}
+
+		details, err := Rename(r.Context(), store, r.PathValue("id"), req.UID, req.Name)
+		if err != nil {
+			writeRoomErr(w, err, "Não foi possível alterar o nome.")
+			return
+		}
+		writeRoom(w, http.StatusOK, details)
+	}
+}
+
 func HandleJoin(store *db.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req joinRequest
@@ -90,6 +123,27 @@ func HandleJoin(store *db.DB) http.HandlerFunc {
 			"code": joined.Code,
 			"role": joined.Role,
 		})
+	}
+}
+
+func writeRoom(w http.ResponseWriter, status int, details RoomDetails) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(details)
+}
+
+func writeRoomErr(w http.ResponseWriter, err error, fallback string) {
+	switch {
+	case errors.Is(err, ErrInvalidName):
+		writeError(w, http.StatusBadRequest, "O nome precisa ter de 3 a 24 caracteres.")
+	case errors.Is(err, ErrMissingIdentity):
+		writeError(w, http.StatusBadRequest, "Identidade inválida.")
+	case errors.Is(err, ErrRoomNotFound):
+		writeError(w, http.StatusNotFound, "Servidor não encontrado.")
+	case errors.Is(err, ErrForbidden):
+		writeError(w, http.StatusForbidden, "Só o dono ou um admin pode alterar o nome.")
+	default:
+		writeError(w, http.StatusInternalServerError, fallback)
 	}
 }
 

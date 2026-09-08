@@ -71,3 +71,28 @@ func (q *Queries) GetRoomByID(ctx context.Context, id uuid.UUID) (Room, error) {
 	)
 	return i, err
 }
+
+const updateRoomName = `-- name: UpdateRoomName :one
+UPDATE rooms
+SET name = $2
+WHERE id = $1
+RETURNING id, name, code, owner_uid, created_at
+`
+
+type UpdateRoomNameParams struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) UpdateRoomName(ctx context.Context, arg UpdateRoomNameParams) (Room, error) {
+	row := q.db.QueryRow(ctx, updateRoomName, arg.ID, arg.Name)
+	var i Room
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Code,
+		&i.OwnerUid,
+		&i.CreatedAt,
+	)
+	return i, err
+}

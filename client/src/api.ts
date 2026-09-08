@@ -1,11 +1,24 @@
 export const ROOM_NAME_MIN = 3;
 export const ROOM_NAME_MAX = 24;
 
+export type RoomRole = "owner" | "admin" | "member";
+
 export type CreatedRoom = {
   id: string;
   name: string;
   code: string;
-  role: "owner" | "admin" | "member";
+  role: RoomRole;
+};
+
+export type RoomMember = {
+  uid: string;
+  nickname: string;
+  role: RoomRole;
+};
+
+export type RoomDetails = CreatedRoom & {
+  createdAt: string;
+  members: RoomMember[];
 };
 
 export async function createRoom(input: {
@@ -18,19 +31,7 @@ export async function createRoom(input: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-
-  const payload = (await response.json().catch(() => null)) as
-    CreatedRoom | { error?: string } | null;
-
-  if (!response.ok || !payload || !("id" in payload)) {
-    throw new Error(
-      payload && "error" in payload && payload.error
-        ? payload.error
-        : "Não foi possível criar o servidor.",
-    );
-  }
-
-  return payload;
+  return readCreatedRoom(response, "Não foi possível criar o servidor.");
 }
 
 export async function joinRoom(input: {
@@ -43,17 +44,102 @@ export async function joinRoom(input: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
+  return readCreatedRoom(response, "Não foi possível entrar no servidor.");
+}
 
-  const payload = (await response.json().catch(() => null)) as
-    CreatedRoom | { error?: string } | null;
+export async function getRoom(input: {
+  roomId: string;
+  uid: string;
+}): Promise<RoomDetails> {
+  const params = new URLSearchParams({ uid: input.uid });
+  const response = await fetch(`/api/rooms/${input.roomId}?${params}`);
+  return readRoomDetails(response, "Não foi possível carregar o servidor.");
+}
 
-  if (!response.ok || !payload || !("id" in payload)) {
-    throw new Error(
-      payload && "error" in payload && payload.error
-        ? payload.error
-        : "Não foi possível entrar no servidor.",
-    );
+export async function renameRoom(input: {
+  roomId: string;
+  uid: string;
+  name: string;
+}): Promise<RoomDetails> {
+  const response = await fetch(`/api/rooms/${input.roomId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uid: input.uid, name: input.name }),
+  });
+  return readRoomDetails(response, "Não foi possível alterar o nome.");
+}
+
+async function readCreatedRoom(
+  response: Response,
+  fallback: string,
+): Promise<CreatedRoom> {
+  const payload = await readPayload(response);
+  if (!response.ok || !isCreatedRoom(payload)) {
+    throw new Error(errorMessage(payload, fallback));
   }
-
   return payload;
+}
+
+async function readRoomDetails(
+  response: Response,
+  fallback: string,
+): Promise<RoomDetails> {
+  const payload = await readPayload(response);
+  if (!response.ok || !isRoomDetails(payload)) {
+    throw new Error(errorMessage(payload, fallback));
+  }
+  return payload;
+}
+
+async function readPayload(response: Response): Promise<unknown> {
+  return response.json().catch(() => null);
+}
+
+function errorMessage(payload: unknown, fallback: string): string {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    typeof payload.error === "string" &&
+    payload.error
+  ) {
+    return payload.error;
+  }
+  return fallback;
+}
+
+function isRole(value: unknown): value is RoomRole {
+  return value === "owner" || value === "admin" || value === "member";
+}
+
+function isCreatedRoom(value: unknown): value is CreatedRoom {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<CreatedRoom>;
+  return (
+    typeof item.id === "string" &&
+    typeof item.name === "string" &&
+    typeof item.code === "string" &&
+    isRole(item.role)
+  );
+}
+
+function isRoomMember(value: unknown): value is RoomMember {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<RoomMember>;
+  return (
+    typeof item.uid === "string" &&
+    typeof item.nickname === "string" &&
+    isRole(item.role)
+  );
+}
+
+function isRoomDetails(value: unknown): value is RoomDetails {
+  if (
+    !isCreatedRoom(value) ||
+    typeof (value as RoomDetails).createdAt !== "string"
+  ) {
+    return false;
+  }
+  const members = (value as RoomDetails).members;
+  return Array.isArray(members) && members.every(isRoomMember);
 }

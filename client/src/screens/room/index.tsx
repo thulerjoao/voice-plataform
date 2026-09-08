@@ -50,7 +50,9 @@ import {
   VolumeRow,
   VolumeSlider,
   VolumeValue,
+  RoomGear,
   RoomHeader,
+  RoomHeading,
   RoomShell,
   RoomTitle,
   SalaCreate,
@@ -124,6 +126,7 @@ type RoomScreenProps = {
   talking?: boolean;
   presence: Presence;
   onLeave: () => void;
+  onOpenSettings: () => void;
   onJoinSala: (salaId: string) => void;
   onLeaveSala: () => void;
 };
@@ -593,6 +596,7 @@ export function RoomScreen({
   talking,
   presence,
   onLeave,
+  onOpenSettings,
   onJoinSala,
   onLeaveSala,
 }: RoomScreenProps) {
@@ -620,7 +624,8 @@ export function RoomScreen({
   const myRole: Role = room.role;
   const canMoveOthers = myRole === "owner" || myRole === "admin";
   const canManageChannels = myRole === "owner" || myRole === "admin";
-  const canManageAdmins = myRole === "owner";
+  const canPromote = myRole === "owner" || myRole === "admin";
+  const canDemoteAdmins = myRole === "owner";
   const [open, setOpen] = useState<Record<string, boolean>>(
     () => loadSalaOpen(room.roomId) ?? DEFAULT_SALA_OPEN,
   );
@@ -669,6 +674,19 @@ export function RoomScreen({
         : (roster
             .flatMap((channel) => channel.users)
             .find((user) => user.id === profile.userId) ?? null);
+  const profileRole = profileUser?.role ?? "member";
+  const canPromoteThis = Boolean(
+    profileUser &&
+      !profileUser.you &&
+      profileRole === "member" &&
+      canPromote,
+  );
+  const canDemoteThis = Boolean(
+    profileUser &&
+      !profileUser.you &&
+      profileRole === "admin" &&
+      canDemoteAdmins,
+  );
   const salaChannel = salaCard
     ? (roster.find((channel) => channel.id === salaCard.userId) ?? null)
     : null;
@@ -1099,7 +1117,18 @@ export function RoomScreen({
   return (
     <RoomShell ref={shellRef}>
       <RoomHeader>
-        <RoomTitle>{room.name}</RoomTitle>
+        <RoomHeading>
+          <RoomTitle>{room.name}</RoomTitle>
+          {canManageChannels ? (
+            <RoomGear
+              type="button"
+              title="Configurações do servidor"
+              onClick={onOpenSettings}
+            >
+              <GearIcon />
+            </RoomGear>
+          ) : null}
+        </RoomHeading>
         <Invite>
           <InviteCode>{room.code}</InviteCode>
           <CopyButton type="button" onClick={handleCopy}>
@@ -1192,7 +1221,7 @@ export function RoomScreen({
                         <UserName>{user.nick}</UserName>
                         {user.you ? (
                           <UserRole>
-                           - {ROLE_TREE_LABEL[user.role ?? "member"]}
+                            - {ROLE_TREE_LABEL[user.role ?? "member"]}
                           </UserRole>
                         ) : null}
                         {user.muted ? (
@@ -1241,23 +1270,21 @@ export function RoomScreen({
               <ProfileRole>
                 {ROLE_LABEL[profileUser.role ?? "member"]}
               </ProfileRole>
-              {canManageAdmins && !profileUser.you ? (
-                profileUser.role === "admin" ? (
-                  <ProfileAdminLink
-                    type="button"
-                    $tone="danger"
-                    onClick={() => toggleAdmin(profileUser.id, false)}
-                  >
-                    Remover administrador
-                  </ProfileAdminLink>
-                ) : (
-                  <ProfileAdminLink
-                    type="button"
-                    onClick={() => toggleAdmin(profileUser.id, true)}
-                  >
-                    Tornar administrador
-                  </ProfileAdminLink>
-                )
+              {canPromoteThis ? (
+                <ProfileAdminLink
+                  type="button"
+                  onClick={() => toggleAdmin(profileUser.id, true)}
+                >
+                  Tornar administrador
+                </ProfileAdminLink>
+              ) : canDemoteThis ? (
+                <ProfileAdminLink
+                  type="button"
+                  $tone="danger"
+                  onClick={() => toggleAdmin(profileUser.id, false)}
+                >
+                  Remover administrador
+                </ProfileAdminLink>
               ) : null}
             </div>
             <ProfileStatus>

@@ -17,11 +17,47 @@ export const RoomHeader = styled.header`
   flex-shrink: 0;
 `;
 
+export const RoomHeading = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 1;
+`;
+
 export const RoomTitle = styled.h1`
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.03em;
+`;
+
+export const RoomGear = styled.button`
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: #8d8d93;
+  cursor: pointer;
+
+  svg {
+    width: 0.95rem;
+    height: 0.95rem;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+  }
 `;
 
 export const Invite = styled.div`
