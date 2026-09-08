@@ -21,9 +21,11 @@ import {
 import {
   NICKNAME_MAX_LENGTH,
   persistNickname,
+  saveIdentity,
   type Identity,
 } from "../../identity";
 import type { CreatedRoom } from "../../api";
+import { connectRealtime, subscribeRealtime } from "../../realtime";
 import {
   isEditableTarget,
   loadAudioSettings,
@@ -607,6 +609,7 @@ export function HomeScreen({
     () => loadAudioSettings().outputVolume,
   );
   const [call, setCall] = useState<VoiceCall | null>(null);
+  const [syncGen, setSyncGen] = useState(0);
   const talking = useTalking(Boolean(call) && !muted && !deafened);
   const [editing, setEditing] = useState(false);
   const [savingNick, setSavingNick] = useState(false);
@@ -827,14 +830,14 @@ export function HomeScreen({
 
   function updateRoomBookmark(
     roomId: string,
-    patch: Pick<Bookmark, "name" | "role">,
+    patch: Partial<Pick<Bookmark, "name" | "role">>,
   ) {
     setRooms((prev) => {
       const current = prev.find((item) => item.roomId === roomId);
       if (!current) return prev;
-      if (current.name === patch.name && current.role === patch.role)
-        return prev;
-      return saveBookmark({ ...current, ...patch });
+      const next = { ...current, ...patch };
+      if (current.name === next.name && current.role === next.role) return prev;
+      return saveBookmark(next);
     });
   }
 
@@ -848,6 +851,43 @@ export function HomeScreen({
     if (created) enterRoom(created.id);
     else backToHome();
   }
+
+  useEffect(() => {
+    return connectRealtime(identity.uid, {
+      onOpen: () => setSyncGen((value) => value + 1),
+    });
+  }, [identity.uid]);
+
+  useEffect(() => {
+    return subscribeRealtime((event) => {
+      if (event.type === "user.nickname" && event.uid === identity.uid) {
+        if (event.nickname === identity.nickname) return;
+        const next = { ...identity, nickname: event.nickname };
+        saveIdentity(next);
+        onNicknameChange(next);
+        return;
+      }
+
+      if (event.type === "room.renamed") {
+        updateRoomBookmark(event.roomId, { name: event.name });
+        return;
+      }
+
+      if (event.type === "member.role" && event.uid === identity.uid) {
+        updateRoomBookmark(event.roomId, { role: event.role });
+        return;
+      }
+
+      if (
+        (event.type === "member.kicked" ||
+          event.type === "member.left" ||
+          event.type === "member.blocked") &&
+        event.uid === identity.uid
+      ) {
+        leaveRoomList(event.roomId);
+      }
+    });
+  }, [identity, onNicknameChange]);
 
   return (
     <Shell>
@@ -1005,6 +1045,7 @@ export function HomeScreen({
             <RoomScreen
               room={room}
               identity={identity}
+              syncGen={syncGen}
               muted={muted}
               deafened={deafened}
               currentId={call?.roomId === room.roomId ? call.salaId : null}
@@ -1049,6 +1090,7 @@ export function HomeScreen({
             room={settingsRoom}
             uid={identity.uid}
             nickname={identity.nickname}
+            syncGen={syncGen}
             onBack={() => closeServerSettings(settingsRoom.roomId)}
             onUpdated={(patch) =>
               updateRoomBookmark(settingsRoom.roomId, patch)

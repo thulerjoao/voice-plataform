@@ -23,3 +23,13 @@ RETURNING *;
 -- name: DeleteMember :exec
 DELETE FROM members
 WHERE room_id = $1 AND uid = $2 AND role <> 'owner';
+
+-- name: ListMemberUIDsByRoom :many
+SELECT uid FROM members
+WHERE room_id = $1;
+
+-- name: ListPeerUIDsByMember :many
+SELECT DISTINCT m2.uid
+FROM members m1
+INNER JOIN members m2 ON m2.room_id = m1.room_id
+WHERE m1.uid = $1;

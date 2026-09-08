@@ -16,6 +16,7 @@ import {
   setMemberRole,
   updateChannel as patchSala,
 } from "../../api";
+import { subscribeRealtime } from "../../realtime";
 import { playConnectSound, playDisconnectSound } from "../../sounds";
 import {
   ChannelBlock,
@@ -126,6 +127,7 @@ type TreeChannel = {
 type RoomScreenProps = {
   room: Bookmark;
   identity: Identity;
+  syncGen?: number;
   muted?: boolean;
   deafened?: boolean;
   currentId: string | null;
@@ -403,6 +405,7 @@ function nextSalaName(roster: TreeChannel[]) {
 export function RoomScreen({
   room,
   identity,
+  syncGen = 0,
   muted,
   deafened,
   currentId,
@@ -448,7 +451,13 @@ export function RoomScreen({
   const chatRef = useRef<HTMLDivElement>(null);
   const chatHeightRef = useRef(chatHeight);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
+  const currentIdRef = useRef(currentId);
+  const deafenedRef = useRef(deafened);
+  const onLeaveSalaRef = useRef(onLeaveSala);
   chatHeightRef.current = chatHeight;
+  currentIdRef.current = currentId;
+  deafenedRef.current = deafened;
+  onLeaveSalaRef.current = onLeaveSala;
 
   useEffect(() => {
     let cancelled = false;
@@ -479,7 +488,78 @@ export function RoomScreen({
     return () => {
       cancelled = true;
     };
-  }, [room.roomId, identity.uid]);
+  }, [room.roomId, identity.uid, syncGen]);
+
+  useEffect(() => {
+    return subscribeRealtime((event) => {
+      if (!("roomId" in event) || event.roomId !== room.roomId) return;
+
+      if (event.type === "channel.created") {
+        setRoster((prev) => {
+          if (prev.some((channel) => channel.id === event.id)) {
+            return prev.map((channel) =>
+              channel.id === event.id
+                ? {
+                    ...channel,
+                    name: event.name,
+                    description: event.description,
+                  }
+                : channel,
+            );
+          }
+          return [
+            ...prev,
+            {
+              id: event.id,
+              name: event.name,
+              description: event.description,
+              users: [],
+            },
+          ];
+        });
+        return;
+      }
+
+      if (event.type === "channel.updated") {
+        setRoster((prev) =>
+          prev.map((channel) =>
+            channel.id === event.id
+              ? {
+                  ...channel,
+                  name: event.name,
+                  description: event.description,
+                }
+              : channel,
+          ),
+        );
+        return;
+      }
+
+      if (event.type === "channel.deleted") {
+        setRoster((prev) =>
+          prev.filter((channel) => channel.id !== event.channelId),
+        );
+        setChats((prev) => {
+          const next = { ...prev };
+          delete next[event.channelId];
+          return next;
+        });
+        setOpen((prev) => {
+          const next = { ...prev };
+          delete next[event.channelId];
+          return next;
+        });
+        if (currentIdRef.current === event.channelId) {
+          onLeaveSalaRef.current();
+          setDraft("");
+          if (!deafenedRef.current) playDisconnectSound();
+        }
+        setSalaCard((prev) =>
+          prev?.userId === event.channelId ? null : prev,
+        );
+      }
+    });
+  }, [room.roomId]);
 
   useEffect(() => {
     saveSalaOpen(room.roomId, open);

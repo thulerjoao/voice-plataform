@@ -73,6 +73,31 @@ func (q *Queries) GetMember(ctx context.Context, arg GetMemberParams) (Member, e
 	return i, err
 }
 
+const listMemberUIDsByRoom = `-- name: ListMemberUIDsByRoom :many
+SELECT uid FROM members
+WHERE room_id = $1
+`
+
+func (q *Queries) ListMemberUIDsByRoom(ctx context.Context, roomID uuid.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listMemberUIDsByRoom, roomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var uid string
+		if err := rows.Scan(&uid); err != nil {
+			return nil, err
+		}
+		items = append(items, uid)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMembersByRoom = `-- name: ListMembersByRoom :many
 SELECT m.room_id, m.uid, u.nickname, m.role, m.created_at
 FROM members m
@@ -108,6 +133,33 @@ func (q *Queries) ListMembersByRoom(ctx context.Context, roomID uuid.UUID) ([]Li
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPeerUIDsByMember = `-- name: ListPeerUIDsByMember :many
+SELECT DISTINCT m2.uid
+FROM members m1
+INNER JOIN members m2 ON m2.room_id = m1.room_id
+WHERE m1.uid = $1
+`
+
+func (q *Queries) ListPeerUIDsByMember(ctx context.Context, uid string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listPeerUIDsByMember, uid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var uid string
+		if err := rows.Scan(&uid); err != nil {
+			return nil, err
+		}
+		items = append(items, uid)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

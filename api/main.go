@@ -12,6 +12,7 @@ import (
 
 	"github.com/thulerjoao/voice-plataform/api/internal/db"
 	"github.com/thulerjoao/voice-plataform/api/internal/identity"
+	"github.com/thulerjoao/voice-plataform/api/internal/realtime"
 	"github.com/thulerjoao/voice-plataform/api/internal/rooms"
 )
 
@@ -26,6 +27,8 @@ func main() {
 		log.Fatalf("db: %v", err)
 	}
 	defer store.Close()
+
+	hub := realtime.NewHub()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -45,20 +48,21 @@ func main() {
 		})
 	})
 	mux.HandleFunc("POST /api/identity", identity.HandleRegister(store))
-	mux.HandleFunc("PATCH /api/identity", identity.HandleRename(store))
+	mux.HandleFunc("PATCH /api/identity", identity.HandleRename(store, hub))
 	mux.HandleFunc("POST /api/identity/restore", identity.HandleRestore(store))
+	mux.HandleFunc("GET /ws", realtime.HandleWS(store, hub))
 	mux.HandleFunc("POST /api/rooms", rooms.HandleCreate(store))
-	mux.HandleFunc("POST /api/rooms/join", rooms.HandleJoin(store))
+	mux.HandleFunc("POST /api/rooms/join", rooms.HandleJoin(store, hub))
 	mux.HandleFunc("GET /api/rooms/{id}", rooms.HandleGet(store))
-	mux.HandleFunc("PATCH /api/rooms/{id}", rooms.HandleRename(store))
-	mux.HandleFunc("POST /api/rooms/{id}/leave", rooms.HandleLeave(store))
-	mux.HandleFunc("POST /api/rooms/{id}/channels", rooms.HandleCreateChannel(store))
-	mux.HandleFunc("PATCH /api/rooms/{id}/channels/{channelId}", rooms.HandleUpdateChannel(store))
-	mux.HandleFunc("DELETE /api/rooms/{id}/channels/{channelId}", rooms.HandleDeleteChannel(store))
-	mux.HandleFunc("POST /api/rooms/{id}/members/{memberUid}/role", rooms.HandleSetRole(store))
-	mux.HandleFunc("POST /api/rooms/{id}/members/{memberUid}/kick", rooms.HandleKick(store))
-	mux.HandleFunc("POST /api/rooms/{id}/blocked", rooms.HandleBlock(store))
-	mux.HandleFunc("DELETE /api/rooms/{id}/blocked/{memberUid}", rooms.HandleUnblock(store))
+	mux.HandleFunc("PATCH /api/rooms/{id}", rooms.HandleRename(store, hub))
+	mux.HandleFunc("POST /api/rooms/{id}/leave", rooms.HandleLeave(store, hub))
+	mux.HandleFunc("POST /api/rooms/{id}/channels", rooms.HandleCreateChannel(store, hub))
+	mux.HandleFunc("PATCH /api/rooms/{id}/channels/{channelId}", rooms.HandleUpdateChannel(store, hub))
+	mux.HandleFunc("DELETE /api/rooms/{id}/channels/{channelId}", rooms.HandleDeleteChannel(store, hub))
+	mux.HandleFunc("POST /api/rooms/{id}/members/{memberUid}/role", rooms.HandleSetRole(store, hub))
+	mux.HandleFunc("POST /api/rooms/{id}/members/{memberUid}/kick", rooms.HandleKick(store, hub))
+	mux.HandleFunc("POST /api/rooms/{id}/blocked", rooms.HandleBlock(store, hub))
+	mux.HandleFunc("DELETE /api/rooms/{id}/blocked/{memberUid}", rooms.HandleUnblock(store, hub))
 
 	server := &http.Server{Addr: ":8080", Handler: mux}
 

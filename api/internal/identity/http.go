@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/thulerjoao/voice-plataform/api/internal/db"
+	"github.com/thulerjoao/voice-plataform/api/internal/realtime"
 )
 
 type registerRequest struct {
@@ -49,7 +50,7 @@ type renameRequest struct {
 	Nickname string `json:"nickname"`
 }
 
-func HandleRename(store *db.DB) http.HandlerFunc {
+func HandleRename(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req renameRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -67,6 +68,7 @@ func HandleRename(store *db.DB) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)
+		emitNickname(r.Context(), store, hub, updated.UID, updated.Nickname)
 	}
 }
 

@@ -89,7 +89,7 @@ Na **primeira abertura** do client:
 - Também dá para **já ter um código**: cola a recuperação → `POST /api/identity/restore` devolve o `uid`, o nick e os servidores em que esse uid ainda é membro → este PC grava identidade + bookmarks.
 - Identidade antiga só neste PC (sem linha em `users`) é sincronizada na abertura: `POST /api/identity` com o uid + código local. Áudio **não** vai no servidor.
 
-Nas aberturas seguintes: nickname, `uid` e o código (se este PC ainda o tiver) já existem. Nickname pode ser editado na sidebar e na aba **Conta**; o `uid` permanece. A alteração vai para `users.nickname` (`PATCH /api/identity`) — membros e bloqueados **não** copiam o nick, só o `uid`. O código fica na aba Conta, para copiar, com o aviso. **Sair deste PC** também está ali.
+Nas aberturas seguintes: nickname, `uid` e o código (se este PC ainda o tiver) já existem. Nickname pode ser editado na sidebar e na aba **Conta**; o `uid` permanece. A alteração vai para `users.nickname` (`PATCH /api/identity`) e a API avisa no WebSocket quem compartilha servidor com aquele uid. Membros e bloqueados **não** copiam o nick, só o `uid`. O código fica na aba Conta, para copiar, com o aviso. **Sair deste PC** também está ali.
 
 O mesmo `uid` vale para **todas** as salas daquele PC. Criar ou adicionar servidor reutiliza esse usuário.
 
@@ -238,13 +238,17 @@ Visual: escuro, poucos botões, janela de app.
 - `POST /api/rooms/{id}/blocked` e `DELETE …/blocked/{uid}` — bloquear / desbloquear
 - `GET` versão mínima do client
 
-**WebSocket**
+**WebSocket** (`GET /ws?uid=`)
 
-- presença na sala / no canal
-- heartbeat do host
-- anúncio de sucessor
-- sinalização WebRTC (offer, answer, ICE)
-- eventos: entrou/saiu do canal, mute (ícone remoto), promoveu admin
+Escrita continua no HTTP. Depois do commit no banco, a API manda o evento para os membros daquele servidor (nick: para quem compartilha algum servidor com o uid). Sem chat e sem WebRTC neste passo.
+
+- `user.nickname` — nick global
+- `room.renamed` — nome do servidor
+- `channel.created` / `channel.updated` / `channel.deleted` — salas
+- `member.joined` / `member.left` / `member.role` / `member.kicked` / `member.blocked` / `member.unblocked`
+- (depois) presença na sala, host, sucessor, ICE
+
+Reconexão: o client faz de novo o `GET` do servidor que está na tela.
 
 **Postgres**
 
@@ -280,6 +284,7 @@ No MVP o app é o navegador. Tauri empacota a **mesma UI** depois.
 | 1   | Identidade no client                           | nickname na 1ª vez; uid persistido                          |
 | 2   | Criar / entrar sala (HTTP)                     | código gerado; owner no banco; bookmark local; auto-join    |
 | 2b  | CRUD servidor no banco                         | nick em `users`; salas/membros/bloqueados reais; sem mock   |
+| 2c  | WS de dados compartilhados                     | nick, nomes e listas mudam ao vivo; sem chat/P2P            |
 | 3   | Tela da sala + canal Geral                     | árvore; lista de membros via WS                             |
 | 4   | Canais extras                                  | qualquer um entra; dono promove admin; admin move gente     |
 | 5   | WebRTC no canal                                | 2 pessoas falam no Geral                                    |
@@ -309,7 +314,7 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
 ### Moderação e sala
 
-- kick / ban HTTP já está no servidor (excluir / bloquear / desbloquear). Falta avisar a call via WebSocket quando alguém é expulso
+- kick / ban HTTP já está no servidor (excluir / bloquear / desbloquear). A lista ao vivo vai no WS de dados; falta tirar da call (presença / P2P)
 - invalidar / girar código
 - senha por canal, canal privado
 - apagar servidor, transferir owner
@@ -369,4 +374,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Presença real (WebSocket) — item **3** da seção 13. Sem WebRTC / P2P neste passo.
+Presença real (quem está em qual sala) — item **3** da seção 13. Chat e WebRTC / P2P continuam depois.

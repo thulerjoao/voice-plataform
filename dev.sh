@@ -37,6 +37,11 @@ if [[ ! -d "$ROOT/client/node_modules" ]]; then
 fi
 
 echo "→ api :8080"
+if ss -tln | grep -q ':8080 '; then
+  echo "→ encerrando o processo antigo em :8080"
+  fuser -k 8080/tcp >/dev/null 2>&1 || true
+  sleep 0.4
+fi
 (cd "$ROOT/api" && go run .) &
 pids+=($!)
 

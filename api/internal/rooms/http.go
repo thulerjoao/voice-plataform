@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/thulerjoao/voice-plataform/api/internal/db"
+	"github.com/thulerjoao/voice-plataform/api/internal/realtime"
 )
 
 type createRequest struct {
@@ -72,7 +74,7 @@ type renameRequest struct {
 	UID  string `json:"uid"`
 }
 
-func HandleRename(store *db.DB) http.HandlerFunc {
+func HandleRename(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req renameRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -86,10 +88,14 @@ func HandleRename(store *db.DB) http.HandlerFunc {
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
+		publish(r.Context(), store, hub, details.ID, nil, realtime.Event{
+			Type: "room.renamed",
+			Name: details.Name,
+		})
 	}
 }
 
-func HandleJoin(store *db.DB) http.HandlerFunc {
+func HandleJoin(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req joinRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -125,6 +131,16 @@ func HandleJoin(store *db.DB) http.HandlerFunc {
 			"code": joined.Code,
 			"role": joined.Role,
 		})
+		nickname := strings.TrimSpace(req.Nickname)
+		if user, err := store.Queries.GetUserByUID(r.Context(), req.UID); err == nil {
+			nickname = user.Nickname
+		}
+		publish(r.Context(), store, hub, joined.ID, nil, realtime.Event{
+			Type:     "member.joined",
+			UID:      strings.TrimSpace(req.UID),
+			Nickname: nickname,
+			Role:     joined.Role,
+		})
 	}
 }
 
@@ -132,7 +148,7 @@ type leaveRequest struct {
 	UID string `json:"uid"`
 }
 
-func HandleLeave(store *db.DB) http.HandlerFunc {
+func HandleLeave(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req leaveRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -156,6 +172,10 @@ func HandleLeave(store *db.DB) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		publish(r.Context(), store, hub, r.PathValue("id"), []string{req.UID}, realtime.Event{
+			Type: "member.left",
+			UID:  req.UID,
+		})
 	}
 }
 
@@ -202,7 +222,7 @@ type channelWriteRequest struct {
 	Description string `json:"description"`
 }
 
-func HandleCreateChannel(store *db.DB) http.HandlerFunc {
+func HandleCreateChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req channelWriteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -220,10 +240,16 @@ func HandleCreateChannel(store *db.DB) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusCreated, channel)
+		publish(r.Context(), store, hub, r.PathValue("id"), nil, realtime.Event{
+			Type:        "channel.created",
+			ID:          channel.ID,
+			Name:        channel.Name,
+			Description: channel.Description,
+		})
 	}
 }
 
-func HandleUpdateChannel(store *db.DB) http.HandlerFunc {
+func HandleUpdateChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req channelWriteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -241,10 +267,16 @@ func HandleUpdateChannel(store *db.DB) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, channel)
+		publish(r.Context(), store, hub, r.PathValue("id"), nil, realtime.Event{
+			Type:        "channel.updated",
+			ID:          channel.ID,
+			Name:        channel.Name,
+			Description: channel.Description,
+		})
 	}
 }
 
-func HandleDeleteChannel(store *db.DB) http.HandlerFunc {
+func HandleDeleteChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := DeleteSala(r.Context(), store, r.PathValue("id"), r.PathValue("channelId"), r.URL.Query().Get("uid"))
 		if err != nil {
@@ -252,6 +284,10 @@ func HandleDeleteChannel(store *db.DB) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+		publish(r.Context(), store, hub, r.PathValue("id"), nil, realtime.Event{
+			Type:      "channel.deleted",
+			ChannelID: r.PathValue("channelId"),
+		})
 	}
 }
 
@@ -269,7 +305,7 @@ type blockRequest struct {
 	TargetUID string `json:"targetUid"`
 }
 
-func HandleSetRole(store *db.DB) http.HandlerFunc {
+func HandleSetRole(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req roleRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -277,16 +313,22 @@ func HandleSetRole(store *db.DB) http.HandlerFunc {
 			return
 		}
 
-		details, err := SetRole(r.Context(), store, r.PathValue("id"), req.UID, r.PathValue("memberUid"), req.Role)
+		memberUID := r.PathValue("memberUid")
+		details, err := SetRole(r.Context(), store, r.PathValue("id"), req.UID, memberUID, req.Role)
 		if err != nil {
 			writeRoomErr(w, err, "Não foi possível alterar o cargo.")
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
+		publish(r.Context(), store, hub, details.ID, nil, realtime.Event{
+			Type: "member.role",
+			UID:  memberUID,
+			Role: req.Role,
+		})
 	}
 }
 
-func HandleKick(store *db.DB) http.HandlerFunc {
+func HandleKick(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req actorRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -294,16 +336,21 @@ func HandleKick(store *db.DB) http.HandlerFunc {
 			return
 		}
 
-		details, err := Kick(r.Context(), store, r.PathValue("id"), req.UID, r.PathValue("memberUid"))
+		memberUID := r.PathValue("memberUid")
+		details, err := Kick(r.Context(), store, r.PathValue("id"), req.UID, memberUID)
 		if err != nil {
 			writeRoomErr(w, err, "Não foi possível excluir do servidor.")
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
+		publish(r.Context(), store, hub, details.ID, []string{memberUID}, realtime.Event{
+			Type: "member.kicked",
+			UID:  memberUID,
+		})
 	}
 }
 
-func HandleBlock(store *db.DB) http.HandlerFunc {
+func HandleBlock(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req blockRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -317,17 +364,31 @@ func HandleBlock(store *db.DB) http.HandlerFunc {
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
+		nickname := ""
+		if user, err := store.Queries.GetUserByUID(r.Context(), req.TargetUID); err == nil {
+			nickname = user.Nickname
+		}
+		publish(r.Context(), store, hub, details.ID, []string{req.TargetUID}, realtime.Event{
+			Type:     "member.blocked",
+			UID:      req.TargetUID,
+			Nickname: nickname,
+		})
 	}
 }
 
-func HandleUnblock(store *db.DB) http.HandlerFunc {
+func HandleUnblock(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		details, err := Unblock(r.Context(), store, r.PathValue("id"), r.URL.Query().Get("uid"), r.PathValue("memberUid"))
+		memberUID := r.PathValue("memberUid")
+		details, err := Unblock(r.Context(), store, r.PathValue("id"), r.URL.Query().Get("uid"), memberUID)
 		if err != nil {
 			writeRoomErr(w, err, "Não foi possível desbloquear.")
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
+		publish(r.Context(), store, hub, details.ID, nil, realtime.Event{
+			Type: "member.unblocked",
+			UID:  memberUID,
+		})
 	}
 }
 

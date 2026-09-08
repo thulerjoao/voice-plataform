@@ -13,6 +13,7 @@ import {
   type RoomDetails,
   type RoomMember,
 } from "../../api";
+import { subscribeRealtime } from "../../realtime";
 import type { Bookmark } from "../../bookmarks";
 import {
   BackButton,
@@ -51,6 +52,7 @@ type ServerSettingsScreenProps = {
   room: Bookmark;
   uid: string;
   nickname: string;
+  syncGen?: number;
   onBack: () => void;
   onUpdated: (patch: Pick<Bookmark, "name" | "role">) => void;
   onLeft: () => void;
@@ -194,6 +196,7 @@ export function ServerSettingsScreen({
   room,
   uid,
   nickname,
+  syncGen = 0,
   onBack,
   onUpdated,
   onLeft,
@@ -255,7 +258,91 @@ export function ServerSettingsScreen({
     return () => {
       cancelled = true;
     };
-  }, [room.roomId, uid]);
+  }, [room.roomId, uid, syncGen]);
+
+  useEffect(() => {
+    return subscribeRealtime((event) => {
+      if (event.type === "user.nickname") {
+        setMembers((prev) =>
+          prev
+            ? prev.map((item) =>
+                item.uid === event.uid
+                  ? { ...item, nickname: event.nickname }
+                  : item,
+              )
+            : prev,
+        );
+        setBlocked((prev) =>
+          prev.map((item) =>
+            item.uid === event.uid
+              ? { ...item, nickname: event.nickname }
+              : item,
+          ),
+        );
+        return;
+      }
+
+      if (!("roomId" in event) || event.roomId !== room.roomId) return;
+
+      if (event.type === "room.renamed") {
+        onUpdatedRef.current({ name: event.name, role: room.role });
+        return;
+      }
+
+      if (event.type === "member.joined") {
+        setMembers((prev) => {
+          const list = prev ?? [];
+          if (list.some((item) => item.uid === event.uid)) {
+            return list.map((item) =>
+              item.uid === event.uid
+                ? { ...item, nickname: event.nickname, role: event.role }
+                : item,
+            );
+          }
+          return [
+            ...list,
+            { uid: event.uid, nickname: event.nickname, role: event.role },
+          ];
+        });
+        setBlocked((prev) => prev.filter((item) => item.uid !== event.uid));
+        return;
+      }
+
+      if (event.type === "member.role") {
+        setMembers((prev) =>
+          prev
+            ? prev.map((item) =>
+                item.uid === event.uid ? { ...item, role: event.role } : item,
+              )
+            : prev,
+        );
+        return;
+      }
+
+      if (event.type === "member.left" || event.type === "member.kicked") {
+        setMembers((prev) =>
+          prev ? prev.filter((item) => item.uid !== event.uid) : prev,
+        );
+        return;
+      }
+
+      if (event.type === "member.blocked") {
+        setMembers((prev) =>
+          prev ? prev.filter((item) => item.uid !== event.uid) : prev,
+        );
+        setBlocked((prev) =>
+          prev.some((item) => item.uid === event.uid)
+            ? prev
+            : [...prev, { uid: event.uid, nickname: event.nickname }],
+        );
+        return;
+      }
+
+      if (event.type === "member.unblocked") {
+        setBlocked((prev) => prev.filter((item) => item.uid !== event.uid));
+      }
+    });
+  }, [room.roomId, room.role]);
 
   useEffect(() => {
     if (!editing) return;
