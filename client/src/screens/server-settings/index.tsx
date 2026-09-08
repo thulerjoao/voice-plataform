@@ -60,7 +60,7 @@ type ServerSettingsScreenProps = {
 
 const ROLE_LABEL: Record<RoomMember["role"], string> = {
   owner: "Dono",
-  admin: "Admin",
+  admin: "Administrador",
   member: "Membro",
 };
 

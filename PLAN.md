@@ -73,7 +73,7 @@ Três peças:
 
 1. **Identidade** — quem você é (neste PC). Recuperação por **código longo**, não por login.
 2. **Código do servidor** — convite, para passar adiante.
-3. **Papel no servidor** — dono / admin / membro, no banco, por `uid`.
+3. **Papel no servidor** — dono / administrador / membro, no banco, por `uid`.
 
 O endereço estável do servidor é o **código**. O nome aparece na UI. O IP do host de voz é interno à sala.
 
@@ -96,7 +96,7 @@ O mesmo `uid` vale para **todas** as salas daquele PC. Criar ou adicionar servid
 Dois “sair”, nomes diferentes:
 
 - **Sair deste PC** (logout) — apaga identidade e bookmarks **neste computador**. Áudio local fica (é deste PC). No banco o `uid` e os papéis continuam. Volta à tela do nick. Recupera com o código.
-- **Sair do servidor** — só **membro** e **admin** (dono não vê o botão; transferir owner é depois). Confirmar no fim das configurações. Tira o `uid` de `members` e o bookmark. Restore **não** traz de volta. Quiser voltar: entra de novo pelo código, salvo se estiver em `blocked`.
+- **Sair do servidor** — só **membro** e **administrador** (dono não vê o botão; transferir owner é depois). Confirmar no fim das configurações. Tira o `uid` de `members` e o bookmark. Restore **não** traz de volta. Quiser voltar: entra de novo pelo código, salvo se estiver em `blocked`.
 
 Se o `localStorage` for apagado sem o código: nickname de novo, `uid` novo; o uid antigo continua no banco, este client é outro usuário.
 
@@ -110,7 +110,7 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. A bolinha da **
 
 1. Usuário informa o **nome** do servidor (3–24 caracteres; sem aviso na UI — o campo simplesmente não passa de 24).
 2. A API gera um **código de acesso** (ex.: `K7P-TIGRE`), único.
-3. O `uid` de quem criou fica como **owner** e **admin**.
+3. O `uid` de quem criou fica como **dono**.
 4. Sala padrão: `Geral`.
 5. O client **entra sozinho** no servidor após criar (só visualiza; não entra em call).
 6. Bookmark salvo **só no PC** (nome, código, id do servidor).
@@ -124,11 +124,11 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. A bolinha da **
 
 ### Lista de servidores
 
-A sidebar é a lista local de **servidores** (bookmarks), não de salas. **Servidores** é só o título da lista (não clicável, visual sempre o de “não selecionado”). O primeiro card, **Adicionar servidor**, tem o mesmo tamanho dos bookmarks e abre o centro de criar/entrar; uma **linha tracejada** separa esse card dos bookmarks. Cada bookmark é um **card** baixo: só o nome; o que você olha destaca. Autofalante **verde** se você está em uma sala desse servidor; **azul** se só há outras pessoas em alguma sala; some se ninguém está em sala. Sem código, sem ícone de pessoas. Olhar outro servidor, a home, as configurações de áudio ou as **configurações do servidor** **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Sair do servidor** (membro/admin; confirmar) tira o membro no banco e o bookmark; restore não traz. Bloqueado permanece em `blocked` e o código recusa.
+A sidebar é a lista local de **servidores** (bookmarks), não de salas. **Servidores** é só o título da lista (não clicável, visual sempre o de “não selecionado”). O primeiro card, **Adicionar servidor**, tem o mesmo tamanho dos bookmarks e abre o centro de criar/entrar; uma **linha tracejada** separa esse card dos bookmarks. Cada bookmark é um **card** baixo: só o nome; o que você olha destaca. Autofalante **verde** se você está em uma sala desse servidor; **azul** se só há outras pessoas em alguma sala; some se ninguém está em sala. Sem código, sem ícone de pessoas. Olhar outro servidor, a home, as configurações de áudio ou as **configurações do servidor** **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Sair do servidor** (membro/administrador; confirmar) tira o membro no banco e o bookmark; restore não traz. Bloqueado permanece em `blocked` e o código recusa.
 
 ### Configurações do servidor
 
-Engrenagem ao lado do nome (todo mundo). Abre no centro (mesmo padrão do áudio). Nome (3–24; lápis → input → check; bookmark atualiza na hora), código, data de criação e **membros** (você no topo; nick à esquerda, lido de `users`; ações; **cargo por último**). Promover a admin: dono e admin, só em membro. Rebaixar admin: só o dono. **Excluir** e **bloquear** (ícone de proibido vermelho): dono e admin em **membro**; se o alvo é **admin**, só o dono. Bloqueados: lista real; desbloquear tira de `blocked` e **não** recoloca em `members` — volta pelo código. No fim: **Sair do servidor** (só membro/admin), com confirmação. Plano/expiração: depois.
+Abaixo do nome: pílula `Cargo:` (cinza) + papel (azul) e botão **Configurações** com engrenagem (todo mundo). Abre no centro (mesmo padrão do áudio). Nome (3–24; lápis → input → check; bookmark atualiza na hora), código, data de criação e **membros** (você no topo; nick à esquerda, lido de `users`; ações; **cargo por último**). Promover a administrador: dono e administrador, só em membro. Rebaixar administrador: só o dono. **Excluir** e **bloquear** (ícone de proibido vermelho): dono e administrador em **membro**; se o alvo é **administrador**, só o dono. Bloqueados: lista real; desbloquear tira de `blocked` e **não** recoloca em `members` — volta pelo código. No fim: **Sair do servidor** (só membro/administrador), com confirmação. Plano/expiração: depois.
 
 ### Código vazou
 
@@ -150,23 +150,23 @@ Cargos mínimos:
 
 | Papel      | Pode                                                                                   |
 | ---------- | -------------------------------------------------------------------------------------- |
-| **Owner**  | tudo de admin + rebaixar admin + **excluir / bloquear** admin                          |
-| **Admin**  | mover gente + criar / renomear / apagar sala + **renomear o servidor** + **promover** membro a admin + **excluir / bloquear membro**. Não mexe no dono nem rebaixa / exclui / bloqueia outro admin |
-| **Member** | entrar em sala e arrastar só a si                                                      |
+| **Dono**           | tudo de administrador + rebaixar administrador + **excluir / bloquear** administrador |
+| **Administrador**  | mover gente + criar / renomear / apagar sala + **renomear o servidor** + **promover** membro a administrador + **excluir / bloquear membro**. Não mexe no dono nem rebaixa / exclui / bloqueia outro administrador |
+| **Membro**         | entrar em sala e arrastar só a si                                                      |
 
-Cargo não aparece nas linhas dos outros (você se reconhece pelo fundo). Na **sua** linha, o papel fica discreto **à direita** do nick, só quando você está numa sala. Cargo completo na ficha.
+Cargo não aparece nas linhas da árvore (você se reconhece pelo fundo). O **seu** papel fica no topo, **abaixo do nome do servidor**, numa pílula: `Cargo:` em cinza e Dono / Administrador / Membro em azul. Ao lado, botão **Configurações** com engrenagem. Cargo completo na ficha.
 
-Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume local** só na ficha de **outra** pessoa (deste PC, `localStorage` por uid — não é o volume geral). Na sua ficha não tem slider. **Promover a admin** (dono e admin; só em membro). Rebaixar admin: só dono. Recado: envia a primeira mensagem e abre uma **aba** no chat (1:1). Uma conversa visível por vez; clicar na aba troca. Som no destinatário. Aba com recado novo (se não estiver aberta) fica com **fundo azul** até clicar. Sem modal. Sem banco — some ao recarregar. Dá para fechar a aba e reabrir no mesmo uso.
+Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume local** só na ficha de **outra** pessoa (deste PC, `localStorage` por uid — não é o volume geral). Na sua ficha não tem slider. **Promover a administrador** (dono e administrador; só em membro). Rebaixar administrador: só dono. Recado: envia a primeira mensagem e abre uma **aba** no chat (1:1). Uma conversa visível por vez; clicar na aba troca. Som no destinatário. Aba com recado novo (se não estiver aberta) fica com **fundo azul** até clicar. Sem modal. Sem banco — some ao recarregar. Dá para fechar a aba e reabrir no mesmo uso.
 
 ---
 
 ## 8. Salas e voz
 
-- Um servidor tem N **salas** no banco (`channels`: nome + descrição). Nomes **podem repetir** no mesmo servidor; o id é que identifica. Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva no servidor). “Excluir sala” no fim da ficha (não apaga a última). Quem estava nela **sai da call** — não vai para outra sala (não existe sala padrão garantida). **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC. Quem está em cada sala (além de você neste PC) vem do **módulo de ocupação** (RAM na API, teto 12, um `uid` numa sala); **não** mistura com o WS de nome/descrição.
+- Um servidor tem N **salas** no banco (`channels`: nome + descrição). Nomes **podem repetir** no mesmo servidor; o id é que identifica. Administrador/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva no servidor). “Excluir sala” no fim da ficha (não apaga a última). Quem estava nela **sai da call** — não vai para outra sala (não existe sala padrão garantida). **Nova sala** no fim da lista, só administrador/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC. Quem está em cada sala (além de você neste PC) vem do **módulo de ocupação** (RAM na API, teto 12, um `uid` numa sala); **não** mistura com o WS de nome/descrição.
 - Ao abrir um servidor (sidebar, criar ou entrar), você **só visualiza** — não entra em sala nem no `Geral`. Clique numa sala (ou arraste o nick) para entrar na call. Se já há call noutro servidor, ela continua até você entrar numa sala daqui. À direita da **sua** linha, **Sair** tira da sala e fica no servidor sem estar em nenhuma (som de saída). Chat só com sala.
 - **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda no mesmo servidor. Clique no canal ou arrastar o nick.
 - Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Outro som, mais baixo, quando **você** sai (**Sair** ou a sala some) e quando **alguém sai da sua sala**. Trocar de sala: só o de entrada. Ensurdecido = sem som.
-- Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.
+- Arrastar **outra pessoa** para um canal é só de **administrador/dono**. Qualquer um arrasta a si.
 - Chat por sala: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela sala na hora. Cada client guarda o log **neste PC** (até 200 linhas por sala); quem não estava não recebe o histórico da API. Recado 1:1 no mesmo módulo (`chat.direct`), só memória da sessão. Linhas de **auditoria** (renomear, cargo, kick…) vêm do módulo de log, cinza no mesmo feed — não são chat e não incluem entrada/saída. Hora local antes de cada linha (`18:12 -`); separador de dia (`Hoje` / `Ontem` / data) quando o dia muda.
 - Cada canal = malha **completa**: cada um manda a voz para os outros da mesma sala (no máximo 11 envios). Quem tem o `uid` menor manda a offer, para os dois não se cruzarem. O primeiro assento (`joinedAt`) ainda marca quem chegou primeiro — **não** relê áudio.
 - A API relê SDP/ICE (`rtc.*`) entre quem está na mesma sala. Mute, ensurdecer e PTT cortam o envio. VAD só acende a tua bolinha. A dos outros vem do áudio remoto. Volume geral vale no que chega.
@@ -207,10 +207,10 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 1. **Onboarding (uma vez):** nickname.
 2. **Home:** lista de **servidores** só na sidebar (título estático; card **Adicionar servidor** no topo; bookmarks abaixo); centro = empty ou o servidor aberto; Criar / Entrar no centro. Home / outro servidor / configurações (áudio ou do servidor) não encerram a call.
 3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar no servidor”.
-4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Engrenagem no título abre as **configurações do servidor**. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
+4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Abaixo do nome: pílula do cargo e botão **Configurações** (engrenagem) abre as **configurações do servidor**. Administrador/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
 5. Trocar de servidor pela lista, com o mesmo usuário.
 6. **Configurações:** abas **Áudio** e **Conta**. Áudio: dispositivos, medidor, ganho, automático/PTT, atalho de mudo (vale em todos os servidores). Conta: nickname, código de recuperação (copiar + aviso) e **Sair deste PC**.
-7. **Configurações do servidor:** engrenagem para todo mundo. Nome, código, data, membros e bloqueados reais. Promover: dono e admin. Excluir/bloquear membro: dono e admin; excluir/bloquear/rebaixar admin: só dono. No fim: **Sair do servidor** (membro/admin; confirmar). Plano/expiração depois.
+7. **Configurações do servidor:** engrenagem para todo mundo. Nome, código, data, membros e bloqueados reais. Promover: dono e administrador. Excluir/bloquear membro: dono e administrador; excluir/bloquear/rebaixar administrador: só dono. No fim: **Sair do servidor** (membro/administrador; confirmar). Plano/expiração depois.
 
 Visual: escuro, poucos botões, janela de app.
 
@@ -226,10 +226,10 @@ Visual: escuro, poucos botões, janela de app.
 - `POST` criar servidor (nome + uid) → servidor + código + sala Geral + owner (uid precisa existir em `users`)
 - `POST` entrar por código (recusa se o `uid` está em `blocked`)
 - `POST` reentrar (uid já membro)
-- `POST /api/rooms/{id}/leave` — `{ uid }` membro ou admin; dono 403. Some de `members`; não mexe em `blocked`
-- `GET` servidor (membro) → nome, código, criado em, papel, membros (nick via `users`), salas; bloqueados só para dono/admin
-- `PATCH` servidor (dono/admin) → nome
-- salas: `POST/PATCH/DELETE /api/rooms/{id}/channels…` (dono/admin; não apaga a última)
+- `POST /api/rooms/{id}/leave` — `{ uid }` membro ou administrador; dono 403. Some de `members`; não mexe em `blocked`
+- `GET` servidor (membro) → nome, código, criado em, papel, membros (nick via `users`), salas; bloqueados só para dono/administrador
+- `PATCH` servidor (dono/administrador) → nome
+- salas: `POST/PATCH/DELETE /api/rooms/{id}/channels…` (dono/administrador; não apaga a última)
 - `POST /api/rooms/{id}/members/{uid}/role` — promover (`admin`) ou rebaixar (`member`)
 - `POST /api/rooms/{id}/members/{uid}/kick` — excluir do servidor
 - `POST /api/rooms/{id}/blocked` e `DELETE …/blocked/{uid}` — bloquear / desbloquear
@@ -324,7 +324,7 @@ No MVP o app é o navegador. Tauri empacota a **mesma UI** depois.
 | 2b  | CRUD servidor no banco                         | nick em `users`; salas/membros/bloqueados reais; sem mock   |
 | 2c  | WS de dados compartilhados                     | nick, nomes e listas mudam ao vivo; sem ocupação/chat/P2P   |
 | 3   | Tela da sala + quem está nela                  | ocupação real via módulo WS separado                        |
-| 4   | Canais extras                                  | qualquer um entra; dono promove admin; admin move gente     |
+| 4   | Canais extras                                  | qualquer um entra; dono promove administrador; administrador move gente |
 | 5   | WebRTC no canal                                | 2 pessoas falam no Geral                                    |
 | 6   | Troca de canal = outro P2P                     | 3ª pessoa em outro canal fica só naquele                    |
 | 7   | Host + sucessor                                | se o host sair, a call continua                             |
@@ -399,10 +399,10 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
 - [x] Go + Postgres + React/Vite
 - [x] Identidade local (nick + uid)
-- [x] Criar sala com nome → código; auto-join; creator = owner/admin
+- [x] Criar sala com nome → código; auto-join; creator = dono
 - [x] Entrar com código; bookmarks só no PC
 - [ ] Canais; cada um P2P; host + sucessor
-- [x] Admin cria canal e promove
+- [x] Administrador cria canal e promove
 - [x] Teto 8–12 por canal
 - [x] Update: trava no entrar; call atual segue
 

@@ -27,7 +27,7 @@ export const RoomShell = styled.div`
 
 export const RoomHeader = styled.header`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.9rem;
   flex-wrap: wrap;
@@ -36,8 +36,9 @@ export const RoomHeader = styled.header`
 
 export const RoomHeading = styled.div`
   display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
   min-width: 0;
   flex: 1;
 `;
@@ -53,35 +54,83 @@ export const RoomTitle = styled.h1`
   letter-spacing: -0.03em;
 `;
 
-export const RoomGear = styled.button`
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 1.7rem;
-  height: 1.7rem;
-  padding: 0;
-  border: 0;
-  border-radius: 0.4rem;
-  background: transparent;
+export const RoomMeta = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 0;
+`;
+
+export const RoomRole = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 1.85rem;
+  padding: 0 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.45rem;
+  background: #3a3a3c;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+`;
+
+export const RoomRoleLabel = styled.span`
   color: #8d8d93;
+`;
+
+export const RoomRoleValue = styled.span`
+  color: #0a84ff;
+`;
+
+export const RoomGear = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 1.85rem;
+  padding: 0 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #f5f5f7;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   cursor: pointer;
 
   svg {
-    width: 0.95rem;
-    height: 0.95rem;
+    width: 0.88rem;
+    height: 0.88rem;
+    color: #8d8d93;
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #f5f5f7;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  &:hover svg {
+    color: #c7c7cc;
+  }
+
+  &:active {
+    transform: scale(0.99);
   }
 `;
 
 export const Invite = styled.div`
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding-bottom: 0.82rem;
+`;
+
+export const InviteRow = styled.div`
+  position: relative;
+  display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-shrink: 0;
 `;
 
 export const InviteCode = styled.span`
@@ -122,14 +171,18 @@ export const CopyButton = styled.button`
   }
 `;
 
-export const Copied = styled.span`
+export const Copied = styled.span<{ $show: boolean }>`
+  position: absolute;
+  top: calc(100% + 0.1rem);
+  left: 50%;
+  transform: translateX(-50%);
   color: #30d158;
   font-size: 0.75rem;
   font-weight: 600;
-
-  &:empty {
-    display: none;
-  }
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: ${(p) => (p.$show ? 1 : 0)};
+  transition: opacity 140ms linear;
 `;
 
 export const TreeWrap = styled.div`
@@ -730,14 +783,6 @@ export const UserName = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
-
-export const UserRole = styled.span`
-  flex-shrink: 0;
-  color: #8d8d93;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
 `;
 
 export const Splitter = styled.div`

@@ -113,7 +113,7 @@ func logRoleChanged(ctx context.Context, store *db.DB, activity *realtime.Activi
 	actor := actorNick(ctx, store, actorUID)
 	target := actorNick(ctx, store, targetUID)
 	if role == "admin" {
-		activity.Server(ctx, store, roomID, fmt.Sprintf("%s promoveu %s a admin", actor, target))
+		activity.Server(ctx, store, roomID, fmt.Sprintf("%s promoveu %s a administrador", actor, target))
 		return
 	}
 	activity.Server(ctx, store, roomID, fmt.Sprintf("%s rebaixou %s a membro", actor, target))

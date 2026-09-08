@@ -72,6 +72,7 @@ import {
   CopyButton,
   Invite,
   InviteCode,
+  InviteRow,
   PokeForm,
   PokeInput,
   PokeSend,
@@ -89,6 +90,10 @@ import {
   RoomGear,
   RoomHeader,
   RoomHeading,
+  RoomMeta,
+  RoomRole,
+  RoomRoleLabel,
+  RoomRoleValue,
   RoomShell,
   RoomTitle,
   SalaCreate,
@@ -109,7 +114,6 @@ import {
   UserLeave,
   UserList,
   UserName,
-  UserRole,
   UserRow,
 } from "./style";
 
@@ -282,12 +286,6 @@ const PRESENCE_LABEL: Record<Presence, string> = {
 const ROLE_LABEL: Record<Role, string> = {
   owner: "Dono",
   admin: "Administrador",
-  member: "Membro",
-};
-
-const ROLE_TREE_LABEL: Record<Role, string> = {
-  owner: "Dono",
-  admin: "Admin",
   member: "Membro",
 };
 
@@ -1541,21 +1539,32 @@ export function RoomScreen({
       <RoomHeader>
         <RoomHeading>
           <RoomTitle>{room.name}</RoomTitle>
-          <RoomGear
-            type="button"
-            title="Configurações do servidor"
-            onClick={onOpenSettings}
-          >
-            <GearIcon />
-          </RoomGear>
+          <RoomMeta>
+            <RoomRole>
+              <RoomRoleLabel>Cargo:</RoomRoleLabel>
+              <RoomRoleValue>{ROLE_LABEL[myRole]}</RoomRoleValue>
+            </RoomRole>
+            <RoomGear
+              type="button"
+              title="Configurações do servidor"
+              onClick={onOpenSettings}
+            >
+              <GearIcon />
+              Configurações
+            </RoomGear>
+          </RoomMeta>
         </RoomHeading>
         <Invite>
-          <InviteCode>{room.code}</InviteCode>
-          <CopyButton type="button" onClick={handleCopy}>
-            <CopyIcon />
-            Copiar
-          </CopyButton>
-          <Copied aria-live="polite">{copied ? "Copiado!" : ""}</Copied>
+          <InviteRow>
+            <InviteCode>{room.code}</InviteCode>
+            <CopyButton type="button" onClick={handleCopy}>
+              <CopyIcon />
+              Copiar
+            </CopyButton>
+            <Copied $show={copied} aria-live="polite">
+              Copiado!
+            </Copied>
+          </InviteRow>
         </Invite>
       </RoomHeader>
 
@@ -1638,11 +1647,6 @@ export function RoomScreen({
                           $pending={user.linking}
                         />
                         <UserName>{user.nick}</UserName>
-                        {user.you ? (
-                          <UserRole>
-                            - {ROLE_TREE_LABEL[user.role ?? "member"]}
-                          </UserRole>
-                        ) : null}
                         {user.muted ? (
                           <UserFlag title="Mudo">
                             <MicOffIcon />
