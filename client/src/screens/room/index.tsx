@@ -9,6 +9,13 @@ import {
 } from "react";
 import type { Bookmark } from "../../bookmarks";
 import type { Identity } from "../../identity";
+import {
+  createChannel as createSala,
+  deleteChannel as deleteSala,
+  getRoom,
+  setMemberRole,
+  updateChannel as patchSala,
+} from "../../api";
 import { playConnectSound, playDisconnectSound } from "../../sounds";
 import {
   ChannelBlock,
@@ -79,7 +86,7 @@ import {
 type Presence = "online" | "busy" | "brb";
 type Role = "owner" | "admin" | "member";
 
-type MockUser = {
+type TreeUser = {
   id: string;
   nick: string;
   presence: Presence;
@@ -109,11 +116,11 @@ type DirectThread = {
   draft: string;
 };
 
-type MockChannel = {
+type TreeChannel = {
   id: string;
   name: string;
   description?: string;
-  users: MockUser[];
+  users: TreeUser[];
 };
 
 type RoomScreenProps = {
@@ -334,10 +341,6 @@ function ChevronIcon() {
   );
 }
 
-function minutesAgo(minutes: number) {
-  return Date.now() - minutes * 60 * 1000;
-}
-
 function formatOnline(since: number) {
   const seconds = Math.max(0, Math.floor((Date.now() - since) / 1000));
   const hours = Math.floor(seconds / 3600);
@@ -347,134 +350,6 @@ function formatOnline(since: number) {
   if (minutes > 0) return `${minutes} min`;
   return `${seconds}s`;
 }
-
-function mockChannels(): MockChannel[] {
-  return [
-    {
-      id: "geral",
-      name: "Geral",
-      description: "Conversa da galera.",
-      users: [
-        {
-          id: "joao",
-          nick: "joaov",
-          presence: "online",
-          onlineSince: minutesAgo(8),
-        },
-        {
-          id: "maria",
-          nick: "Maria",
-          presence: "online",
-          role: "admin",
-          onlineSince: minutesAgo(74),
-        },
-        {
-          id: "kadu",
-          nick: "Kadu",
-          presence: "online",
-          muted: true,
-          onlineSince: minutesAgo(21),
-        },
-        {
-          id: "lipe",
-          nick: "Lipe",
-          presence: "busy",
-          onlineSince: minutesAgo(3),
-        },
-        {
-          id: "gui",
-          nick: "Gui",
-          presence: "online",
-          onlineSince: minutesAgo(2),
-        },
-        {
-          id: "duda",
-          nick: "Duda",
-          presence: "brb",
-          onlineSince: minutesAgo(28),
-        },
-      ],
-    },
-    {
-      id: "jogando",
-      name: "Jogando",
-      description: "Quem está na partida.",
-      users: [
-        {
-          id: "pedro",
-          nick: "Pedro",
-          presence: "online",
-          onlineSince: minutesAgo(41),
-        },
-        {
-          id: "ana",
-          nick: "Ana",
-          presence: "online",
-          onlineSince: minutesAgo(165),
-        },
-        {
-          id: "rico",
-          nick: "Rico",
-          presence: "brb",
-          onlineSince: minutesAgo(112),
-        },
-        {
-          id: "bia",
-          nick: "Bia",
-          presence: "busy",
-          muted: true,
-          onlineSince: minutesAgo(9),
-        },
-        {
-          id: "nando",
-          nick: "Nando",
-          presence: "online",
-          deafened: true,
-          onlineSince: minutesAgo(55),
-        },
-      ],
-    },
-    {
-      id: "afk",
-      name: "AFK",
-      description: "Ausente. Sem pressa.",
-      users: [
-        {
-          id: "silent",
-          nick: "Silent",
-          presence: "brb",
-          deafened: true,
-          onlineSince: minutesAgo(190),
-        },
-        {
-          id: "cafe",
-          nick: "Café",
-          presence: "brb",
-          onlineSince: minutesAgo(63),
-        },
-        {
-          id: "afkjoe",
-          nick: "Joe",
-          presence: "busy",
-          onlineSince: minutesAgo(14),
-        },
-      ],
-    },
-  ];
-}
-
-const SEED_CHAT: Record<string, ChatMessage[]> = {
-  geral: [
-    { id: "g1", nick: "Maria", text: "bora ranked?" },
-    { id: "g2", nick: "joaov", text: "to na call" },
-    { id: "g3", nick: "Kadu", text: "1 min, mutei o mic" },
-  ],
-  jogando: [
-    { id: "j1", nick: "Pedro", text: "espera o round" },
-    { id: "j2", nick: "Ana", text: "ok" },
-  ],
-  afk: [],
-};
 
 const CHANNEL_CAP = 12;
 const CHANNEL_NAME_MAX = 24;
@@ -492,37 +367,6 @@ function loadChatHeight() {
 function saveChatHeight(height: number) {
   window.localStorage.setItem(CHAT_HEIGHT_KEY, String(Math.round(height)));
 }
-
-type SalaMeta = { id: string; name: string; description: string };
-
-function salaMetaKey(roomId: string) {
-  return `voice.salas.${roomId}`;
-}
-
-function loadSalaMeta(roomId: string): SalaMeta[] | null {
-  const raw = window.localStorage.getItem(salaMetaKey(roomId));
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return null;
-    return parsed.filter(
-      (item): item is SalaMeta =>
-        Boolean(item) &&
-        typeof item === "object" &&
-        typeof (item as SalaMeta).id === "string" &&
-        typeof (item as SalaMeta).name === "string" &&
-        typeof (item as SalaMeta).description === "string",
-    );
-  } catch {
-    return null;
-  }
-}
-
-const DEFAULT_SALA_OPEN: Record<string, boolean> = {
-  geral: true,
-  jogando: true,
-  afk: false,
-};
 
 function salaOpenKey(roomId: string) {
   return `voice.salaOpen.${roomId}`;
@@ -549,40 +393,11 @@ function saveSalaOpen(roomId: string, open: Record<string, boolean>) {
   window.localStorage.setItem(salaOpenKey(roomId), JSON.stringify(open));
 }
 
-function saveSalaMeta(roomId: string, roster: MockChannel[]) {
-  const meta: SalaMeta[] = roster.map((channel) => ({
-    id: channel.id,
-    name: channel.name,
-    description: channel.description ?? "",
-  }));
-  window.localStorage.setItem(salaMetaKey(roomId), JSON.stringify(meta));
-}
-
-function applySalaMeta(
-  channels: MockChannel[],
-  meta: SalaMeta[] | null,
-): MockChannel[] {
-  if (!meta) return channels;
-  const byId = new Map(meta.map((item) => [item.id, item]));
-  const merged = channels.map((channel) => {
-    const hit = byId.get(channel.id);
-    return hit
-      ? { ...channel, name: hit.name, description: hit.description }
-      : channel;
-  });
-  const extras = meta
-    .filter(
-      (item) =>
-        item.id !== "espera" &&
-        !channels.some((channel) => channel.id === item.id),
-    )
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      users: [],
-    }));
-  return [...merged, ...extras];
+function nextSalaName(roster: TreeChannel[]) {
+  const used = new Set(roster.map((item) => item.name.toLowerCase()));
+  let n = roster.length + 1;
+  while (used.has(`sala ${n}`)) n += 1;
+  return `Sala ${n}`;
 }
 
 export function RoomScreen({
@@ -597,9 +412,7 @@ export function RoomScreen({
   onJoinSala,
   onLeaveSala,
 }: RoomScreenProps) {
-  const [roster, setRoster] = useState(() =>
-    applySalaMeta(mockChannels(), loadSalaMeta(room.roomId)),
-  );
+  const [roster, setRoster] = useState<TreeChannel[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileState | null>(null);
@@ -624,11 +437,12 @@ export function RoomScreen({
   const canPromote = myRole === "owner" || myRole === "admin";
   const canDemoteAdmins = myRole === "owner";
   const [open, setOpen] = useState<Record<string, boolean>>(
-    () => loadSalaOpen(room.roomId) ?? DEFAULT_SALA_OPEN,
+    () => loadSalaOpen(room.roomId) ?? {},
   );
-  const [chats, setChats] = useState(SEED_CHAT);
+  const [chats, setChats] = useState<Record<string, ChatMessage[]>>({});
   const [draft, setDraft] = useState("");
   const [copied, setCopied] = useState(false);
+  const [salaError, setSalaError] = useState("");
   const [chatHeight, setChatHeight] = useState<number | null>(loadChatHeight);
   const shellRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -637,14 +451,41 @@ export function RoomScreen({
   chatHeightRef.current = chatHeight;
 
   useEffect(() => {
-    saveSalaMeta(room.roomId, roster);
-  }, [room.roomId, roster]);
+    let cancelled = false;
+    setRoster([]);
+    setSalaError("");
+
+    void getRoom({ roomId: room.roomId, uid: identity.uid })
+      .then((details) => {
+        if (cancelled) return;
+        setRoster(
+          details.channels.map((channel) => ({
+            id: channel.id,
+            name: channel.name,
+            description: channel.description,
+            users: [],
+          })),
+        );
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return;
+        setSalaError(
+          reason instanceof Error
+            ? reason.message
+            : "Não foi possível carregar as salas.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [room.roomId, identity.uid]);
 
   useEffect(() => {
     saveSalaOpen(room.roomId, open);
   }, [room.roomId, open]);
 
-  const you: MockUser = {
+  const you: TreeUser = {
     id: "you",
     nick: identity.nickname,
     presence,
@@ -851,7 +692,7 @@ export function RoomScreen({
     setDraggingId(userId);
   }
 
-  function openProfile(event: MouseEvent<HTMLLIElement>, user: MockUser) {
+  function openProfile(event: MouseEvent<HTMLLIElement>, user: TreeUser) {
     event.preventDefault();
     const maxX = window.innerWidth - 440;
     const maxY = window.innerHeight - 260;
@@ -865,7 +706,7 @@ export function RoomScreen({
     });
   }
 
-  function handleUserClick(event: MouseEvent<HTMLLIElement>, user: MockUser) {
+  function handleUserClick(event: MouseEvent<HTMLLIElement>, user: TreeUser) {
     if (draggedRef.current) {
       draggedRef.current = false;
       return;
@@ -873,17 +714,27 @@ export function RoomScreen({
     openProfile(event, user);
   }
 
-  function toggleAdmin(userId: string, makeAdmin: boolean) {
-    setRoster((prev) =>
-      prev.map((channel) => ({
-        ...channel,
-        users: channel.users.map((user) =>
-          user.id === userId
-            ? { ...user, role: makeAdmin ? "admin" : "member" }
-            : user,
-        ),
-      })),
-    );
+  async function toggleAdmin(userId: string, makeAdmin: boolean) {
+    try {
+      await setMemberRole({
+        roomId: room.roomId,
+        uid: identity.uid,
+        memberUid: userId,
+        role: makeAdmin ? "admin" : "member",
+      });
+      setRoster((prev) =>
+        prev.map((channel) => ({
+          ...channel,
+          users: channel.users.map((user) =>
+            user.id === userId
+              ? { ...user, role: makeAdmin ? "admin" : "member" }
+              : user,
+          ),
+        })),
+      );
+    } catch {
+      /* cargo na árvore volta no próximo passo de presença */
+    }
   }
 
   function handlePoke(event: FormEvent<HTMLFormElement>) {
@@ -998,14 +849,6 @@ export function RoomScreen({
     if (chatHeightRef.current != null) saveChatHeight(chatHeightRef.current);
   }
 
-  function renameChannel(id: string, name: string) {
-    setRoster((prev) =>
-      prev.map((channel) =>
-        channel.id === id ? { ...channel, name } : channel,
-      ),
-    );
-  }
-
   function openSalaCard(
     event: MouseEvent<HTMLButtonElement>,
     channelId: string,
@@ -1027,33 +870,94 @@ export function RoomScreen({
     });
   }
 
-  function saveSalaName(event: FormEvent<HTMLFormElement>) {
+  async function saveSalaName(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!salaCard) return;
-    const name = salaDraft.trim() || "Sala";
-    renameChannel(salaCard.userId, name.slice(0, CHANNEL_NAME_MAX));
-    setEditingSala(false);
+    if (!salaCard || !salaChannel) return;
+    const name = (salaDraft.trim() || "Sala").slice(0, CHANNEL_NAME_MAX);
+    setSalaError("");
+    try {
+      const updated = await patchSala({
+        roomId: room.roomId,
+        channelId: salaCard.userId,
+        uid: identity.uid,
+        name,
+        description: salaChannel.description ?? "",
+      });
+      setRoster((prev) =>
+        prev.map((channel) =>
+          channel.id === updated.id
+            ? {
+                ...channel,
+                name: updated.name,
+                description: updated.description,
+              }
+            : channel,
+        ),
+      );
+      setSalaDraft(updated.name);
+      setEditingSala(false);
+    } catch (reason: unknown) {
+      setSalaError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível alterar o nome.",
+      );
+    }
   }
 
-  function createChannel() {
-    const id = `ch-${Date.now()}`;
-    const name = `Sala ${roster.length + 1}`;
-    setRoster((prev) => [...prev, { id, name, description: "", users: [] }]);
-    setOpen((prev) => ({ ...prev, [id]: true }));
-    setChats((prev) => ({ ...prev, [id]: [] }));
-    setSalaDraft(name);
-    setDescDraft("");
-    setEditingSala(true);
-    setEditingDesc(false);
-    setSalaCard((prev) => (prev ? { ...prev, userId: id } : prev));
+  async function createChannel() {
+    const name = nextSalaName(roster);
+    setSalaError("");
+    try {
+      const created = await createSala({
+        roomId: room.roomId,
+        uid: identity.uid,
+        name,
+      });
+      setRoster((prev) => [
+        ...prev,
+        {
+          id: created.id,
+          name: created.name,
+          description: created.description,
+          users: [],
+        },
+      ]);
+      setOpen((prev) => ({ ...prev, [created.id]: true }));
+      setChats((prev) => ({ ...prev, [created.id]: [] }));
+      setSalaDraft(created.name);
+      setDescDraft(created.description);
+      setEditingSala(true);
+      setEditingDesc(false);
+      setSalaCard((prev) => (prev ? { ...prev, userId: created.id } : prev));
+    } catch (reason: unknown) {
+      setSalaError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível criar a sala.",
+      );
+    }
   }
 
-  function deleteChannel(id: string) {
+  async function deleteChannel(id: string) {
     if (roster.length < 2) return;
+    setSalaError("");
+    try {
+      await deleteSala({
+        roomId: room.roomId,
+        channelId: id,
+        uid: identity.uid,
+      });
+    } catch (reason: unknown) {
+      setSalaError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível apagar a sala.",
+      );
+      return;
+    }
 
     const leftover = roster.filter((channel) => channel.id !== id);
-    if (leftover.length === roster.length) return;
-
     setRoster(leftover);
     setChats((prev) => {
       const next = { ...prev };
@@ -1075,17 +979,39 @@ export function RoomScreen({
     setEditingDesc(false);
   }
 
-  function saveSalaDesc(event: FormEvent<HTMLFormElement>) {
+  async function saveSalaDesc(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!salaCard) return;
+    if (!salaCard || !salaChannel) return;
     const description = descDraft.trim().slice(0, CHANNEL_DESC_MAX);
-    setRoster((prev) =>
-      prev.map((channel) =>
-        channel.id === salaCard.userId ? { ...channel, description } : channel,
-      ),
-    );
-    setDescDraft(description);
-    setEditingDesc(false);
+    setSalaError("");
+    try {
+      const updated = await patchSala({
+        roomId: room.roomId,
+        channelId: salaCard.userId,
+        uid: identity.uid,
+        name: salaChannel.name,
+        description,
+      });
+      setRoster((prev) =>
+        prev.map((channel) =>
+          channel.id === updated.id
+            ? {
+                ...channel,
+                name: updated.name,
+                description: updated.description,
+              }
+            : channel,
+        ),
+      );
+      setDescDraft(updated.description);
+      setEditingDesc(false);
+    } catch (reason: unknown) {
+      setSalaError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível alterar a descrição.",
+      );
+    }
   }
 
   function handleChat(event: FormEvent<HTMLFormElement>) {
@@ -1128,6 +1054,11 @@ export function RoomScreen({
 
       <TreeWrap>
         <TreeBar>Salas</TreeBar>
+        {salaError ? (
+          <ChatLine style={{ color: "#ff8a80", padding: "0 0.85rem 0.4rem" }}>
+            {salaError}
+          </ChatLine>
+        ) : null}
         <Tree>
           {channels.map((channel) => {
             const expanded = open[channel.id] !== false;
@@ -1234,7 +1165,7 @@ export function RoomScreen({
           })}
           {canManageChannels ? (
             <SalaCreateWrap>
-              <SalaCreate type="button" onClick={createChannel}>
+              <SalaCreate type="button" onClick={() => void createChannel()}>
                 Nova sala
               </SalaCreate>
             </SalaCreateWrap>
@@ -1253,7 +1184,7 @@ export function RoomScreen({
               {canPromoteThis ? (
                 <ProfileAdminLink
                   type="button"
-                  onClick={() => toggleAdmin(profileUser.id, true)}
+                  onClick={() => void toggleAdmin(profileUser.id, true)}
                 >
                   Tornar administrador
                 </ProfileAdminLink>
@@ -1261,7 +1192,7 @@ export function RoomScreen({
                 <ProfileAdminLink
                   type="button"
                   $tone="danger"
-                  onClick={() => toggleAdmin(profileUser.id, false)}
+                  onClick={() => void toggleAdmin(profileUser.id, false)}
                 >
                   Remover administrador
                 </ProfileAdminLink>
@@ -1399,7 +1330,7 @@ export function RoomScreen({
           {roster.length > 1 ? (
             <SalaDelete
               type="button"
-              onClick={() => deleteChannel(salaChannel.id)}
+              onClick={() => void deleteChannel(salaChannel.id)}
             >
               Excluir sala
             </SalaDelete>

@@ -10,12 +10,6 @@ import (
 	"github.com/thulerjoao/voice-plataform/api/internal/db/sqlc"
 )
 
-var (
-	ErrInvalidCode  = errors.New("invalid code")
-	ErrRoomNotFound = errors.New("room not found")
-	ErrBlocked      = errors.New("blocked from room")
-)
-
 type JoinInput struct {
 	Code     string
 	UID      string
@@ -25,13 +19,12 @@ type JoinInput struct {
 func Join(ctx context.Context, store *db.DB, input JoinInput) (CreatedRoom, error) {
 	code := normalizeCode(input.Code)
 	uid := strings.TrimSpace(input.UID)
-	nickname := strings.TrimSpace(input.Nickname)
 
 	if !strings.Contains(code, "-") {
 		return CreatedRoom{}, ErrInvalidCode
 	}
-	if uid == "" || nickname == "" {
-		return CreatedRoom{}, ErrMissingIdentity
+	if err := requireUser(ctx, store, uid); err != nil {
+		return CreatedRoom{}, err
 	}
 
 	room, err := store.Queries.GetRoomByCode(ctx, code)
@@ -70,10 +63,9 @@ func Join(ctx context.Context, store *db.DB, input JoinInput) (CreatedRoom, erro
 	}
 
 	created, err := store.Queries.CreateMember(ctx, sqlc.CreateMemberParams{
-		RoomID:   room.ID,
-		Uid:      uid,
-		Nickname: nickname,
-		Role:     "member",
+		RoomID: room.ID,
+		Uid:    uid,
+		Role:   "member",
 	})
 	if err != nil {
 		if !isUniqueViolation(err) {

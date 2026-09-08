@@ -16,10 +16,26 @@ export type RoomMember = {
   role: RoomRole;
 };
 
+export type RoomChannel = {
+  id: string;
+  name: string;
+  description: string;
+};
+
+export type RoomBlocked = {
+  uid: string;
+  nickname: string;
+};
+
 export type RoomDetails = CreatedRoom & {
   createdAt: string;
   members: RoomMember[];
+  channels: RoomChannel[];
+  blocked?: RoomBlocked[];
 };
+
+export const SALA_NAME_MAX = 24;
+export const SALA_DESC_MAX = 80;
 
 export async function createRoom(input: {
   name: string;
@@ -83,6 +99,120 @@ export async function leaveRoom(input: {
   throw new Error(errorMessage(payload, "Não foi possível sair do servidor."));
 }
 
+export async function createChannel(input: {
+  roomId: string;
+  uid: string;
+  name: string;
+  description?: string;
+}): Promise<RoomChannel> {
+  const response = await fetch(`/api/rooms/${input.roomId}/channels`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      uid: input.uid,
+      name: input.name,
+      description: input.description ?? "",
+    }),
+  });
+  return readChannel(response, "Não foi possível criar a sala.");
+}
+
+export async function updateChannel(input: {
+  roomId: string;
+  channelId: string;
+  uid: string;
+  name: string;
+  description: string;
+}): Promise<RoomChannel> {
+  const response = await fetch(
+    `/api/rooms/${input.roomId}/channels/${input.channelId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        uid: input.uid,
+        name: input.name,
+        description: input.description,
+      }),
+    },
+  );
+  return readChannel(response, "Não foi possível alterar a sala.");
+}
+
+export async function deleteChannel(input: {
+  roomId: string;
+  channelId: string;
+  uid: string;
+}): Promise<void> {
+  const params = new URLSearchParams({ uid: input.uid });
+  const response = await fetch(
+    `/api/rooms/${input.roomId}/channels/${input.channelId}?${params}`,
+    { method: "DELETE" },
+  );
+  if (response.ok) return;
+  const payload = await readPayload(response);
+  throw new Error(errorMessage(payload, "Não foi possível apagar a sala."));
+}
+
+export async function setMemberRole(input: {
+  roomId: string;
+  uid: string;
+  memberUid: string;
+  role: Exclude<RoomRole, "owner">;
+}): Promise<RoomDetails> {
+  const response = await fetch(
+    `/api/rooms/${input.roomId}/members/${input.memberUid}/role`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid: input.uid, role: input.role }),
+    },
+  );
+  return readRoomDetails(response, "Não foi possível alterar o cargo.");
+}
+
+export async function kickMember(input: {
+  roomId: string;
+  uid: string;
+  memberUid: string;
+}): Promise<RoomDetails> {
+  const response = await fetch(
+    `/api/rooms/${input.roomId}/members/${input.memberUid}/kick`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid: input.uid }),
+    },
+  );
+  return readRoomDetails(response, "Não foi possível excluir do servidor.");
+}
+
+export async function blockMember(input: {
+  roomId: string;
+  uid: string;
+  targetUid: string;
+}): Promise<RoomDetails> {
+  const response = await fetch(`/api/rooms/${input.roomId}/blocked`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uid: input.uid, targetUid: input.targetUid }),
+  });
+  return readRoomDetails(response, "Não foi possível bloquear.");
+}
+
+export async function unblockMember(input: {
+  roomId: string;
+  uid: string;
+  memberUid: string;
+}): Promise<RoomDetails> {
+  const params = new URLSearchParams({ uid: input.uid });
+  const response = await fetch(
+    `/api/rooms/${input.roomId}/blocked/${input.memberUid}?${params}`,
+    { method: "DELETE" },
+  );
+  return readRoomDetails(response, "Não foi possível desbloquear.");
+}
+
 export type RegisteredIdentity = {
   uid: string;
   nickname: string;
@@ -119,6 +249,28 @@ export async function registerIdentity(input: {
   return payload;
 }
 
+export async function renameIdentity(input: {
+  uid: string;
+  nickname: string;
+}): Promise<{ uid: string; nickname: string }> {
+  const response = await fetch("/api/identity", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const payload = await readPayload(response);
+  if (
+    !response.ok ||
+    !payload ||
+    typeof payload !== "object" ||
+    typeof (payload as { uid?: unknown }).uid !== "string" ||
+    typeof (payload as { nickname?: unknown }).nickname !== "string"
+  ) {
+    throw new Error(errorMessage(payload, "Não foi possível alterar o nickname."));
+  }
+  return payload as { uid: string; nickname: string };
+}
+
 export async function restoreIdentity(code: string): Promise<RestoredIdentity> {
   const response = await fetch("/api/identity/restore", {
     method: "POST",
@@ -149,6 +301,17 @@ async function readRoomDetails(
 ): Promise<RoomDetails> {
   const payload = await readPayload(response);
   if (!response.ok || !isRoomDetails(payload)) {
+    throw new Error(errorMessage(payload, fallback));
+  }
+  return payload;
+}
+
+async function readChannel(
+  response: Response,
+  fallback: string,
+): Promise<RoomChannel> {
+  const payload = await readPayload(response);
+  if (!response.ok || !isRoomChannel(payload)) {
     throw new Error(errorMessage(payload, fallback));
   }
   return payload;
@@ -196,6 +359,22 @@ function isRoomMember(value: unknown): value is RoomMember {
   );
 }
 
+function isRoomBlocked(value: unknown): value is RoomBlocked {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<RoomBlocked>;
+  return typeof item.uid === "string" && typeof item.nickname === "string";
+}
+
+function isRoomChannel(value: unknown): value is RoomChannel {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<RoomChannel>;
+  return (
+    typeof item.id === "string" &&
+    typeof item.name === "string" &&
+    typeof item.description === "string"
+  );
+}
+
 function isRoomDetails(value: unknown): value is RoomDetails {
   if (
     !isCreatedRoom(value) ||
@@ -203,8 +382,15 @@ function isRoomDetails(value: unknown): value is RoomDetails {
   ) {
     return false;
   }
-  const members = (value as RoomDetails).members;
-  return Array.isArray(members) && members.every(isRoomMember);
+  const details = value as RoomDetails;
+  if (!Array.isArray(details.members) || !details.members.every(isRoomMember)) {
+    return false;
+  }
+  if (!Array.isArray(details.channels) || !details.channels.every(isRoomChannel)) {
+    return false;
+  }
+  if (details.blocked === undefined) return true;
+  return Array.isArray(details.blocked) && details.blocked.every(isRoomBlocked);
 }
 
 function isRegisteredIdentity(value: unknown): value is RegisteredIdentity {

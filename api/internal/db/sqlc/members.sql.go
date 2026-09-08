@@ -9,33 +9,27 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createMember = `-- name: CreateMember :one
-INSERT INTO members (room_id, uid, nickname, role)
-VALUES ($1, $2, $3, $4)
-RETURNING room_id, uid, nickname, role, created_at
+INSERT INTO members (room_id, uid, role)
+VALUES ($1, $2, $3)
+RETURNING room_id, uid, role, created_at
 `
 
 type CreateMemberParams struct {
-	RoomID   uuid.UUID `json:"room_id"`
-	Uid      string    `json:"uid"`
-	Nickname string    `json:"nickname"`
-	Role     string    `json:"role"`
+	RoomID uuid.UUID `json:"room_id"`
+	Uid    string    `json:"uid"`
+	Role   string    `json:"role"`
 }
 
 func (q *Queries) CreateMember(ctx context.Context, arg CreateMemberParams) (Member, error) {
-	row := q.db.QueryRow(ctx, createMember,
-		arg.RoomID,
-		arg.Uid,
-		arg.Nickname,
-		arg.Role,
-	)
+	row := q.db.QueryRow(ctx, createMember, arg.RoomID, arg.Uid, arg.Role)
 	var i Member
 	err := row.Scan(
 		&i.RoomID,
 		&i.Uid,
-		&i.Nickname,
 		&i.Role,
 		&i.CreatedAt,
 	)
@@ -58,7 +52,7 @@ func (q *Queries) DeleteMember(ctx context.Context, arg DeleteMemberParams) erro
 }
 
 const getMember = `-- name: GetMember :one
-SELECT room_id, uid, nickname, role, created_at FROM members
+SELECT room_id, uid, role, created_at FROM members
 WHERE room_id = $1 AND uid = $2
 `
 
@@ -73,7 +67,6 @@ func (q *Queries) GetMember(ctx context.Context, arg GetMemberParams) (Member, e
 	err := row.Scan(
 		&i.RoomID,
 		&i.Uid,
-		&i.Nickname,
 		&i.Role,
 		&i.CreatedAt,
 	)
@@ -81,20 +74,30 @@ func (q *Queries) GetMember(ctx context.Context, arg GetMemberParams) (Member, e
 }
 
 const listMembersByRoom = `-- name: ListMembersByRoom :many
-SELECT room_id, uid, nickname, role, created_at FROM members
-WHERE room_id = $1
-ORDER BY created_at
+SELECT m.room_id, m.uid, u.nickname, m.role, m.created_at
+FROM members m
+INNER JOIN users u ON u.uid = m.uid
+WHERE m.room_id = $1
+ORDER BY m.created_at
 `
 
-func (q *Queries) ListMembersByRoom(ctx context.Context, roomID uuid.UUID) ([]Member, error) {
+type ListMembersByRoomRow struct {
+	RoomID    uuid.UUID          `json:"room_id"`
+	Uid       string             `json:"uid"`
+	Nickname  string             `json:"nickname"`
+	Role      string             `json:"role"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListMembersByRoom(ctx context.Context, roomID uuid.UUID) ([]ListMembersByRoomRow, error) {
 	rows, err := q.db.Query(ctx, listMembersByRoom, roomID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Member
+	var items []ListMembersByRoomRow
 	for rows.Next() {
-		var i Member
+		var i ListMembersByRoomRow
 		if err := rows.Scan(
 			&i.RoomID,
 			&i.Uid,
@@ -116,7 +119,7 @@ const setMemberRole = `-- name: SetMemberRole :one
 UPDATE members
 SET role = $3
 WHERE room_id = $1 AND uid = $2 AND role <> 'owner'
-RETURNING room_id, uid, nickname, role, created_at
+RETURNING room_id, uid, role, created_at
 `
 
 type SetMemberRoleParams struct {
@@ -131,7 +134,6 @@ func (q *Queries) SetMemberRole(ctx context.Context, arg SetMemberRoleParams) (M
 	err := row.Scan(
 		&i.RoomID,
 		&i.Uid,
-		&i.Nickname,
 		&i.Role,
 		&i.CreatedAt,
 	)

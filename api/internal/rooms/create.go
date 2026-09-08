@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	NameMin      = 3;
+	NameMin      = 3
 	NameMax      = 24
 	codeAttempts = 8
 )
@@ -21,6 +21,15 @@ var (
 	ErrInvalidName     = errors.New("invalid name")
 	ErrMissingIdentity = errors.New("missing identity")
 	ErrCodeCollision   = errors.New("could not generate a unique code")
+	ErrInvalidCode     = errors.New("invalid code")
+	ErrRoomNotFound    = errors.New("room not found")
+	ErrBlocked         = errors.New("blocked from room")
+	ErrForbidden       = errors.New("forbidden")
+	ErrLastChannel     = errors.New("cannot delete last channel")
+	ErrChannelNotFound = errors.New("channel not found")
+	ErrDuplicateName   = errors.New("duplicate channel name")
+	ErrInvalidRole     = errors.New("invalid role")
+	ErrMemberNotFound  = errors.New("member not found")
 )
 
 type CreateInput struct {
@@ -39,14 +48,16 @@ type CreatedRoom struct {
 func Create(ctx context.Context, store *db.DB, input CreateInput) (CreatedRoom, error) {
 	name := strings.TrimSpace(input.Name)
 	uid := strings.TrimSpace(input.UID)
-	nickname := strings.TrimSpace(input.Nickname)
 	n := utf8.RuneCountInString(name)
 
 	if n < NameMin || n > NameMax {
 		return CreatedRoom{}, ErrInvalidName
 	}
-	if uid == "" || nickname == "" {
+	if uid == "" {
 		return CreatedRoom{}, ErrMissingIdentity
+	}
+	if err := requireUser(ctx, store, uid); err != nil {
+		return CreatedRoom{}, err
 	}
 
 	for attempt := 0; attempt < codeAttempts; attempt++ {
@@ -55,7 +66,7 @@ func Create(ctx context.Context, store *db.DB, input CreateInput) (CreatedRoom, 
 			return CreatedRoom{}, err
 		}
 
-		created, err := createOnce(ctx, store, name, code, uid, nickname)
+		created, err := createOnce(ctx, store, name, code, uid)
 		if err == nil {
 			return created, nil
 		}
@@ -68,7 +79,7 @@ func Create(ctx context.Context, store *db.DB, input CreateInput) (CreatedRoom, 
 	return CreatedRoom{}, ErrCodeCollision
 }
 
-func createOnce(ctx context.Context, store *db.DB, name, code, uid, nickname string) (CreatedRoom, error) {
+func createOnce(ctx context.Context, store *db.DB, name, code, uid string) (CreatedRoom, error) {
 	tx, err := store.Pool.Begin(ctx)
 	if err != nil {
 		return CreatedRoom{}, err
@@ -87,17 +98,17 @@ func createOnce(ctx context.Context, store *db.DB, name, code, uid, nickname str
 	}
 
 	if _, err := q.CreateMember(ctx, sqlc.CreateMemberParams{
-		RoomID:   room.ID,
-		Uid:      uid,
-		Nickname: nickname,
-		Role:     "owner",
+		RoomID: room.ID,
+		Uid:    uid,
+		Role:   "owner",
 	}); err != nil {
 		return CreatedRoom{}, err
 	}
 
 	if _, err := q.CreateChannel(ctx, sqlc.CreateChannelParams{
-		RoomID: room.ID,
-		Name:   "Geral",
+		RoomID:      room.ID,
+		Name:        "Geral",
+		Description: "",
 	}); err != nil {
 		return CreatedRoom{}, err
 	}

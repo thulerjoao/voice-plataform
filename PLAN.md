@@ -62,10 +62,10 @@ Docker = **banco**. A API pode ir para o Compose depois.
 ```
 PC do usuário                         Nosso backend (Go + Postgres)
 ─────────────────                     ────────────────────────────
-Identidade (uid + nick + recuperação) Sala (id, nome, código, ownerUid)
-Bookmarks (servidores na sidebar)     Salas (canais de voz)
-React / depois Tauri                  Membros: uid → papel (owner | admin | member)
-                                      Users: uid → código de recuperação (hash)
+Identidade (uid + nick + recuperação) Servidor (id, nome, código, owner_uid)
+Bookmarks (servidores na sidebar)     Salas (canais: nome + descrição)
+React / depois Tauri                  Membros / bloqueados: uid → users
+                                      Users: uid, nickname, hash do código
 WebRTC ◄── P2P do canal ──► amigos    WebSocket: presença, host, sucessor, ICE
 ```
 
@@ -89,7 +89,7 @@ Na **primeira abertura** do client:
 - Também dá para **já ter um código**: cola a recuperação → `POST /api/identity/restore` devolve o `uid`, o nick e os servidores em que esse uid ainda é membro → este PC grava identidade + bookmarks.
 - Identidade antiga só neste PC (sem linha em `users`) é sincronizada na abertura: `POST /api/identity` com o uid + código local. Áudio **não** vai no servidor.
 
-Nas aberturas seguintes: nickname, `uid` e o código (se este PC ainda o tiver) já existem. Nickname pode ser editado na sidebar e na aba **Conta** das configurações; o `uid` permanece. O código fica nessa mesma aba, para copiar, com o aviso. **Sair deste PC** também está ali.
+Nas aberturas seguintes: nickname, `uid` e o código (se este PC ainda o tiver) já existem. Nickname pode ser editado na sidebar e na aba **Conta**; o `uid` permanece. A alteração vai para `users.nickname` (`PATCH /api/identity`) — membros e bloqueados **não** copiam o nick, só o `uid`. O código fica na aba Conta, para copiar, com o aviso. **Sair deste PC** também está ali.
 
 O mesmo `uid` vale para **todas** as salas daquele PC. Criar ou adicionar servidor reutiliza esse usuário.
 
@@ -128,7 +128,7 @@ A sidebar é a lista local de **servidores** (bookmarks), não de salas. **Servi
 
 ### Configurações do servidor
 
-Engrenagem ao lado do nome (todo mundo). Abre no centro (mesmo padrão do áudio). Nome (3–24; lápis → input → check; bookmark atualiza na hora), código, data de criação e **membros** (você no topo; nick à esquerda; ações; **cargo por último**). Lista inclui gente **mock** só para visualizar. Promover a admin: dono e admin. **Excluir** e **bloquear** (ícone de proibido vermelho): dono e admin em **membro**; se o alvo é **admin**, só o dono. Mock nesta tela. No fim: **Sair do servidor** (só membro/admin), com confirmação. Plano/expiração: depois.
+Engrenagem ao lado do nome (todo mundo). Abre no centro (mesmo padrão do áudio). Nome (3–24; lápis → input → check; bookmark atualiza na hora), código, data de criação e **membros** (você no topo; nick à esquerda, lido de `users`; ações; **cargo por último**). Promover a admin: dono e admin, só em membro. Rebaixar admin: só o dono. **Excluir** e **bloquear** (ícone de proibido vermelho): dono e admin em **membro**; se o alvo é **admin**, só o dono. Bloqueados: lista real; desbloquear tira de `blocked` e **não** recoloca em `members` — volta pelo código. No fim: **Sair do servidor** (só membro/admin), com confirmação. Plano/expiração: depois.
 
 ### Código vazou
 
@@ -162,7 +162,7 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume loc
 
 ## 8. Salas e voz
 
-- Um servidor tem N **salas** (layout tipo TS3: árvore + chat embaixo). Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva neste PC). “Excluir sala” no fim da ficha (não apaga a última). Quem estava nela **sai da call** — não vai para outra sala (não existe sala padrão garantida). **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC.
+- Um servidor tem N **salas** no banco (`channels`: nome + descrição). Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva no servidor). “Excluir sala” no fim da ficha (não apaga a última). Quem estava nela **sai da call** — não vai para outra sala (não existe sala padrão garantida). **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC. Presença nas salas (quem está em cada uma) ainda é local / depois no WebSocket — a árvore já lista as salas reais.
 - Ao abrir um servidor (sidebar, criar ou entrar), você **só visualiza** — não entra em sala nem no `Geral`. Clique numa sala (ou arraste o nick) para entrar na call. Se já há call noutro servidor, ela continua até você entrar numa sala daqui. À direita da **sua** linha, **Sair** tira da sala e fica no servidor sem estar em nenhuma (som de saída). Chat só com sala.
 - **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda no mesmo servidor. Clique no canal ou arrastar o nick.
 - Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Outro som, mais baixo, quando **você** sai (**Sair** ou a sala some) e quando **alguém sai da sua sala**. Trocar de sala: só o de entrada. Ensurdecido = sem som.
@@ -183,7 +183,7 @@ Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume loc
 - WebRTC (Opus nativo).
 - Mute, ensurdecer, indicador de quem fala, volume **local** por pessoa.
 - Ensurdecer (fone ou volume em 0): a barra de **volume geral** vai a 0. Ouvir de novo (fone ou subir a barra) restaura o volume e abre o mic.
-- **Configurações** (deste PC, `localStorage`): microfone, fone, ganho de entrada (−30 a +30 dB) e **volume geral** (também no rodapé da sidebar), eco/ruído/AGC (no teste do mic o eco desliga, senão come a própria voz), modo **automático (VAD)** ou **PTT**, atalho de PTT e de **mutar** (tecla ou botão do mouse; o de mutar fecha mic e fone juntos, com um som curto ao mutar e outro ao liberar). Atalhos com o app em foco; PTT/mudo com o jogo na frente entra no instalável.
+- **Configurações** (deste PC, `localStorage`): microfone, fone, ganho de entrada (−30 a +30 dB) e **volume geral** (também no rodapé da sidebar), eco/ruído/AGC (no teste do mic o eco desliga, senão come a própria voz), modo **automático (VAD)** ou **PTT**, atalho de PTT e de **mutar** (tecla ou botão do mouse; o de mutar fecha mic e fone juntos, com um som curto ao mutar e outro ao liberar). Na primeira abertura: AGC desligado, eco e ruído ligados, ganho `0 dB`, volume `100%`, **sensibilidade do VAD em 94%**. Atalhos com o app em foco; PTT/mudo com o jogo na frente entra no instalável.
 - TypeScript orquestra (`getUserMedia`, `RTCPeerConnection`).
 
 ### Escala
@@ -213,7 +213,7 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Engrenagem no título abre as **configurações do servidor**. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
 5. Trocar de servidor pela lista, com o mesmo usuário.
 6. **Configurações:** abas **Áudio** e **Conta**. Áudio: dispositivos, medidor, ganho, automático/PTT, atalho de mudo (vale em todos os servidores). Conta: nickname, código de recuperação (copiar + aviso) e **Sair deste PC**.
-7. **Configurações do servidor:** engrenagem para todo mundo. Nome, código, data, membros (você no topo; cargo por último). Promover: dono e admin. Excluir/bloquear membro: dono e admin; excluir/bloquear admin: só dono (mock). No fim: **Sair do servidor** (membro/admin; confirmar). Plano/expiração depois.
+7. **Configurações do servidor:** engrenagem para todo mundo. Nome, código, data, membros e bloqueados reais. Promover: dono e admin. Excluir/bloquear membro: dono e admin; excluir/bloquear/rebaixar admin: só dono. No fim: **Sair do servidor** (membro/admin; confirmar). Plano/expiração depois.
 
 Visual: escuro, poucos botões, janela de app.
 
@@ -223,16 +223,19 @@ Visual: escuro, poucos botões, janela de app.
 
 **HTTP**
 
-- `POST /api/identity` — `{ nickname }` gera uid + código (hash no banco, código na resposta); `{ uid, nickname, recoveryCode }` sincroniza um PC que já tinha identidade local
+- `POST /api/identity` — `{ nickname }` gera uid + código (hash no banco, código na resposta); `{ uid, nickname, recoveryCode }` sincroniza um PC que já tinha identidade local (e atualiza o nick em `users` se mudou)
+- `PATCH /api/identity` — `{ uid, nickname }` troca só `users.nickname`
 - `POST /api/identity/restore` — `{ code }` → uid, nick, servidores em que o uid ainda é membro (sem devolver o código; no banco só o hash)
-- `POST` criar sala (nome + uid + nickname) → sala + código + canal Geral + owner
+- `POST` criar servidor (nome + uid) → servidor + código + sala Geral + owner (uid precisa existir em `users`)
 - `POST` entrar por código (recusa se o `uid` está em `blocked`)
 - `POST` reentrar (uid já membro)
 - `POST /api/rooms/{id}/leave` — `{ uid }` membro ou admin; dono 403. Some de `members`; não mexe em `blocked`
-- `GET` servidor (membro) → nome, código, criado em, papel, membros
+- `GET` servidor (membro) → nome, código, criado em, papel, membros (nick via `users`), salas; bloqueados só para dono/admin
 - `PATCH` servidor (dono/admin) → nome
-- canais: listar; admin cria/apaga
-- promover admin
+- salas: `POST/PATCH/DELETE /api/rooms/{id}/channels…` (dono/admin; não apaga a última)
+- `POST /api/rooms/{id}/members/{uid}/role` — promover (`admin`) ou rebaixar (`member`)
+- `POST /api/rooms/{id}/members/{uid}/kick` — excluir do servidor
+- `POST /api/rooms/{id}/blocked` e `DELETE …/blocked/{uid}` — bloquear / desbloquear
 - `GET` versão mínima do client
 
 **WebSocket**
@@ -245,11 +248,11 @@ Visual: escuro, poucos botões, janela de app.
 
 **Postgres**
 
-- `users` — uid, nickname, recovery_code_hash, created_at
-- `rooms` — id, name, code, owner_uid, created_at
-- `channels` — id, room_id, name
-- `members` — room_id, uid, nickname, role (`owner` | `admin` | `member`)
-- `blocked` — room_id, uid, nickname, created_at (sair não apaga; entrar recusa)
+- `users` — uid, nickname, recovery_code_hash, created_at (**único lugar do nick**)
+- `rooms` — id, name, code, owner_uid → `users.uid`, created_at
+- `channels` — id, room_id, name, description
+- `members` — room_id, uid → `users.uid`, role (`owner` | `admin` | `member`)
+- `blocked` — room_id, uid → `users.uid`, created_at (sair não apaga; entrar recusa; desbloquear não reentra sozinho)
 
 O `uid` do client é o mesmo gravado em `users`, `rooms.owner_uid` e `members.uid`. Não há e-mail/senha. Código de recuperação **não** é o código do servidor; no banco só o hash.  
 `plan` / `expires_at` e renovação (qualquer um paga) entram **depois** do MVP.
@@ -276,6 +279,7 @@ No MVP o app é o navegador. Tauri empacota a **mesma UI** depois.
 | 0   | Pastas `api/` + `client/` + Postgres no Docker | `compose up` sobe o banco; `go run` no `/health`; Vite abre |
 | 1   | Identidade no client                           | nickname na 1ª vez; uid persistido                          |
 | 2   | Criar / entrar sala (HTTP)                     | código gerado; owner no banco; bookmark local; auto-join    |
+| 2b  | CRUD servidor no banco                         | nick em `users`; salas/membros/bloqueados reais; sem mock   |
 | 3   | Tela da sala + canal Geral                     | árvore; lista de membros via WS                             |
 | 4   | Canais extras                                  | qualquer um entra; dono promove admin; admin move gente     |
 | 5   | WebRTC no canal                                | 2 pessoas falam no Geral                                    |
@@ -305,10 +309,10 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
 ### Moderação e sala
 
-- kick / ban: dono e admin em **membro**; só o dono em **admin**
+- kick / ban HTTP já está no servidor (excluir / bloquear / desbloquear). Falta avisar a call via WebSocket quando alguém é expulso
 - invalidar / girar código
 - senha por canal, canal privado
-- apagar sala, transferir owner
+- apagar servidor, transferir owner
 - privilege key estilo TS
 
 ### Cobrança (depois do MVP)
@@ -365,4 +369,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Presença real (WebSocket) — item **3** da seção 13.
+Presença real (WebSocket) — item **3** da seção 13. Sem WebRTC / P2P neste passo.

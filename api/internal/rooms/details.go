@@ -13,21 +13,32 @@ import (
 	"github.com/thulerjoao/voice-plataform/api/internal/db/sqlc"
 )
 
-var ErrForbidden = errors.New("forbidden")
-
 type RoomMember struct {
 	UID      string `json:"uid"`
 	Nickname string `json:"nickname"`
 	Role     string `json:"role"`
 }
 
+type RoomChannel struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type RoomBlocked struct {
+	UID      string `json:"uid"`
+	Nickname string `json:"nickname"`
+}
+
 type RoomDetails struct {
-	ID        string       `json:"id"`
-	Name      string       `json:"name"`
-	Code      string       `json:"code"`
-	Role      string       `json:"role"`
-	CreatedAt string       `json:"createdAt"`
-	Members   []RoomMember `json:"members"`
+	ID        string        `json:"id"`
+	Name      string        `json:"name"`
+	Code      string        `json:"code"`
+	Role      string        `json:"role"`
+	CreatedAt string        `json:"createdAt"`
+	Members   []RoomMember  `json:"members"`
+	Channels  []RoomChannel `json:"channels"`
+	Blocked   []RoomBlocked `json:"blocked,omitempty"`
 }
 
 func Get(ctx context.Context, store *db.DB, roomID, uid string) (RoomDetails, error) {
@@ -116,12 +127,47 @@ func detailsOf(ctx context.Context, store *db.DB, room sqlc.Room, role string) (
 		})
 	}
 
-	return RoomDetails{
+	channelRows, err := store.Queries.ListChannelsByRoom(ctx, room.ID)
+	if err != nil {
+		return RoomDetails{}, err
+	}
+	channels := make([]RoomChannel, 0, len(channelRows))
+	for _, channel := range channelRows {
+		channels = append(channels, roomChannelOf(channel))
+	}
+
+	details := RoomDetails{
 		ID:        room.ID.String(),
 		Name:      room.Name,
 		Code:      room.Code,
 		Role:      role,
 		CreatedAt: createdAt,
 		Members:   list,
-	}, nil
+		Channels:  channels,
+	}
+
+	if isModerator(role) {
+		blockedRows, err := store.Queries.ListBlockedByRoom(ctx, room.ID)
+		if err != nil {
+			return RoomDetails{}, err
+		}
+		blocked := make([]RoomBlocked, 0, len(blockedRows))
+		for _, person := range blockedRows {
+			blocked = append(blocked, RoomBlocked{
+				UID:      person.Uid,
+				Nickname: person.Nickname,
+			})
+		}
+		details.Blocked = blocked
+	}
+
+	return details, nil
+}
+
+func roomChannelOf(channel sqlc.Channel) RoomChannel {
+	return RoomChannel{
+		ID:          channel.ID.String(),
+		Name:        channel.Name,
+		Description: channel.Description,
+	}
 }

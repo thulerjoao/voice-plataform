@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
+  blockMember,
   getRoom,
+  kickMember,
   leaveRoom,
   renameRoom,
   ROOM_NAME_MAX,
   ROOM_NAME_MIN,
+  setMemberRole,
+  unblockMember,
+  type RoomBlocked,
+  type RoomDetails,
   type RoomMember,
 } from "../../api";
 import type { Bookmark } from "../../bookmarks";
@@ -61,26 +67,6 @@ const ROLE_RANK: Record<RoomMember["role"], number> = {
   admin: 1,
   member: 2,
 };
-
-const MOCK_MEMBERS: RoomMember[] = [
-  { uid: "mock-maria", nickname: "Maria", role: "admin" },
-  { uid: "mock-kadu", nickname: "Kadu", role: "member" },
-  { uid: "mock-lipe", nickname: "Lipe", role: "member" },
-  { uid: "mock-gui", nickname: "Gui", role: "member" },
-  { uid: "mock-duda", nickname: "Duda", role: "member" },
-];
-
-const MOCK_BLOCKED: RoomMember[] = [
-  { uid: "mock-rico", nickname: "Rico", role: "member" },
-];
-
-function withMockMembers(list: RoomMember[], uid: string): RoomMember[] {
-  const ids = new Set(list.map((item) => item.uid));
-  return [
-    ...list,
-    ...MOCK_MEMBERS.filter((item) => item.uid !== uid && !ids.has(item.uid)),
-  ];
-}
 
 function orderMembers(list: RoomMember[], uid: string): RoomMember[] {
   const you = list.filter((item) => item.uid === uid);
@@ -214,7 +200,7 @@ export function ServerSettingsScreen({
 }: ServerSettingsScreenProps) {
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [members, setMembers] = useState<RoomMember[] | null>(null);
-  const [blocked, setBlocked] = useState<RoomMember[]>(MOCK_BLOCKED);
+  const [blocked, setBlocked] = useState<RoomBlocked[]>([]);
   const canModerate = room.role === "owner" || room.role === "admin";
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -223,6 +209,7 @@ export function ServerSettingsScreen({
   const [error, setError] = useState("");
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [busyUid, setBusyUid] = useState<string | null>(null);
   const canLeave = room.role === "member" || room.role === "admin";
   const nameEditRef = useRef<HTMLFormElement>(null);
   const onUpdatedRef = useRef(onUpdated);
@@ -235,32 +222,29 @@ export function ServerSettingsScreen({
     trimmed !== room.name &&
     !saving;
 
+  function applyDetails(details: RoomDetails) {
+    setCreatedAt(details.createdAt);
+    setMembers(details.members);
+    setBlocked(details.blocked ?? []);
+    onUpdatedRef.current({ name: details.name, role: details.role });
+  }
+
   useEffect(() => {
     let cancelled = false;
     setCreatedAt(null);
     setMembers(null);
-    setBlocked(MOCK_BLOCKED);
+    setBlocked([]);
     setError("");
 
     void getRoom({ roomId: room.roomId, uid })
       .then((details) => {
         if (cancelled) return;
-        setCreatedAt(details.createdAt);
-        setMembers(
-          withMockMembers(details.members, uid).filter(
-            (item) => !MOCK_BLOCKED.some((person) => person.uid === item.uid),
-          ),
-        );
-        onUpdatedRef.current({ name: details.name, role: details.role });
+        applyDetails(details);
       })
       .catch((reason: unknown) => {
         if (cancelled) return;
         setCreatedAt("");
-        setMembers(
-          withMockMembers([], uid).filter(
-            (item) => !MOCK_BLOCKED.some((person) => person.uid === item.uid),
-          ),
-        );
+        setMembers([]);
         setError(
           reason instanceof Error
             ? reason.message
@@ -314,13 +298,7 @@ export function ServerSettingsScreen({
         uid,
         name: trimmed,
       });
-      onUpdated({ name: details.name, role: details.role });
-      setCreatedAt(details.createdAt);
-      setMembers(
-        withMockMembers(details.members, uid).filter(
-          (item) => !blocked.some((person) => person.uid === item.uid),
-        ),
-      );
+      applyDetails(details);
       setEditing(false);
       setDraft(details.name);
     } catch (reason: unknown) {
@@ -334,28 +312,83 @@ export function ServerSettingsScreen({
     }
   }
 
+  async function runModeration(
+    personUid: string,
+    action: () => Promise<RoomDetails>,
+    fallback: string,
+  ) {
+    if (busyUid) return;
+    setBusyUid(personUid);
+    setError("");
+    try {
+      applyDetails(await action());
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : fallback);
+    } finally {
+      setBusyUid(null);
+    }
+  }
+
   function excludePerson(person: RoomMember) {
-    setMembers((prev) =>
-      (prev ?? []).filter((item) => item.uid !== person.uid),
+    void runModeration(
+      person.uid,
+      () => kickMember({ roomId: room.roomId, uid, memberUid: person.uid }),
+      "Não foi possível excluir do servidor.",
     );
   }
 
   function blockPerson(person: RoomMember) {
-    setMembers((prev) =>
-      (prev ?? []).filter((item) => item.uid !== person.uid),
-    );
-    setBlocked((prev) =>
-      prev.some((item) => item.uid === person.uid) ? prev : [...prev, person],
+    void runModeration(
+      person.uid,
+      () =>
+        blockMember({
+          roomId: room.roomId,
+          uid,
+          targetUid: person.uid,
+        }),
+      "Não foi possível bloquear.",
     );
   }
 
-  function unblockPerson(person: RoomMember) {
-    setBlocked((prev) => prev.filter((item) => item.uid !== person.uid));
-    setMembers((prev) => {
-      const list = prev ?? [];
-      if (list.some((item) => item.uid === person.uid)) return list;
-      return [...list, person];
-    });
+  function unblockPerson(person: RoomBlocked) {
+    void runModeration(
+      person.uid,
+      () =>
+        unblockMember({
+          roomId: room.roomId,
+          uid,
+          memberUid: person.uid,
+        }),
+      "Não foi possível desbloquear.",
+    );
+  }
+
+  function promotePerson(person: RoomMember) {
+    void runModeration(
+      person.uid,
+      () =>
+        setMemberRole({
+          roomId: room.roomId,
+          uid,
+          memberUid: person.uid,
+          role: "admin",
+        }),
+      "Não foi possível promover.",
+    );
+  }
+
+  function demotePerson(person: RoomMember) {
+    void runModeration(
+      person.uid,
+      () =>
+        setMemberRole({
+          roomId: room.roomId,
+          uid,
+          memberUid: person.uid,
+          role: "member",
+        }),
+      "Não foi possível rebaixar.",
+    );
   }
 
   function cancelEdit() {
@@ -462,22 +495,46 @@ export function ServerSettingsScreen({
               <StaffList>
                 {orderMembers(members, uid).map((person) => {
                   const you = person.uid === uid;
-                  const showActions =
+                  const showKickBlock =
                     canModerate &&
                     !you &&
                     person.role !== "owner" &&
                     (room.role === "owner" || person.role === "member");
+                  const showPromote =
+                    canModerate && !you && person.role === "member";
+                  const showDemote =
+                    room.role === "owner" && !you && person.role === "admin";
+                  const busy = busyUid === person.uid;
                   return (
                     <StaffRow key={person.uid} $you={you}>
                       <StaffName>{you ? nickname : person.nickname}</StaffName>
                       <StaffMeta>
                         {canModerate ? (
                           <StaffActions>
-                            {showActions ? (
+                            {showPromote ? (
+                              <StaffAction
+                                type="button"
+                                disabled={busy}
+                                onClick={() => promotePerson(person)}
+                              >
+                                Promover
+                              </StaffAction>
+                            ) : null}
+                            {showDemote ? (
+                              <StaffAction
+                                type="button"
+                                disabled={busy}
+                                onClick={() => demotePerson(person)}
+                              >
+                                Rebaixar
+                              </StaffAction>
+                            ) : null}
+                            {showKickBlock ? (
                               <>
                                 <StaffIcon
                                   type="button"
                                   title="Excluir do servidor"
+                                  disabled={busy}
                                   onClick={() => excludePerson(person)}
                                 >
                                   <ExcludeIcon />
@@ -486,6 +543,7 @@ export function ServerSettingsScreen({
                                   type="button"
                                   $tone="danger"
                                   title="Bloquear"
+                                  disabled={busy}
                                   onClick={() => blockPerson(person)}
                                 >
                                   <BanIcon />
@@ -515,6 +573,7 @@ export function ServerSettingsScreen({
                       <StaffMeta>
                         <StaffAction
                           type="button"
+                          disabled={busyUid === person.uid}
                           onClick={() => unblockPerson(person)}
                         >
                           Desbloquear

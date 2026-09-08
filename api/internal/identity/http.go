@@ -44,6 +44,32 @@ func HandleRegister(store *db.DB) http.HandlerFunc {
 	}
 }
 
+type renameRequest struct {
+	UID      string `json:"uid"`
+	Nickname string `json:"nickname"`
+}
+
+func HandleRename(store *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req renameRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "Dados inválidos.")
+			return
+		}
+
+		updated, err := Rename(r.Context(), store, req.UID, req.Nickname)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				writeError(w, http.StatusNotFound, "Identidade não encontrada.")
+				return
+			}
+			writeIdentityErr(w, err, "Não foi possível alterar o nickname.")
+			return
+		}
+		writeJSON(w, http.StatusOK, updated)
+	}
+}
+
 func HandleRestore(store *db.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req restoreRequest

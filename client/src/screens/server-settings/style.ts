@@ -332,6 +332,12 @@ export const StaffIcon = styled.button<{ $tone?: "danger" }>`
     background: rgba(255, 255, 255, 0.08);
     color: ${(p) => (p.$tone === "danger" ? "#ff6b63" : "#f5f5f7")};
   }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+  }
 `;
 
 export const StaffAction = styled.button<{ $tone?: "default" | "danger" }>`
@@ -346,6 +352,13 @@ export const StaffAction = styled.button<{ $tone?: "default" | "danger" }>`
   &:hover {
     color: ${(p) => (p.$tone === "danger" ? "#ff8a80" : "#d1d1d6")};
     text-decoration: underline;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+    text-decoration: none;
   }
 `;
 

@@ -9,10 +9,44 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createBlocked = `-- name: CreateBlocked :one
+INSERT INTO blocked (room_id, uid)
+VALUES ($1, $2)
+RETURNING room_id, uid, created_at
+`
+
+type CreateBlockedParams struct {
+	RoomID uuid.UUID `json:"room_id"`
+	Uid    string    `json:"uid"`
+}
+
+func (q *Queries) CreateBlocked(ctx context.Context, arg CreateBlockedParams) (Blocked, error) {
+	row := q.db.QueryRow(ctx, createBlocked, arg.RoomID, arg.Uid)
+	var i Blocked
+	err := row.Scan(&i.RoomID, &i.Uid, &i.CreatedAt)
+	return i, err
+}
+
+const deleteBlocked = `-- name: DeleteBlocked :exec
+DELETE FROM blocked
+WHERE room_id = $1 AND uid = $2
+`
+
+type DeleteBlockedParams struct {
+	RoomID uuid.UUID `json:"room_id"`
+	Uid    string    `json:"uid"`
+}
+
+func (q *Queries) DeleteBlocked(ctx context.Context, arg DeleteBlockedParams) error {
+	_, err := q.db.Exec(ctx, deleteBlocked, arg.RoomID, arg.Uid)
+	return err
+}
+
 const getBlocked = `-- name: GetBlocked :one
-SELECT room_id, uid, nickname, created_at FROM blocked
+SELECT room_id, uid, created_at FROM blocked
 WHERE room_id = $1 AND uid = $2
 `
 
@@ -24,11 +58,46 @@ type GetBlockedParams struct {
 func (q *Queries) GetBlocked(ctx context.Context, arg GetBlockedParams) (Blocked, error) {
 	row := q.db.QueryRow(ctx, getBlocked, arg.RoomID, arg.Uid)
 	var i Blocked
-	err := row.Scan(
-		&i.RoomID,
-		&i.Uid,
-		&i.Nickname,
-		&i.CreatedAt,
-	)
+	err := row.Scan(&i.RoomID, &i.Uid, &i.CreatedAt)
 	return i, err
+}
+
+const listBlockedByRoom = `-- name: ListBlockedByRoom :many
+SELECT b.room_id, b.uid, u.nickname, b.created_at
+FROM blocked b
+INNER JOIN users u ON u.uid = b.uid
+WHERE b.room_id = $1
+ORDER BY b.created_at
+`
+
+type ListBlockedByRoomRow struct {
+	RoomID    uuid.UUID          `json:"room_id"`
+	Uid       string             `json:"uid"`
+	Nickname  string             `json:"nickname"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListBlockedByRoom(ctx context.Context, roomID uuid.UUID) ([]ListBlockedByRoomRow, error) {
+	rows, err := q.db.Query(ctx, listBlockedByRoom, roomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBlockedByRoomRow
+	for rows.Next() {
+		var i ListBlockedByRoomRow
+		if err := rows.Scan(
+			&i.RoomID,
+			&i.Uid,
+			&i.Nickname,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

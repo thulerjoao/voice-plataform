@@ -11,25 +11,39 @@ import (
 	"github.com/google/uuid"
 )
 
+const countChannelsByRoom = `-- name: CountChannelsByRoom :one
+SELECT COUNT(*)::bigint FROM channels
+WHERE room_id = $1
+`
+
+func (q *Queries) CountChannelsByRoom(ctx context.Context, roomID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countChannelsByRoom, roomID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createChannel = `-- name: CreateChannel :one
-INSERT INTO channels (room_id, name)
-VALUES ($1, $2)
-RETURNING id, room_id, name, created_at
+INSERT INTO channels (room_id, name, description)
+VALUES ($1, $2, $3)
+RETURNING id, room_id, name, created_at, description
 `
 
 type CreateChannelParams struct {
-	RoomID uuid.UUID `json:"room_id"`
-	Name   string    `json:"name"`
+	RoomID      uuid.UUID `json:"room_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
 }
 
 func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (Channel, error) {
-	row := q.db.QueryRow(ctx, createChannel, arg.RoomID, arg.Name)
+	row := q.db.QueryRow(ctx, createChannel, arg.RoomID, arg.Name, arg.Description)
 	var i Channel
 	err := row.Scan(
 		&i.ID,
 		&i.RoomID,
 		&i.Name,
 		&i.CreatedAt,
+		&i.Description,
 	)
 	return i, err
 }
@@ -49,8 +63,31 @@ func (q *Queries) DeleteChannel(ctx context.Context, arg DeleteChannelParams) er
 	return err
 }
 
+const getChannel = `-- name: GetChannel :one
+SELECT id, room_id, name, created_at, description FROM channels
+WHERE id = $1 AND room_id = $2
+`
+
+type GetChannelParams struct {
+	ID     uuid.UUID `json:"id"`
+	RoomID uuid.UUID `json:"room_id"`
+}
+
+func (q *Queries) GetChannel(ctx context.Context, arg GetChannelParams) (Channel, error) {
+	row := q.db.QueryRow(ctx, getChannel, arg.ID, arg.RoomID)
+	var i Channel
+	err := row.Scan(
+		&i.ID,
+		&i.RoomID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.Description,
+	)
+	return i, err
+}
+
 const listChannelsByRoom = `-- name: ListChannelsByRoom :many
-SELECT id, room_id, name, created_at FROM channels
+SELECT id, room_id, name, created_at, description FROM channels
 WHERE room_id = $1
 ORDER BY created_at
 `
@@ -69,6 +106,7 @@ func (q *Queries) ListChannelsByRoom(ctx context.Context, roomID uuid.UUID) ([]C
 			&i.RoomID,
 			&i.Name,
 			&i.CreatedAt,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}
@@ -78,4 +116,36 @@ func (q *Queries) ListChannelsByRoom(ctx context.Context, roomID uuid.UUID) ([]C
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateChannel = `-- name: UpdateChannel :one
+UPDATE channels
+SET name = $3, description = $4
+WHERE id = $1 AND room_id = $2
+RETURNING id, room_id, name, created_at, description
+`
+
+type UpdateChannelParams struct {
+	ID          uuid.UUID `json:"id"`
+	RoomID      uuid.UUID `json:"room_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+}
+
+func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (Channel, error) {
+	row := q.db.QueryRow(ctx, updateChannel,
+		arg.ID,
+		arg.RoomID,
+		arg.Name,
+		arg.Description,
+	)
+	var i Channel
+	err := row.Scan(
+		&i.ID,
+		&i.RoomID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.Description,
+	)
+	return i, err
 }

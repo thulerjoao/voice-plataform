@@ -34,7 +34,7 @@ export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
   inputGainDb: 0,
   outputVolume: 100,
   inputMode: "vad",
-  vadSensitivity: 50,
+  vadSensitivity: 94,
   ptt: null,
   muteToggle: null,
   echoCancellation: true,

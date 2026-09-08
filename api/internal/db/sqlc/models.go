@@ -12,21 +12,20 @@ import (
 type Blocked struct {
 	RoomID    uuid.UUID          `json:"room_id"`
 	Uid       string             `json:"uid"`
-	Nickname  string             `json:"nickname"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type Channel struct {
-	ID        uuid.UUID          `json:"id"`
-	RoomID    uuid.UUID          `json:"room_id"`
-	Name      string             `json:"name"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	RoomID      uuid.UUID          `json:"room_id"`
+	Name        string             `json:"name"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	Description string             `json:"description"`
 }
 
 type Member struct {
 	RoomID    uuid.UUID          `json:"room_id"`
 	Uid       string             `json:"uid"`
-	Nickname  string             `json:"nickname"`
 	Role      string             `json:"role"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }

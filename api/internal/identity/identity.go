@@ -178,6 +178,38 @@ func Restore(ctx context.Context, store *db.DB, code string) (RestoredIdentity, 
 	return restored, nil
 }
 
+func Rename(ctx context.Context, store *db.DB, uid, nickname string) (Identity, error) {
+	nickname = strings.TrimSpace(nickname)
+	if nickname == "" || utf8.RuneCountInString(nickname) > NicknameMax {
+		return Identity{}, ErrInvalidNickname
+	}
+
+	uid = strings.TrimSpace(uid)
+	if uid == "" {
+		return Identity{}, ErrNotFound
+	}
+
+	if _, err := store.Queries.GetUserByUID(ctx, uid); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Identity{}, ErrNotFound
+		}
+		return Identity{}, err
+	}
+
+	user, err := store.Queries.UpdateUserNickname(ctx, sqlc.UpdateUserNicknameParams{
+		Uid:      uid,
+		Nickname: nickname,
+	})
+	if err != nil {
+		return Identity{}, err
+	}
+
+	return Identity{
+		UID:      user.Uid,
+		Nickname: user.Nickname,
+	}, nil
+}
+
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"

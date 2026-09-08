@@ -20,7 +20,7 @@ import {
 } from "../../presence";
 import {
   NICKNAME_MAX_LENGTH,
-  updateNickname,
+  persistNickname,
   type Identity,
 } from "../../identity";
 import type { CreatedRoom } from "../../api";
@@ -609,6 +609,7 @@ export function HomeScreen({
   const [call, setCall] = useState<VoiceCall | null>(null);
   const talking = useTalking(Boolean(call) && !muted && !deafened);
   const [editing, setEditing] = useState(false);
+  const [savingNick, setSavingNick] = useState(false);
   const [draft, setDraft] = useState(identity.nickname);
   const statusRef = useRef<HTMLDivElement>(null);
   const nickEditRef = useRef<HTMLFormElement>(null);
@@ -643,14 +644,21 @@ export function HomeScreen({
     setEditing(false);
   }
 
-  function handleSave(event: FormEvent<HTMLFormElement>) {
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nickname = draft.trim();
-    if (!nickname) return;
+    if (!nickname || savingNick) return;
 
-    const next = updateNickname(nickname);
-    if (next) onNicknameChange(next);
-    setEditing(false);
+    setSavingNick(true);
+    try {
+      const next = await persistNickname(nickname);
+      if (next) onNicknameChange(next);
+      setEditing(false);
+    } catch {
+      /* API fora: o nick neste PC não muda */
+    } finally {
+      setSavingNick(false);
+    }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -859,7 +867,7 @@ export function HomeScreen({
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleKeyDown}
             />
-            <NickIconButton type="submit" title="Salvar">
+            <NickIconButton type="submit" title="Salvar" disabled={!draft.trim() || savingNick}>
               <CheckIcon />
             </NickIconButton>
             <NickIconButton type="button" title="Cancelar" onClick={cancelEdit}>

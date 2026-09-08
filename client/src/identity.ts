@@ -1,3 +1,5 @@
+import { renameIdentity } from "./api";
+
 const STORAGE_KEY = "voice.identity";
 
 export const NICKNAME_MAX_LENGTH = 24;
@@ -60,6 +62,17 @@ export function updateNickname(nickname: string): Identity | null {
   const next = { ...current, nickname };
   saveIdentity(next);
   return next;
+}
+
+export async function persistNickname(nickname: string): Promise<Identity | null> {
+  const current = loadIdentity();
+  if (!current) return null;
+
+  const renamed = await renameIdentity({
+    uid: current.uid,
+    nickname: nickname.trim(),
+  });
+  return updateNickname(renamed.nickname);
 }
 
 export function createIdentity(nickname: string): Identity {

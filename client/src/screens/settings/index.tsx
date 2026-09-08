@@ -75,7 +75,7 @@ import {
   Warn,
 } from "./style";
 import type { Identity } from "../../identity";
-import { NICKNAME_MAX_LENGTH, updateNickname } from "../../identity";
+import { NICKNAME_MAX_LENGTH, persistNickname } from "../../identity";
 
 type SettingsScreenProps = {
   identity: Identity;
@@ -321,6 +321,8 @@ export function SettingsScreen({
   const [copied, setCopied] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [editingNick, setEditingNick] = useState(false);
+  const [savingNick, setSavingNick] = useState(false);
+  const [nickError, setNickError] = useState("");
   const [nickDraft, setNickDraft] = useState(identity.nickname);
   const nickEditRef = useRef<HTMLFormElement>(null);
   const [settings, setSettings] = useState(loadAudioSettings);
@@ -352,7 +354,30 @@ export function SettingsScreen({
 
   function cancelNickEdit() {
     setNickDraft(identity.nickname);
+    setNickError("");
     setEditingNick(false);
+  }
+
+  async function handleSaveNick(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nickname = nickDraft.trim();
+    if (!nickname || savingNick) return;
+
+    setSavingNick(true);
+    setNickError("");
+    try {
+      const next = await persistNickname(nickname);
+      if (next) onNicknameChange(next);
+      setEditingNick(false);
+    } catch (reason: unknown) {
+      setNickError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível alterar o nickname.",
+      );
+    } finally {
+      setSavingNick(false);
+    }
   }
 
   useEffect(() => {
@@ -741,12 +766,7 @@ export function SettingsScreen({
                 <NameEdit
                   ref={nickEditRef}
                   onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                    event.preventDefault();
-                    const nickname = nickDraft.trim();
-                    if (!nickname) return;
-                    const next = updateNickname(nickname);
-                    if (next) onNicknameChange(next);
-                    setEditingNick(false);
+                    void handleSaveNick(event);
                   }}
                 >
                   <NameInput
@@ -761,7 +781,7 @@ export function SettingsScreen({
                   <NameIcon
                     type="submit"
                     title="Salvar"
-                    disabled={!nickDraft.trim()}
+                    disabled={!nickDraft.trim() || savingNick}
                   >
                     <CheckIcon />
                   </NameIcon>
@@ -787,6 +807,7 @@ export function SettingsScreen({
                 </NameButton>
               )}
             </Field>
+            {nickError ? <ErrorText>{nickError}</ErrorText> : null}
           </Section>
           <Section>
             <SectionTitle>Código de recuperação</SectionTitle>
