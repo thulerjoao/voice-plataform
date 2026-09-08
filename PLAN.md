@@ -156,13 +156,13 @@ Cargos mínimos:
 
 Cargo não aparece nas linhas dos outros (você se reconhece pelo fundo). Na **sua** linha, o papel fica discreto **à direita** do nick, só quando você está numa sala. Cargo completo na ficha.
 
-Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume local daquela pessoa, **promover a admin** (dono e admin; só em membro). Rebaixar admin: só dono. Recado: envia a primeira mensagem e abre uma **aba** no chat (1:1). Uma conversa visível por vez; clicar na aba troca. Som no destinatário. Sem modal. Sem banco — some ao recarregar. Dá para fechar a aba e reabrir no mesmo uso.
+Clique no nick abre a **ficha**: status com bolinha, tempo conectado. **Volume local** só na ficha de **outra** pessoa (deste PC, `localStorage` por uid — não é o volume geral). Na sua ficha não tem slider. **Promover a admin** (dono e admin; só em membro). Rebaixar admin: só dono. Recado: envia a primeira mensagem e abre uma **aba** no chat (1:1). Uma conversa visível por vez; clicar na aba troca. Som no destinatário. Sem modal. Sem banco — some ao recarregar. Dá para fechar a aba e reabrir no mesmo uso.
 
 ---
 
 ## 8. Salas e voz
 
-- Um servidor tem N **salas** no banco (`channels`: nome + descrição). Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva no servidor). “Excluir sala” no fim da ficha (não apaga a última). Quem estava nela **sai da call** — não vai para outra sala (não existe sala padrão garantida). **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC. Presença nas salas (quem está em cada uma) ainda é local / depois no WebSocket — a árvore já lista as salas reais.
+- Um servidor tem N **salas** no banco (`channels`: nome + descrição). Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva no servidor). “Excluir sala” no fim da ficha (não apaga a última). Quem estava nela **sai da call** — não vai para outra sala (não existe sala padrão garantida). **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC. Quem está em cada sala vem do WebSocket (RAM na API); não grava no Postgres.
 - Ao abrir um servidor (sidebar, criar ou entrar), você **só visualiza** — não entra em sala nem no `Geral`. Clique numa sala (ou arraste o nick) para entrar na call. Se já há call noutro servidor, ela continua até você entrar numa sala daqui. À direita da **sua** linha, **Sair** tira da sala e fica no servidor sem estar em nenhuma (som de saída). Chat só com sala.
 - **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda no mesmo servidor. Clique no canal ou arrastar o nick.
 - Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Outro som, mais baixo, quando **você** sai (**Sair** ou a sala some) e quando **alguém sai da sua sala**. Trocar de sala: só o de entrada. Ensurdecido = sem som.
@@ -230,7 +230,7 @@ Visual: escuro, poucos botões, janela de app.
 - `POST` entrar por código (recusa se o `uid` está em `blocked`)
 - `POST` reentrar (uid já membro)
 - `POST /api/rooms/{id}/leave` — `{ uid }` membro ou admin; dono 403. Some de `members`; não mexe em `blocked`
-- `GET` servidor (membro) → nome, código, criado em, papel, membros (nick via `users`), salas; bloqueados só para dono/admin
+- `GET` servidor (membro) → nome, código, criado em, papel, membros (nick via `users`), salas, ocupação atual das salas (RAM, não Postgres); bloqueados só para dono/admin
 - `PATCH` servidor (dono/admin) → nome
 - salas: `POST/PATCH/DELETE /api/rooms/{id}/channels…` (dono/admin; não apaga a última)
 - `POST /api/rooms/{id}/members/{uid}/role` — promover (`admin`) ou rebaixar (`member`)
@@ -240,13 +240,14 @@ Visual: escuro, poucos botões, janela de app.
 
 **WebSocket** (`GET /ws?uid=`)
 
-Escrita continua no HTTP. Depois do commit no banco, a API manda o evento para os membros daquele servidor (nick: para quem compartilha algum servidor com o uid). Sem chat e sem WebRTC neste passo.
+Escrita de dados persistidos continua no HTTP; depois do commit a API manda o evento para os membros daquele servidor (nick: para quem compartilha algum servidor com o uid). Ocupação da sala vive **só em RAM** no mesmo hub (some se a API cair). Sem chat e sem WebRTC neste passo.
 
 - `user.nickname` — nick global
 - `room.renamed` — nome do servidor
 - `channel.created` / `channel.updated` / `channel.deleted` — salas
 - `member.joined` / `member.left` / `member.role` / `member.kicked` / `member.blocked` / `member.unblocked`
-- (depois) presença na sala, host, sucessor, ICE
+- ocupação: client manda `presence.join` / `presence.leave` / `presence.move`; a API responde `presence.joined` / `presence.left` / `presence.full` (teto 12). Um `uid` em no máximo uma sala — **todas as janelas desse uid seguem o mesmo assento** (entrar / sair / trocar), sem eco de join/leave. Mute, volume, status e qual tela está aberta continuam deste PC. Kick, bloqueio, sair do servidor ou cair o último WebSocket (com ~1,5 s de folga para reconectar) tira o assento.
+- (depois) chat da sala, host, sucessor, ICE
 
 Reconexão: o client faz de novo o `GET` do servidor que está na tela.
 
@@ -285,7 +286,7 @@ No MVP o app é o navegador. Tauri empacota a **mesma UI** depois.
 | 2   | Criar / entrar sala (HTTP)                     | código gerado; owner no banco; bookmark local; auto-join    |
 | 2b  | CRUD servidor no banco                         | nick em `users`; salas/membros/bloqueados reais; sem mock   |
 | 2c  | WS de dados compartilhados                     | nick, nomes e listas mudam ao vivo; sem chat/P2P            |
-| 3   | Tela da sala + canal Geral                     | árvore; lista de membros via WS                             |
+| 3   | Tela da sala + quem está nela                  | árvore com ocupação real via WS                             |
 | 4   | Canais extras                                  | qualquer um entra; dono promove admin; admin move gente     |
 | 5   | WebRTC no canal                                | 2 pessoas falam no Geral                                    |
 | 6   | Troca de canal = outro P2P                     | 3ª pessoa em outro canal fica só naquele                    |
@@ -314,7 +315,7 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
 ### Moderação e sala
 
-- kick / ban HTTP já está no servidor (excluir / bloquear / desbloquear). A lista ao vivo vai no WS de dados; falta tirar da call (presença / P2P)
+- kick / ban HTTP já está no servidor (excluir / bloquear / desbloquear). A lista ao vivo vai no WS de dados; a ocupação da sala já cai. Falta o P2P.
 - invalidar / girar código
 - senha por canal, canal privado
 - apagar servidor, transferir owner
@@ -374,4 +375,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Presença real (quem está em qual sala) — item **3** da seção 13. Chat e WebRTC / P2P continuam depois.
+Chat da sala no mesmo WebSocket (sem banco; só quem está na sala na hora). WebRTC / P2P continua depois.

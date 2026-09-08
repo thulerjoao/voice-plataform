@@ -15,6 +15,7 @@ func emitNickname(ctx context.Context, store *db.DB, hub *realtime.Hub, uid, nic
 	if err != nil {
 		peers = nil
 	}
+	hub.RenameSeat(uid, nickname)
 	hub.Send(append(peers, uid), realtime.Event{
 		Type:     "user.nickname",
 		UID:      uid,

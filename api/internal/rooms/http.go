@@ -58,12 +58,15 @@ func HandleCreate(store *db.DB) http.HandlerFunc {
 	}
 }
 
-func HandleGet(store *db.DB) http.HandlerFunc {
+func HandleGet(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		details, err := Get(r.Context(), store, r.PathValue("id"), r.URL.Query().Get("uid"))
 		if err != nil {
 			writeRoomErr(w, err, "Não foi possível carregar o servidor.")
 			return
+		}
+		if hub != nil {
+			details.Occupancy = hub.Occupancy(details.ID)
 		}
 		writeRoom(w, http.StatusOK, details)
 	}
@@ -172,6 +175,7 @@ func HandleLeave(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		publishSeatLeft(r.Context(), store, hub, hub.DropSeatInRoom(req.UID, r.PathValue("id")))
 		publish(r.Context(), store, hub, r.PathValue("id"), []string{req.UID}, realtime.Event{
 			Type: "member.left",
 			UID:  req.UID,
@@ -284,6 +288,7 @@ func HandleDeleteChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+		hub.DropChannel(r.PathValue("channelId"))
 		publish(r.Context(), store, hub, r.PathValue("id"), nil, realtime.Event{
 			Type:      "channel.deleted",
 			ChannelID: r.PathValue("channelId"),
@@ -320,6 +325,7 @@ func HandleSetRole(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
+		hub.SetSeatRole(memberUID, details.ID, req.Role)
 		publish(r.Context(), store, hub, details.ID, nil, realtime.Event{
 			Type: "member.role",
 			UID:  memberUID,
@@ -343,6 +349,7 @@ func HandleKick(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
+		publishSeatLeft(r.Context(), store, hub, hub.DropSeatInRoom(memberUID, details.ID))
 		publish(r.Context(), store, hub, details.ID, []string{memberUID}, realtime.Event{
 			Type: "member.kicked",
 			UID:  memberUID,
@@ -364,6 +371,7 @@ func HandleBlock(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
+		publishSeatLeft(r.Context(), store, hub, hub.DropSeatInRoom(req.TargetUID, details.ID))
 		nickname := ""
 		if user, err := store.Queries.GetUserByUID(r.Context(), req.TargetUID); err == nil {
 			nickname = user.Nickname

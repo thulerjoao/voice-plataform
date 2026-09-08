@@ -22,6 +22,14 @@ export type RoomChannel = {
   description: string;
 };
 
+export type RoomOccupant = {
+  uid: string;
+  nickname: string;
+  role: RoomRole;
+  channelId: string;
+  joinedAt: number;
+};
+
 export type RoomBlocked = {
   uid: string;
   nickname: string;
@@ -32,6 +40,7 @@ export type RoomDetails = CreatedRoom & {
   members: RoomMember[];
   channels: RoomChannel[];
   blocked?: RoomBlocked[];
+  occupancy?: RoomOccupant[];
 };
 
 export const SALA_NAME_MAX = 24;
@@ -389,8 +398,28 @@ function isRoomDetails(value: unknown): value is RoomDetails {
   if (!Array.isArray(details.channels) || !details.channels.every(isRoomChannel)) {
     return false;
   }
+  if (details.occupancy != null) {
+    if (
+      !Array.isArray(details.occupancy) ||
+      !details.occupancy.every(isRoomOccupant)
+    ) {
+      return false;
+    }
+  }
   if (details.blocked === undefined) return true;
   return Array.isArray(details.blocked) && details.blocked.every(isRoomBlocked);
+}
+
+function isRoomOccupant(value: unknown): value is RoomOccupant {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<RoomOccupant>;
+  return (
+    typeof item.uid === "string" &&
+    typeof item.nickname === "string" &&
+    isRole(item.role) &&
+    typeof item.channelId === "string" &&
+    typeof item.joinedAt === "number"
+  );
 }
 
 function isRegisteredIdentity(value: unknown): value is RegisteredIdentity {

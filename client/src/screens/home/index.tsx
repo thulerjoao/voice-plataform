@@ -24,8 +24,12 @@ import {
   saveIdentity,
   type Identity,
 } from "../../identity";
-import type { CreatedRoom } from "../../api";
-import { connectRealtime, subscribeRealtime } from "../../realtime";
+import { getRoom, type CreatedRoom } from "../../api";
+import {
+  connectRealtime,
+  sendRealtime,
+  subscribeRealtime,
+} from "../../realtime";
 import {
   isEditableTarget,
   loadAudioSettings,
@@ -609,7 +613,11 @@ export function HomeScreen({
     () => loadAudioSettings().outputVolume,
   );
   const [call, setCall] = useState<VoiceCall | null>(null);
+  const callRef = useRef<VoiceCall | null>(null);
+  const seatedRef = useRef(false);
+  const skipPresenceSendRef = useRef(false);
   const [syncGen, setSyncGen] = useState(0);
+  callRef.current = call;
   const talking = useTalking(Boolean(call) && !muted && !deafened);
   const [editing, setEditing] = useState(false);
   const [savingNick, setSavingNick] = useState(false);
@@ -633,9 +641,7 @@ export function HomeScreen({
     view.type === "server-settings"
       ? rooms.find((room) => room.roomId === view.roomId)
       : undefined;
-  const mountedRooms = rooms.filter(
-    (room) => room.roomId === viewingRoomId || room.roomId === call?.roomId,
-  );
+  const mountedRooms = rooms;
 
   function openEdit() {
     setDraft(identity.nickname);
@@ -792,6 +798,55 @@ export function HomeScreen({
     });
   }
 
+  function followOwnSeat(roomId: string, salaId: string) {
+    setCall((prev) => {
+      if (prev?.roomId === roomId && prev?.salaId === salaId) return prev;
+      skipPresenceSendRef.current = true;
+      return { roomId, salaId };
+    });
+  }
+
+  function followOwnLeave(roomId: string, salaId: string) {
+    setCall((prev) => {
+      if (prev?.roomId !== roomId || prev?.salaId !== salaId) return prev;
+      skipPresenceSendRef.current = true;
+      return null;
+    });
+  }
+
+  async function rememberServer(roomId: string) {
+    try {
+      const details = await getRoom({ roomId, uid: identity.uid });
+      setRooms((prev) => {
+        if (prev.some((item) => item.roomId === details.id)) return prev;
+        return rememberRoom(details);
+      });
+    } catch {
+      /* servidor sumiu ou o uid não é mais membro */
+    }
+  }
+
+  async function adoptRemoteSeat() {
+    if (callRef.current) return;
+    for (const room of loadBookmarks()) {
+      try {
+        const details = await getRoom({
+          roomId: room.roomId,
+          uid: identity.uid,
+        });
+        const seat = details.occupancy?.find(
+          (item) => item.uid === identity.uid,
+        );
+        if (seat) {
+          followOwnSeat(details.id, seat.channelId);
+          return;
+        }
+      } catch {
+        /* bookmark velho */
+      }
+    }
+  }
+
   function handleCreated(room: CreatedRoom) {
     setRooms(rememberRoom(room));
     setView({ type: "create", created: room });
@@ -854,9 +909,44 @@ export function HomeScreen({
 
   useEffect(() => {
     return connectRealtime(identity.uid, {
+      onReady: () => {
+        const current = callRef.current;
+        if (current) {
+          sendRealtime({
+            type: "presence.join",
+            roomId: current.roomId,
+            channelId: current.salaId,
+          });
+          return;
+        }
+        void adoptRemoteSeat();
+      },
       onOpen: () => setSyncGen((value) => value + 1),
     });
   }, [identity.uid]);
+
+  useEffect(() => {
+    if (call) {
+      seatedRef.current = true;
+      if (skipPresenceSendRef.current) {
+        skipPresenceSendRef.current = false;
+        return;
+      }
+      sendRealtime({
+        type: "presence.join",
+        roomId: call.roomId,
+        channelId: call.salaId,
+      });
+      return;
+    }
+    if (!seatedRef.current) return;
+    seatedRef.current = false;
+    if (skipPresenceSendRef.current) {
+      skipPresenceSendRef.current = false;
+      return;
+    }
+    sendRealtime({ type: "presence.leave" });
+  }, [call]);
 
   useEffect(() => {
     return subscribeRealtime((event) => {
@@ -870,6 +960,27 @@ export function HomeScreen({
 
       if (event.type === "room.renamed") {
         updateRoomBookmark(event.roomId, { name: event.name });
+        return;
+      }
+
+      if (event.type === "presence.joined" && event.uid === identity.uid) {
+        followOwnSeat(event.roomId, event.channelId);
+        void rememberServer(event.roomId);
+        return;
+      }
+
+      if (event.type === "presence.left" && event.uid === identity.uid) {
+        followOwnLeave(event.roomId, event.channelId);
+        return;
+      }
+
+      if (event.type === "presence.full" && event.roomId) {
+        followOwnLeave(event.roomId, event.channelId);
+        return;
+      }
+
+      if (event.type === "member.joined" && event.uid === identity.uid) {
+        void rememberServer(event.roomId);
         return;
       }
 

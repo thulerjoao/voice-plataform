@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"strings"
@@ -45,22 +46,31 @@ func HandleWS(store *db.DB, hub *Hub) http.HandlerFunc {
 		hub.add(c)
 
 		go c.writePump(conn)
-		c.readPump(conn)
-		hub.remove(c)
+		c.readPump(conn, func(raw []byte) {
+			hub.handleMessage(context.Background(), store, uid, raw)
+		})
+		offline := hub.remove(c)
 		close(c.send)
+		if offline {
+			hub.LeaveIfOffline(context.Background(), store, uid)
+		}
 	}
 }
 
-func (c *client) readPump(conn *websocket.Conn) {
+func (c *client) readPump(conn *websocket.Conn, onMessage func([]byte)) {
 	defer conn.Close()
-	conn.SetReadLimit(512)
+	conn.SetReadLimit(4096)
 	_ = conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error {
 		return conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
 	for {
-		if _, _, err := conn.ReadMessage(); err != nil {
+		_, raw, err := conn.ReadMessage()
+		if err != nil {
 			return
+		}
+		if onMessage != nil {
+			onMessage(raw)
 		}
 	}
 }

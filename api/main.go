@@ -53,7 +53,7 @@ func main() {
 	mux.HandleFunc("GET /ws", realtime.HandleWS(store, hub))
 	mux.HandleFunc("POST /api/rooms", rooms.HandleCreate(store))
 	mux.HandleFunc("POST /api/rooms/join", rooms.HandleJoin(store, hub))
-	mux.HandleFunc("GET /api/rooms/{id}", rooms.HandleGet(store))
+	mux.HandleFunc("GET /api/rooms/{id}", rooms.HandleGet(store, hub))
 	mux.HandleFunc("PATCH /api/rooms/{id}", rooms.HandleRename(store, hub))
 	mux.HandleFunc("POST /api/rooms/{id}/leave", rooms.HandleLeave(store, hub))
 	mux.HandleFunc("POST /api/rooms/{id}/channels", rooms.HandleCreateChannel(store, hub))

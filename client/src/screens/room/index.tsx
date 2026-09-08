@@ -15,8 +15,10 @@ import {
   getRoom,
   setMemberRole,
   updateChannel as patchSala,
+  type RoomDetails,
+  type RoomOccupant,
 } from "../../api";
-import { subscribeRealtime } from "../../realtime";
+import { sendRealtime, subscribeRealtime } from "../../realtime";
 import { playConnectSound, playDisconnectSound } from "../../sounds";
 import {
   ChannelBlock,
@@ -354,11 +356,51 @@ function formatOnline(since: number) {
 }
 
 const CHANNEL_CAP = 12;
+
+function occupantUser(occupant: RoomOccupant): TreeUser {
+  return {
+    id: occupant.uid,
+    nick: occupant.nickname,
+    presence: "online",
+    role: occupant.role,
+    onlineSince: occupant.joinedAt,
+  };
+}
+
+function rosterFromDetails(details: RoomDetails): TreeChannel[] {
+  const occupancy = details.occupancy ?? [];
+  return details.channels.map((channel) => ({
+    id: channel.id,
+    name: channel.name,
+    description: channel.description,
+    users: occupancy
+      .filter((item) => item.channelId === channel.id)
+      .map(occupantUser),
+  }));
+}
+
+function removeUid(users: TreeUser[], uid: string): TreeUser[] {
+  return users.filter((user) => user.id !== uid);
+}
+
+function upsertUid(users: TreeUser[], user: TreeUser): TreeUser[] {
+  const next = [...removeUid(users, user.id), user];
+  next.sort(
+    (a, b) => a.onlineSince - b.onlineSince || a.id.localeCompare(b.id),
+  );
+  return next;
+}
+
+function salaIsFull(channel: TreeChannel | undefined, uid: string): boolean {
+  if (!channel) return false;
+  return channel.users.filter((user) => user.id !== uid).length >= CHANNEL_CAP;
+}
 const CHANNEL_NAME_MAX = 24;
 const CHANNEL_DESC_MAX = 80;
 const CHAT_MIN = 120;
 const CHAT_TREE_MIN = 140;
 const CHAT_HEIGHT_KEY = "voice.chatHeight";
+const PEER_VOLUME_KEY = "voice.peerVolumes";
 
 function loadChatHeight() {
   const stored = Number(window.localStorage.getItem(CHAT_HEIGHT_KEY));
@@ -395,6 +437,33 @@ function saveSalaOpen(roomId: string, open: Record<string, boolean>) {
   window.localStorage.setItem(salaOpenKey(roomId), JSON.stringify(open));
 }
 
+function clampPeerVolume(value: number): number {
+  if (!Number.isFinite(value)) return 100;
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function loadPeerVolumes(): Record<string, number> {
+  const raw = window.localStorage.getItem(PEER_VOLUME_KEY);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    const next: Record<string, number> = {};
+    for (const [uid, value] of Object.entries(parsed)) {
+      if (typeof value === "number") next[uid] = clampPeerVolume(value);
+    }
+    return next;
+  } catch {
+    return {};
+  }
+}
+
+function savePeerVolumes(volumes: Record<string, number>) {
+  window.localStorage.setItem(PEER_VOLUME_KEY, JSON.stringify(volumes));
+}
+
 function nextSalaName(roster: TreeChannel[]) {
   const used = new Set(roster.map((item) => item.name.toLowerCase()));
   let n = roster.length + 1;
@@ -422,7 +491,7 @@ export function RoomScreen({
   const [pokeDraft, setPokeDraft] = useState("");
   const [chatTab, setChatTab] = useState("sala");
   const [directs, setDirects] = useState<Record<string, DirectThread>>({});
-  const [volumes, setVolumes] = useState<Record<string, number>>({});
+  const [volumes, setVolumes] = useState<Record<string, number>>(loadPeerVolumes);
   const [salaCard, setSalaCard] = useState<ProfileState | null>(null);
   const [editingSala, setEditingSala] = useState(false);
   const [salaDraft, setSalaDraft] = useState("");
@@ -460,21 +529,17 @@ export function RoomScreen({
   onLeaveSalaRef.current = onLeaveSala;
 
   useEffect(() => {
-    let cancelled = false;
     setRoster([]);
+  }, [room.roomId]);
+
+  useEffect(() => {
+    let cancelled = false;
     setSalaError("");
 
     void getRoom({ roomId: room.roomId, uid: identity.uid })
       .then((details) => {
         if (cancelled) return;
-        setRoster(
-          details.channels.map((channel) => ({
-            id: channel.id,
-            name: channel.name,
-            description: channel.description,
-            users: [],
-          })),
-        );
+        setRoster(rosterFromDetails(details));
       })
       .catch((reason: unknown) => {
         if (cancelled) return;
@@ -492,7 +557,94 @@ export function RoomScreen({
 
   useEffect(() => {
     return subscribeRealtime((event) => {
+      if (event.type === "user.nickname") {
+        setRoster((prev) =>
+          prev.map((channel) => ({
+            ...channel,
+            users: channel.users.map((user) =>
+              user.id === event.uid ? { ...user, nick: event.nickname } : user,
+            ),
+          })),
+        );
+        return;
+      }
+
       if (!("roomId" in event) || event.roomId !== room.roomId) return;
+
+      if (event.type === "presence.joined") {
+        const occupant = occupantUser({
+          uid: event.uid,
+          nickname: event.nickname,
+          role: event.role,
+          channelId: event.channelId,
+          joinedAt: event.joinedAt,
+        });
+        setRoster((prev) =>
+          prev.map((channel) => ({
+            ...channel,
+            users:
+              channel.id === event.channelId
+                ? upsertUid(channel.users, occupant)
+                : removeUid(channel.users, event.uid),
+          })),
+        );
+        if (
+          event.uid !== identity.uid &&
+          event.channelId === currentIdRef.current &&
+          !deafenedRef.current
+        ) {
+          playConnectSound();
+        }
+        return;
+      }
+
+      if (event.type === "presence.left") {
+        const wasHere = event.channelId === currentIdRef.current;
+        setRoster((prev) =>
+          prev.map((channel) => ({
+            ...channel,
+            users: removeUid(channel.users, event.uid),
+          })),
+        );
+        if (event.uid !== identity.uid && wasHere && !deafenedRef.current) {
+          playDisconnectSound();
+        }
+        return;
+      }
+
+      if (event.type === "presence.full") {
+        if (currentIdRef.current === event.channelId) {
+          onLeaveSalaRef.current();
+          setDraft("");
+        }
+        return;
+      }
+
+      if (
+        event.type === "member.left" ||
+        event.type === "member.kicked" ||
+        event.type === "member.blocked"
+      ) {
+        setRoster((prev) =>
+          prev.map((channel) => ({
+            ...channel,
+            users: removeUid(channel.users, event.uid),
+          })),
+        );
+        return;
+      }
+
+      if (event.type === "member.role") {
+        setRoster((prev) =>
+          prev.map((channel) => ({
+            ...channel,
+            users: channel.users.map((user) =>
+              user.id === event.uid ? { ...user, role: event.role } : user,
+            ),
+          })),
+        );
+        return;
+      }
 
       if (event.type === "channel.created") {
         setRoster((prev) => {
@@ -559,14 +711,14 @@ export function RoomScreen({
         );
       }
     });
-  }, [room.roomId]);
+  }, [room.roomId, identity.uid]);
 
   useEffect(() => {
     saveSalaOpen(room.roomId, open);
   }, [room.roomId, open]);
 
   const you: TreeUser = {
-    id: "you",
+    id: identity.uid,
     nick: identity.nickname,
     presence,
     role: myRole,
@@ -577,19 +729,25 @@ export function RoomScreen({
     you: true,
   };
 
-  const channels = roster.map((channel) =>
-    channel.id === currentId
-      ? { ...channel, users: [you, ...channel.users] }
-      : channel,
-  );
+  const channels = roster.map((channel) => {
+    const users = channel.users.map((user) =>
+      user.id === identity.uid
+        ? { ...you, onlineSince: user.onlineSince }
+        : user,
+    );
+    if (channel.id === currentId && !users.some((user) => user.id === identity.uid)) {
+      return { ...channel, users: [you, ...users] };
+    }
+    return { ...channel, users };
+  });
   const current = channels.find((item) => item.id === currentId) ?? null;
   const direct = chatTab !== "sala" ? (directs[chatTab] ?? null) : null;
   const profileUser =
     profile == null
       ? null
-      : profile.userId === "you"
+      : profile.userId === identity.uid
         ? you
-        : (roster
+        : (channels
             .flatMap((channel) => channel.users)
             .find((user) => user.id === profile.userId) ?? null);
   const profileRole = profileUser?.role ?? "member";
@@ -700,6 +858,9 @@ export function RoomScreen({
   function joinChannel(id: string) {
     setOpen((prev) => ({ ...prev, [id]: true }));
     if (id === currentId) return;
+    if (salaIsFull(roster.find((channel) => channel.id === id), identity.uid)) {
+      return;
+    }
 
     onJoinSala(id);
     setDraft("");
@@ -716,51 +877,31 @@ export function RoomScreen({
   }
 
   function moveUser(userId: string, channelId: string) {
-    if (userId === "you") {
+    if (userId === identity.uid) {
       joinChannel(channelId);
       return;
     }
 
     if (!canMoveOthers) return;
 
-    const alreadyThere = roster
-      .find((channel) => channel.id === channelId)
-      ?.users.some((item) => item.id === userId);
-    if (alreadyThere) return;
+    const target = roster.find((channel) => channel.id === channelId);
+    if (target?.users.some((item) => item.id === userId)) return;
+    if (salaIsFull(target, userId)) return;
 
-    setRoster((prev) => {
-      const user = prev
-        .flatMap((channel) => channel.users)
-        .find((item) => item.id === userId);
-      if (!user) return prev;
-
-      return prev.map((channel) => ({
-        ...channel,
-        users:
-          channel.id === channelId
-            ? [...channel.users, user]
-            : channel.users.filter((item) => item.id !== userId),
-      }));
+    sendRealtime({
+      type: "presence.move",
+      roomId: room.roomId,
+      channelId,
+      uid: userId,
     });
     setOpen((prev) => ({ ...prev, [channelId]: true }));
-    if (deafened) return;
-    if (channelId === currentId) playConnectSound();
-    else if (
-      roster.some(
-        (channel) =>
-          channel.id === currentId &&
-          channel.users.some((item) => item.id === userId),
-      )
-    ) {
-      playDisconnectSound();
-    }
   }
 
   function handleUserDragStart(
     event: DragEvent<HTMLLIElement>,
     userId: string,
   ) {
-    if (userId !== "you" && !canMoveOthers) {
+    if (userId !== identity.uid && !canMoveOthers) {
       event.preventDefault();
       return;
     }
@@ -1289,22 +1430,26 @@ export function RoomScreen({
           <ProfileConnected>
             Conectado: {formatOnline(profileUser.onlineSince)}
           </ProfileConnected>
-          <VolumeRow>
-            <VolumeCaption>Volume</VolumeCaption>
-            <VolumeSlider
-              type="range"
-              min={0}
-              max={100}
-              value={volumes[profileUser.id] ?? 100}
-              onChange={(event) =>
-                setVolumes((prev) => ({
-                  ...prev,
-                  [profileUser.id]: Number(event.target.value),
-                }))
-              }
-            />
-            <VolumeValue>{volumes[profileUser.id] ?? 100}%</VolumeValue>
-          </VolumeRow>
+          {profileUser.you ? null : (
+            <VolumeRow>
+              <VolumeCaption>Volume</VolumeCaption>
+              <VolumeSlider
+                type="range"
+                min={0}
+                max={100}
+                value={volumes[profileUser.id] ?? 100}
+                onChange={(event) => {
+                  const value = clampPeerVolume(Number(event.target.value));
+                  setVolumes((prev) => {
+                    const next = { ...prev, [profileUser.id]: value };
+                    savePeerVolumes(next);
+                    return next;
+                  });
+                }}
+              />
+              <VolumeValue>{volumes[profileUser.id] ?? 100}%</VolumeValue>
+            </VolumeRow>
+          )}
           {profileUser.you ? null : (
             <PokeForm onSubmit={handlePoke}>
               <PokeInput

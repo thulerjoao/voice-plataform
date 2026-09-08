@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/thulerjoao/voice-plataform/api/internal/db"
 	"github.com/thulerjoao/voice-plataform/api/internal/db/sqlc"
+	"github.com/thulerjoao/voice-plataform/api/internal/realtime"
 )
 
 type RoomMember struct {
@@ -31,14 +32,15 @@ type RoomBlocked struct {
 }
 
 type RoomDetails struct {
-	ID        string        `json:"id"`
-	Name      string        `json:"name"`
-	Code      string        `json:"code"`
-	Role      string        `json:"role"`
-	CreatedAt string        `json:"createdAt"`
-	Members   []RoomMember  `json:"members"`
-	Channels  []RoomChannel `json:"channels"`
-	Blocked   []RoomBlocked `json:"blocked,omitempty"`
+	ID        string              `json:"id"`
+	Name      string              `json:"name"`
+	Code      string              `json:"code"`
+	Role      string              `json:"role"`
+	CreatedAt string              `json:"createdAt"`
+	Members   []RoomMember        `json:"members"`
+	Channels  []RoomChannel       `json:"channels"`
+	Blocked   []RoomBlocked       `json:"blocked,omitempty"`
+	Occupancy []realtime.Occupant `json:"occupancy"`
 }
 
 func Get(ctx context.Context, store *db.DB, roomID, uid string) (RoomDetails, error) {
@@ -144,6 +146,7 @@ func detailsOf(ctx context.Context, store *db.DB, room sqlc.Room, role string) (
 		CreatedAt: createdAt,
 		Members:   list,
 		Channels:  channels,
+		Occupancy: []realtime.Occupant{},
 	}
 
 	if isModerator(role) {
