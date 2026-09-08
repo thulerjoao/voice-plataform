@@ -13,6 +13,7 @@ import (
 var (
 	ErrInvalidCode  = errors.New("invalid code")
 	ErrRoomNotFound = errors.New("room not found")
+	ErrBlocked      = errors.New("blocked from room")
 )
 
 type JoinInput struct {
@@ -38,6 +39,17 @@ func Join(ctx context.Context, store *db.DB, input JoinInput) (CreatedRoom, erro
 		return CreatedRoom{}, ErrRoomNotFound
 	}
 	if err != nil {
+		return CreatedRoom{}, err
+	}
+
+	_, err = store.Queries.GetBlocked(ctx, sqlc.GetBlockedParams{
+		RoomID: room.ID,
+		Uid:    uid,
+	})
+	if err == nil {
+		return CreatedRoom{}, ErrBlocked
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return CreatedRoom{}, err
 	}
 

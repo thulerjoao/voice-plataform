@@ -9,6 +9,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Blocked struct {
+	RoomID    uuid.UUID          `json:"room_id"`
+	Uid       string             `json:"uid"`
+	Nickname  string             `json:"nickname"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Channel struct {
 	ID        uuid.UUID          `json:"id"`
 	RoomID    uuid.UUID          `json:"room_id"`
@@ -30,4 +37,11 @@ type Room struct {
 	Code      string             `json:"code"`
 	OwnerUid  string             `json:"owner_uid"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type User struct {
+	Uid              string             `json:"uid"`
+	Nickname         string             `json:"nickname"`
+	RecoveryCodeHash string             `json:"recovery_code_hash"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 }

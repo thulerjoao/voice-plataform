@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thulerjoao/voice-plataform/api/internal/db"
+	"github.com/thulerjoao/voice-plataform/api/internal/identity"
 	"github.com/thulerjoao/voice-plataform/api/internal/rooms"
 )
 
@@ -43,10 +44,13 @@ func main() {
 			"db":     dbStatus,
 		})
 	})
+	mux.HandleFunc("POST /api/identity", identity.HandleRegister(store))
+	mux.HandleFunc("POST /api/identity/restore", identity.HandleRestore(store))
 	mux.HandleFunc("POST /api/rooms", rooms.HandleCreate(store))
 	mux.HandleFunc("POST /api/rooms/join", rooms.HandleJoin(store))
 	mux.HandleFunc("GET /api/rooms/{id}", rooms.HandleGet(store))
 	mux.HandleFunc("PATCH /api/rooms/{id}", rooms.HandleRename(store))
+	mux.HandleFunc("POST /api/rooms/{id}/leave", rooms.HandleLeave(store))
 
 	server := &http.Server{Addr: ":8080", Handler: mux}
 

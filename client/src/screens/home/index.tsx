@@ -86,6 +86,7 @@ import {
 type HomeScreenProps = {
   identity: Identity;
   onNicknameChange: (identity: Identity) => void;
+  onLogout: () => void;
 };
 
 type VoiceCall = {
@@ -589,7 +590,11 @@ function RoomActions({
   );
 }
 
-export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
+export function HomeScreen({
+  identity,
+  onNicknameChange,
+  onLogout,
+}: HomeScreenProps) {
   const [rooms, setRooms] = useState(loadBookmarks);
   const [view, setView] = useState<View>({ type: "home" });
   const [muted, setMuted] = useState(false);
@@ -987,7 +992,6 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
               currentId={call?.roomId === room.roomId ? call.salaId : null}
               talking={talking}
               presence={status}
-              onLeave={() => leaveRoomList(room.roomId)}
               onOpenSettings={() => openServerSettings(room.roomId)}
               onJoinSala={(salaId) => setCall({ roomId: room.roomId, salaId })}
               onLeaveSala={() =>
@@ -1014,7 +1018,10 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
         ) : null}
         {view.type === "settings" ? (
           <SettingsScreen
+            identity={identity}
             onBack={closeSettings}
+            onLogout={onLogout}
+            onNicknameChange={onNicknameChange}
             deafened={deafened}
             onOutputVolume={handleOutputVolume}
           />
@@ -1028,6 +1035,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             onUpdated={(patch) =>
               updateRoomBookmark(settingsRoom.roomId, patch)
             }
+            onLeft={() => leaveRoomList(settingsRoom.roomId)}
           />
         ) : null}
         {view.type === "home" ? (

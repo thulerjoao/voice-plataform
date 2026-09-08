@@ -59,6 +59,30 @@ export const Lead = styled.p`
   line-height: 1.45;
 `;
 
+export const Tabs = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+`;
+
+export const Tab = styled.button<{ $active?: boolean }>`
+  height: 2.05rem;
+  border: 1px solid
+    ${(p) => (p.$active ? "rgba(10, 132, 255, 0.5)" : "rgba(255, 255, 255, 0.1)")};
+  border-radius: 0.5rem;
+  background: ${(p) => (p.$active ? "rgba(10, 132, 255, 0.18)" : "#1c1c1e")};
+  color: #f5f5f7;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: ${(p) =>
+      p.$active ? "rgba(10, 132, 255, 0.24)" : "rgba(255, 255, 255, 0.05)"};
+  }
+`;
+
 export const Section = styled.section`
   padding: 1.15rem 1.2rem 1.25rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -460,5 +484,156 @@ export const Switch = styled.button<{ $on?: boolean }>`
     height: 1.01rem;
     border-radius: 999px;
     background: #fff;
+  }
+`;
+
+export const NameButton = styled.button`
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  height: 2.35rem;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.55rem;
+  background: #1c1c1e;
+  color: #f5f5f7;
+  text-align: left;
+  cursor: pointer;
+
+  span {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  svg {
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    color: #a1a1a6;
+  }
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+`;
+
+export const NameEdit = styled.form`
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  height: 2.35rem;
+  padding: 0 0.35rem 0 0.7rem;
+  border: 1px solid rgba(10, 132, 255, 0.55);
+  border-radius: 0.55rem;
+  background: #1c1c1e;
+`;
+
+export const NameInput = styled.input`
+  box-sizing: border-box;
+  min-width: 0;
+  flex: 1;
+  height: 1.7rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #f5f5f7;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.7rem;
+  outline: none;
+`;
+
+export const NameIcon = styled.button`
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: #a1a1a6;
+  cursor: pointer;
+
+  svg {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+`;
+
+export const CodeBox = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.55rem;
+  background: #1c1c1e;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  svg {
+    width: 0.8rem;
+    height: 0.8rem;
+  }
+`;
+
+export const RecoveryCode = styled.code`
+  min-width: 0;
+  flex: 1;
+  color: #f5f5f7;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+`;
+
+export const Warn = styled.p`
+  margin: 0.85rem 0 0;
+  color: #c7c7cc;
+  font-size: 0.8rem;
+  line-height: 1.5;
+`;
+
+export const DangerButton = styled.button`
+  display: block;
+  height: 2.05rem;
+  padding: 0 0.85rem;
+  margin: 1.15rem auto 0;
+  border: 1px solid rgba(255, 69, 58, 0.38);
+  border-radius: 0.5rem;
+  background: rgba(255, 69, 58, 0.12);
+  color: #ff8a80;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 69, 58, 0.2);
   }
 `;

@@ -37,6 +37,10 @@ export function saveBookmark(bookmark: Bookmark): Bookmark[] {
   return next;
 }
 
+export function clearBookmarks(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 export function loadBookmarks(): Bookmark[] {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return [];

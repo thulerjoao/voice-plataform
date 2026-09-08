@@ -11,7 +11,7 @@ export const Screen = styled.main`
 `;
 
 export const Content = styled.div`
-  width: fit-content;
+  width: 22.5rem;
   max-width: 100%;
   display: flex;
   flex-direction: column;
@@ -51,7 +51,6 @@ export const Title = styled.h1`
   letter-spacing: -0.035em;
   line-height: 1.15;
   color: #ffffff;
-  white-space: nowrap;
 `;
 
 export const Subtitle = styled.p`
@@ -124,13 +123,87 @@ export const Submit = styled.button`
   font-weight: 600;
   cursor: pointer;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #3b7cff;
   }
 
-  &:active {
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  &:active:not(:disabled) {
     transform: scale(0.99);
   }
+`;
+
+export const GhostLink = styled.button`
+  width: 100%;
+  margin-top: 0.15rem;
+  padding: 0.2rem;
+  border: 0;
+  background: transparent;
+  color: #8d8d93;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    color:rgb(172, 172, 177);
+  }
+`;
+
+export const CodeBox = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.7rem;
+  background: #1e1e22;
+  text-align: left;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    height: 1.9rem;
+    padding: 0 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 0.45rem;
+    background: transparent;
+    color: #f5f5f7;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  svg {
+    width: 0.8rem;
+    height: 0.8rem;
+  }
+`;
+
+export const RecoveryCode = styled.code`
+  min-width: 0;
+  flex: 1;
+  color: #f5f5f7;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+`;
+
+export const Warn = styled.p`
+  margin: 0.9rem 0 0;
+  max-width: 22rem;
+  color: #c7c7cc;
+  font-size: 0.8rem;
+  line-height: 1.5;
 `;
 
 export const ErrorText = styled.p`

@@ -17,3 +17,7 @@ UPDATE members
 SET role = $3
 WHERE room_id = $1 AND uid = $2 AND role <> 'owner'
 RETURNING *;
+
+-- name: DeleteMember :exec
+DELETE FROM members
+WHERE room_id = $1 AND uid = $2 AND role <> 'owner';

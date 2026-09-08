@@ -110,6 +110,8 @@ func HandleJoin(store *db.DB) http.HandlerFunc {
 				writeError(w, http.StatusNotFound, "Sala não encontrada.")
 			case errors.Is(err, ErrMissingIdentity):
 				writeError(w, http.StatusBadRequest, "Identidade inválida.")
+			case errors.Is(err, ErrBlocked):
+				writeError(w, http.StatusForbidden, "Você está bloqueado neste servidor.")
 			default:
 				writeError(w, http.StatusInternalServerError, "Não foi possível entrar na sala.")
 			}
@@ -123,6 +125,37 @@ func HandleJoin(store *db.DB) http.HandlerFunc {
 			"code": joined.Code,
 			"role": joined.Role,
 		})
+	}
+}
+
+type leaveRequest struct {
+	UID string `json:"uid"`
+}
+
+func HandleLeave(store *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req leaveRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "Dados inválidos.")
+			return
+		}
+
+		err := Leave(r.Context(), store, r.PathValue("id"), req.UID)
+		if err != nil {
+			switch {
+			case errors.Is(err, ErrMissingIdentity):
+				writeError(w, http.StatusBadRequest, "Identidade inválida.")
+			case errors.Is(err, ErrRoomNotFound):
+				writeError(w, http.StatusNotFound, "Servidor não encontrado.")
+			case errors.Is(err, ErrOwnerCannotLeave):
+				writeError(w, http.StatusForbidden, "O dono não pode sair do servidor.")
+			default:
+				writeError(w, http.StatusInternalServerError, "Não foi possível sair do servidor.")
+			}
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

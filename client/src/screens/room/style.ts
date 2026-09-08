@@ -115,27 +115,6 @@ export const Copied = styled.span`
   }
 `;
 
-export const LeaveButton = styled.button`
-  height: 1.85rem;
-  padding: 0 0.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 0.45rem;
-  background: transparent;
-  color: #a1a1a6;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #f5f5f7;
-  }
-
-  &:active {
-    transform: scale(0.99);
-  }
-`;
-
 export const TreeWrap = styled.div`
   flex: 1;
   min-height: 0;

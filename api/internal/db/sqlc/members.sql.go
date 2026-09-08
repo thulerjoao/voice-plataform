@@ -42,6 +42,21 @@ func (q *Queries) CreateMember(ctx context.Context, arg CreateMemberParams) (Mem
 	return i, err
 }
 
+const deleteMember = `-- name: DeleteMember :exec
+DELETE FROM members
+WHERE room_id = $1 AND uid = $2 AND role <> 'owner'
+`
+
+type DeleteMemberParams struct {
+	RoomID uuid.UUID `json:"room_id"`
+	Uid    string    `json:"uid"`
+}
+
+func (q *Queries) DeleteMember(ctx context.Context, arg DeleteMemberParams) error {
+	_, err := q.db.Exec(ctx, deleteMember, arg.RoomID, arg.Uid)
+	return err
+}
+
 const getMember = `-- name: GetMember :one
 SELECT room_id, uid, nickname, role, created_at FROM members
 WHERE room_id = $1 AND uid = $2

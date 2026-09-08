@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   getRoom,
+  leaveRoom,
   renameRoom,
   ROOM_NAME_MAX,
   ROOM_NAME_MIN,
@@ -14,10 +15,12 @@ import {
   CodeRow,
   CodeValue,
   CopyButton,
+  DangerButton,
   ErrorText,
   Field,
   FieldLabel,
   Heading,
+  Hint,
   Lead,
   MetaValue,
   NameButton,
@@ -44,6 +47,7 @@ type ServerSettingsScreenProps = {
   nickname: string;
   onBack: () => void;
   onUpdated: (patch: Pick<Bookmark, "name" | "role">) => void;
+  onLeft: () => void;
 };
 
 const ROLE_LABEL: Record<RoomMember["role"], string> = {
@@ -206,6 +210,7 @@ export function ServerSettingsScreen({
   nickname,
   onBack,
   onUpdated,
+  onLeft,
 }: ServerSettingsScreenProps) {
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [members, setMembers] = useState<RoomMember[] | null>(null);
@@ -216,6 +221,9 @@ export function ServerSettingsScreen({
   const [draft, setDraft] = useState(room.name);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const canLeave = room.role === "member" || room.role === "admin";
   const nameEditRef = useRef<HTMLFormElement>(null);
   const onUpdatedRef = useRef(onUpdated);
   onUpdatedRef.current = onUpdated;
@@ -353,6 +361,27 @@ export function ServerSettingsScreen({
   function cancelEdit() {
     setDraft(room.name);
     setEditing(false);
+  }
+
+  async function handleLeave() {
+    if (!confirmRemove) {
+      setConfirmRemove(true);
+      return;
+    }
+
+    setLeaving(true);
+    setError("");
+    try {
+      await leaveRoom({ roomId: room.roomId, uid });
+      onLeft();
+    } catch (reason: unknown) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível sair do servidor.",
+      );
+      setLeaving(false);
+    }
   }
 
   return (
@@ -498,6 +527,28 @@ export function ServerSettingsScreen({
             </Field>
           ) : null}
           {error ? <ErrorText>{error}</ErrorText> : null}
+          {canLeave ? (
+            <>
+              <DangerButton
+                type="button"
+                disabled={leaving}
+                onClick={() => void handleLeave()}
+              >
+                {leaving
+                  ? "Saindo…"
+                  : confirmRemove
+                    ? "Confirmar saída do servidor"
+                    : "Sair do servidor"}
+              </DangerButton>
+              {confirmRemove ? (
+                <Hint>
+                  Você deixa de ser membro deste servidor.
+                  <br />
+                  Voce poderá entrar novamente utilizando o código de acesso.
+                </Hint>
+              ) : null}
+            </>
+          ) : null}
         </Section>
       </Body>
     </Panel>

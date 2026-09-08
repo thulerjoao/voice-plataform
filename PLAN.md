@@ -62,16 +62,17 @@ Docker = **banco**. A API pode ir para o Compose depois.
 ```
 PC do usuário                         Nosso backend (Go + Postgres)
 ─────────────────                     ────────────────────────────
-Identidade (uid + nickname)           Sala (id, nome, código, ownerUid)
+Identidade (uid + nick + recuperação) Sala (id, nome, código, ownerUid)
 Bookmarks (servidores na sidebar)     Salas (canais de voz)
 React / depois Tauri                  Membros: uid → papel (owner | admin | member)
+                                      Users: uid → código de recuperação (hash)
 WebRTC ◄── P2P do canal ──► amigos    WebSocket: presença, host, sucessor, ICE
 ```
 
 Três peças:
 
-1. **Identidade** — quem você é (arquivo no PC).
-2. **Código do servidor** — porta para quem ainda vai entrar pela primeira vez.
+1. **Identidade** — quem você é (neste PC). Recuperação por **código longo**, não por login.
+2. **Código do servidor** — convite, para passar adiante.
 3. **Papel no servidor** — dono / admin / membro, no banco, por `uid`.
 
 O endereço estável do servidor é o **código**. O nome aparece na UI. O IP do host de voz é interno à sala.
@@ -83,15 +84,21 @@ O endereço estável do servidor é o **código**. O nome aparece na UI. O IP do
 Na **primeira abertura** do client:
 
 - A pessoa informa o **nickname**.
-- O app gera um `uid` único (UUID) e guarda os dois no `localStorage`.
+- A API gera um `uid` (UUID) e um **código de recuperação** único: 5 grupos de 4 (`XXXX-XXXX-XXXX-XXXX-XXXX`), alfabeto sem `0/O/1/I`. Não é o formato `XXX-ANIMAL` do servidor.
+- A UI **mostra o código uma vez**, com aviso: guardar em lugar seguro; **não compartilhar**. Sem o código, formatar o PC = pessoa nova. O código também fica na aba **Conta**.
+- Também dá para **já ter um código**: cola a recuperação → `POST /api/identity/restore` devolve o `uid`, o nick e os servidores em que esse uid ainda é membro → este PC grava identidade + bookmarks.
+- Identidade antiga só neste PC (sem linha em `users`) é sincronizada na abertura: `POST /api/identity` com o uid + código local. Áudio **não** vai no servidor.
 
-Nas aberturas seguintes: nickname e `uid` já existem. Nickname pode ser editado localmente; o `uid` permanece.
+Nas aberturas seguintes: nickname, `uid` e o código (se este PC ainda o tiver) já existem. Nickname pode ser editado na sidebar e na aba **Conta** das configurações; o `uid` permanece. O código fica nessa mesma aba, para copiar, com o aviso. **Sair deste PC** também está ali.
 
-O mesmo `uid` vale para **todas** as salas daquele PC. Criar ou adicionar sala reutiliza esse usuário.
+O mesmo `uid` vale para **todas** as salas daquele PC. Criar ou adicionar servidor reutiliza esse usuário.
 
-Se o `localStorage` for apagado (reinstalou, limpou dados, formatou o PC): a pessoa informa um nickname de novo, nasce um **uid novo**. As salas antigas daquele PC somem da lista local; o uid antigo continua dono/membro no banco, mas este client é outro usuário. Exportar/importar identidade fica para o futuro.
+Dois “sair”, nomes diferentes:
 
-O backend grava um registro de cliente **por sala** (uid, nickname, papel) quando a pessoa cria ou entra.
+- **Sair deste PC** (logout) — apaga identidade e bookmarks **neste computador**. Áudio local fica (é deste PC). No banco o `uid` e os papéis continuam. Volta à tela do nick. Recupera com o código.
+- **Sair do servidor** — só **membro** e **admin** (dono não vê o botão; transferir owner é depois). Confirmar no fim das configurações. Tira o `uid` de `members` e o bookmark. Restore **não** traz de volta. Quiser voltar: entra de novo pelo código, salvo se estiver em `blocked`.
+
+Se o `localStorage` for apagado sem o código: nickname de novo, `uid` novo; o uid antigo continua no banco, este client é outro usuário.
 
 Status local (sidebar): **online**, **ocupado**, **volto logo**. A bolinha da **sua** linha nas salas segue esse status. Sem invisível — no P2P quem está no canal precisa aparecer. Por enquanto só no PC; a sinalização vem com o WebSocket.
 
@@ -112,16 +119,16 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. A bolinha da **
 
 - Nickname já está no PC.
 - Informa o **código**.
-- Se o `uid` ainda não é membro: valida código → vira `member` → entra.
+- Se o `uid` ainda não é membro: valida código → se estiver em `blocked`, recusa; senão vira `member` → entra.
 - Se o `uid` já é membro: entra a partir do bookmark, sem pedir o código de novo.
 
 ### Lista de servidores
 
-A sidebar é a lista local de **servidores** (bookmarks), não de salas. **Servidores** fica separado da lista (atalho + linha). Cada bookmark é um **card** baixo: só o nome; o que você olha destaca; a call ganha o ícone de áudio. Sem código, sem ícone de pessoas. Olhar outro servidor, a home, as configurações de áudio ou as **configurações do servidor** **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
+A sidebar é a lista local de **servidores** (bookmarks), não de salas. **Servidores** fica separado da lista (atalho + linha). Cada bookmark é um **card** baixo: só o nome; o que você olha destaca; a call ganha o ícone de áudio. Sem código, sem ícone de pessoas. Olhar outro servidor, a home, as configurações de áudio ou as **configurações do servidor** **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Sair do servidor** (membro/admin; confirmar) tira o membro no banco e o bookmark; restore não traz. Bloqueado permanece em `blocked` e o código recusa.
 
 ### Configurações do servidor
 
-Engrenagem ao lado do nome, **só dono/admin**. Abre no centro (mesmo padrão do áudio). Nome (3–24; lápis → input → check; bookmark atualiza na hora), código, data de criação e **membros** (você no topo; nick à esquerda; ações; **cargo por último**). Lista inclui gente **mock** só para visualizar. Promover a admin: dono e admin. **Excluir** e **bloquear** (ícone de proibido vermelho): dono e admin em **membro**; se o alvo é **admin**, só o dono. Mock nesta tela. Plano/expiração: depois.
+Engrenagem ao lado do nome (todo mundo). Abre no centro (mesmo padrão do áudio). Nome (3–24; lápis → input → check; bookmark atualiza na hora), código, data de criação e **membros** (você no topo; nick à esquerda; ações; **cargo por último**). Lista inclui gente **mock** só para visualizar. Promover a admin: dono e admin. **Excluir** e **bloquear** (ícone de proibido vermelho): dono e admin em **membro**; se o alvo é **admin**, só o dono. Mock nesta tela. No fim: **Sair do servidor** (só membro/admin), com confirmação. Plano/expiração: depois.
 
 ### Código vazou
 
@@ -203,10 +210,10 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 1. **Onboarding (uma vez):** nickname.
 2. **Home:** lista de **servidores** só na sidebar; centro = empty ou o servidor aberto; Criar / Entrar no centro. Home / outro servidor / configurações (áudio ou do servidor) não encerram a call.
 3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar no servidor”.
-4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Engrenagem no título (só dono/admin) abre as **configurações do servidor**. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
+4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Engrenagem no título abre as **configurações do servidor**. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
 5. Trocar de servidor pela lista, com o mesmo usuário.
-6. **Configurações (áudio):** uma tela no centro. Dispositivos, medidor, ganho, automático/PTT, atalho de mudo. Vale em todos os servidores.
-7. **Configurações do servidor:** só dono/admin. Nome, código, data, membros (você no topo; cargo por último). Promover: dono e admin. Excluir/bloquear membro: dono e admin; excluir/bloquear admin: só dono (mock). Plano/expiração depois.
+6. **Configurações:** abas **Áudio** e **Conta**. Áudio: dispositivos, medidor, ganho, automático/PTT, atalho de mudo (vale em todos os servidores). Conta: nickname, código de recuperação (copiar + aviso) e **Sair deste PC**.
+7. **Configurações do servidor:** engrenagem para todo mundo. Nome, código, data, membros (você no topo; cargo por último). Promover: dono e admin. Excluir/bloquear membro: dono e admin; excluir/bloquear admin: só dono (mock). No fim: **Sair do servidor** (membro/admin; confirmar). Plano/expiração depois.
 
 Visual: escuro, poucos botões, janela de app.
 
@@ -216,9 +223,12 @@ Visual: escuro, poucos botões, janela de app.
 
 **HTTP**
 
+- `POST /api/identity` — `{ nickname }` gera uid + código (hash no banco, código na resposta); `{ uid, nickname, recoveryCode }` sincroniza um PC que já tinha identidade local
+- `POST /api/identity/restore` — `{ code }` → uid, nick, servidores em que o uid ainda é membro (sem devolver o código; no banco só o hash)
 - `POST` criar sala (nome + uid + nickname) → sala + código + canal Geral + owner
-- `POST` entrar por código
+- `POST` entrar por código (recusa se o `uid` está em `blocked`)
 - `POST` reentrar (uid já membro)
+- `POST /api/rooms/{id}/leave` — `{ uid }` membro ou admin; dono 403. Some de `members`; não mexe em `blocked`
 - `GET` servidor (membro) → nome, código, criado em, papel, membros
 - `PATCH` servidor (dono/admin) → nome
 - canais: listar; admin cria/apaga
@@ -235,19 +245,21 @@ Visual: escuro, poucos botões, janela de app.
 
 **Postgres**
 
+- `users` — uid, nickname, recovery_code_hash, created_at
 - `rooms` — id, name, code, owner_uid, created_at
 - `channels` — id, room_id, name
 - `members` — room_id, uid, nickname, role (`owner` | `admin` | `member`)
+- `blocked` — room_id, uid, nickname, created_at (sair não apaga; entrar recusa)
 
-O `uid` do client é o mesmo gravado em `rooms.owner_uid` e `members.uid`. Não há e-mail/senha.  
+O `uid` do client é o mesmo gravado em `users`, `rooms.owner_uid` e `members.uid`. Não há e-mail/senha. Código de recuperação **não** é o código do servidor; no banco só o hash.  
 `plan` / `expires_at` e renovação (qualquer um paga) entram **depois** do MVP.
 
 ---
 
 ## 12. Client (React) — o que fazer
 
-- Gerar e ler identidade no `localStorage` (web) / disco (Tauri depois).
-- Bookmarks no mesmo armazenamento local.
+- Ler identidade no `localStorage` (web) / disco (Tauri depois). Código novo vem da API; o client só guarda e mostra. Identidade antiga sem código ainda gera um localmente, até o sync.
+- Bookmarks no mesmo armazenamento local; restore preenche a lista a partir do banco.
 - UI das telas acima.
 - `getUserMedia` + `RTCPeerConnection` por canal.
 - Checar versão mínima antes de conectar.
@@ -283,7 +295,7 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 
 - Tauri (Windows primeiro), build fora do WSL
 - bandeja, instalador, identidade/bookmarks em AppData
-- exportar / importar identidade
+- girar código de recuperação se vazou
 
 ### Rede
 

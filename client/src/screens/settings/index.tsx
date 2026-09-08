@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   INPUT_GAIN_MAX,
   INPUT_GAIN_MIN,
@@ -30,6 +30,8 @@ import {
   BindRow,
   Body,
   ClearBind,
+  CodeBox,
+  DangerButton,
   ErrorText,
   Field,
   FieldLabel,
@@ -44,7 +46,12 @@ import {
   MeterTrack,
   ModeButton,
   ModeRow,
+  NameButton,
+  NameEdit,
+  NameIcon,
+  NameInput,
   Panel,
+  RecoveryCode,
   DeviceButton,
   DeviceChevron,
   DeviceField,
@@ -58,18 +65,28 @@ import {
   SliderRow,
   StepButton,
   Switch,
+  Tab,
+  Tabs,
   ToggleCopy,
   ToggleHint,
   ToggleRow,
   ToggleTitle,
   Value,
+  Warn,
 } from "./style";
+import type { Identity } from "../../identity";
+import { NICKNAME_MAX_LENGTH, updateNickname } from "../../identity";
 
 type SettingsScreenProps = {
+  identity: Identity;
   onBack: () => void;
+  onLogout: () => void;
+  onNicknameChange: (identity: Identity) => void;
   deafened: boolean;
   onOutputVolume: (value: number) => void;
 };
+
+type SettingsTab = "audio" | "account";
 
 type DeviceLists = {
   inputs: MediaDeviceInfo[];
@@ -93,6 +110,67 @@ function BackIcon() {
         strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 20h4l10.5-10.5a1.8 1.8 0 0 0 0-2.5L16 4.5a1.8 1.8 0 0 0-2.5 0L3.5 14.5V20z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M3.2 8.2 6.4 11.4 12.8 4.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M4 4l8 8M12 4l-8 8"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect
+        x="5.2"
+        y="5.2"
+        width="8"
+        height="8"
+        rx="1.4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M10.8 5.2V3.8A1.6 1.6 0 0 0 9.2 2.2H3.8A1.6 1.6 0 0 0 2.2 3.8v5.4A1.6 1.6 0 0 0 3.8 10.8h1.4"
+        stroke="currentColor"
+        strokeWidth="1.4"
       />
     </svg>
   );
@@ -232,10 +310,19 @@ function DeviceSelect({
 }
 
 export function SettingsScreen({
+  identity,
   onBack,
+  onLogout,
+  onNicknameChange,
   deafened,
   onOutputVolume,
 }: SettingsScreenProps) {
+  const [tab, setTab] = useState<SettingsTab>("audio");
+  const [copied, setCopied] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [editingNick, setEditingNick] = useState(false);
+  const [nickDraft, setNickDraft] = useState(identity.nickname);
+  const nickEditRef = useRef<HTMLFormElement>(null);
   const [settings, setSettings] = useState(loadAudioSettings);
   const [devices, setDevices] = useState<DeviceLists>({
     inputs: [],
@@ -262,6 +349,24 @@ export function SettingsScreen({
   function commit(patch: Partial<AudioSettings>) {
     setSettings((prev) => saveAudioSettings({ ...prev, ...patch }));
   }
+
+  function cancelNickEdit() {
+    setNickDraft(identity.nickname);
+    setEditingNick(false);
+  }
+
+  useEffect(() => {
+    if (!editingNick) return;
+
+    function handlePointer(event: MouseEvent) {
+      if (!nickEditRef.current?.contains(event.target as Node)) {
+        cancelNickEdit();
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointer);
+    return () => document.removeEventListener("mousedown", handlePointer);
+  }, [editingNick, identity.nickname]);
 
   useEffect(() => subscribeAudioSettings(setSettings), []);
 
@@ -593,8 +698,141 @@ export function SettingsScreen({
       </BackRow>
       <Body>
         <Heading>Configurações</Heading>
-        <Lead>Áudio - válido em todos os servidores.</Lead>
+        <Tabs>
+          <Tab
+            type="button"
+            $active={tab === "audio"}
+            onClick={() => {
+              setTab("audio");
+              setConfirmLogout(false);
+              setEditingNick(false);
+            }}
+          >
+            Áudio
+          </Tab>
+          <Tab
+            type="button"
+            $active={tab === "account"}
+            onClick={() => {
+              setTab("account");
+              setListening(false);
+              setCapturing(null);
+              setCopied(false);
+              setEditingNick(false);
+              setNickDraft(identity.nickname);
+            }}
+          >
+            Conta
+          </Tab>
+        </Tabs>
+        <Lead>
+          {tab === "audio"
+            ? "Áudio - válido em todos os servidores."
+            : "Identidade deste PC"}
+        </Lead>
 
+        {tab === "account" ? (
+          <>
+          <Section>
+            <SectionTitle>Nickname</SectionTitle>
+            <Field>
+              <FieldLabel>Como você aparece</FieldLabel>
+              {editingNick ? (
+                <NameEdit
+                  ref={nickEditRef}
+                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                    event.preventDefault();
+                    const nickname = nickDraft.trim();
+                    if (!nickname) return;
+                    const next = updateNickname(nickname);
+                    if (next) onNicknameChange(next);
+                    setEditingNick(false);
+                  }}
+                >
+                  <NameInput
+                    autoFocus
+                    maxLength={NICKNAME_MAX_LENGTH}
+                    value={nickDraft}
+                    onChange={(event) => setNickDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") cancelNickEdit();
+                    }}
+                  />
+                  <NameIcon
+                    type="submit"
+                    title="Salvar"
+                    disabled={!nickDraft.trim()}
+                  >
+                    <CheckIcon />
+                  </NameIcon>
+                  <NameIcon
+                    type="button"
+                    title="Cancelar"
+                    onClick={cancelNickEdit}
+                  >
+                    <CloseIcon />
+                  </NameIcon>
+                </NameEdit>
+              ) : (
+                <NameButton
+                  type="button"
+                  title="Alterar nickname"
+                  onClick={() => {
+                    setNickDraft(identity.nickname);
+                    setEditingNick(true);
+                  }}
+                >
+                  <span>{identity.nickname}</span>
+                  <EditIcon />
+                </NameButton>
+              )}
+            </Field>
+          </Section>
+          <Section>
+            <SectionTitle>Código de recuperação</SectionTitle>
+            <CodeBox>
+              <RecoveryCode>{identity.recoveryCode}</RecoveryCode>
+              <GhostButton
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard
+                    .writeText(identity.recoveryCode)
+                    .then(() => {
+                      setCopied(true);
+                      window.setTimeout(() => setCopied(false), 1600);
+                    });
+                }}
+              >
+                <CopyIcon />
+                {copied ? "Copiado!" : "Copiar"}
+              </GhostButton>
+            </CodeBox>
+            <Warn>
+              Guarde este código em um lugar seguro. Ele é a única forma de
+              recuperar sua identidade se formatar o computador. Não compartilhe
+              com ninguém.
+            </Warn>
+            <DangerButton
+              type="button"
+              onClick={() => {
+                if (!confirmLogout) {
+                  setConfirmLogout(true);
+                  return;
+                }
+                onLogout();
+              }}
+            >
+              {confirmLogout ? "Confirmar saída deste PC" : "Sair deste PC"}
+            </DangerButton>
+            {confirmLogout ? (
+              <Hint style={{ textAlign: "center" }}>
+                Isto apagará seus dados neste computador.<br /> Você conseguirá entrar novamente com o código de recuperação.
+              </Hint>
+            ) : null}
+          </Section>
+          </>
+        ) : (
+          <>
         <Section>
           <SectionTitle>Entrada e saída</SectionTitle>
           <DeviceSelect
@@ -844,6 +1082,8 @@ export function SettingsScreen({
             />
           </ToggleRow>
         </Section>
+          </>
+        )}
       </Body>
     </Panel>
   );

@@ -35,7 +35,6 @@ import {
   CopyButton,
   Invite,
   InviteCode,
-  LeaveButton,
   PokeForm,
   PokeInput,
   PokeSend,
@@ -125,7 +124,6 @@ type RoomScreenProps = {
   currentId: string | null;
   talking?: boolean;
   presence: Presence;
-  onLeave: () => void;
   onOpenSettings: () => void;
   onJoinSala: (salaId: string) => void;
   onLeaveSala: () => void;
@@ -595,7 +593,6 @@ export function RoomScreen({
   currentId,
   talking,
   presence,
-  onLeave,
   onOpenSettings,
   onJoinSala,
   onLeaveSala,
@@ -1111,15 +1108,13 @@ export function RoomScreen({
       <RoomHeader>
         <RoomHeading>
           <RoomTitle>{room.name}</RoomTitle>
-          {canManageChannels ? (
-            <RoomGear
-              type="button"
-              title="Configurações do servidor"
-              onClick={onOpenSettings}
-            >
-              <GearIcon />
-            </RoomGear>
-          ) : null}
+          <RoomGear
+            type="button"
+            title="Configurações do servidor"
+            onClick={onOpenSettings}
+          >
+            <GearIcon />
+          </RoomGear>
         </RoomHeading>
         <Invite>
           <InviteCode>{room.code}</InviteCode>
@@ -1128,13 +1123,6 @@ export function RoomScreen({
             Copiar
           </CopyButton>
           <Copied aria-live="polite">{copied ? "Copiado!" : ""}</Copied>
-          <LeaveButton
-            type="button"
-            onClick={onLeave}
-            title="Só tira este servidor da sua lista"
-          >
-            Remover da lista
-          </LeaveButton>
         </Invite>
       </RoomHeader>
 

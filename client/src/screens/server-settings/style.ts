@@ -361,3 +361,34 @@ export const ErrorText = styled.p`
   color: #ff8a80;
   font-size: 0.78rem;
 `;
+
+export const DangerButton = styled.button`
+  display: block;
+  height: 2.05rem;
+  padding: 0 0.85rem;
+  margin: 1.15rem auto 0;
+  border: 1px solid rgba(255, 69, 58, 0.38);
+  border-radius: 0.5rem;
+  background: rgba(255, 69, 58, 0.12);
+  color: #ff8a80;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 69, 58, 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+`;
+
+export const Hint = styled.p`
+  margin: 0.75rem 0 0;
+  color: #8d8d93;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  text-align: center;
+`;

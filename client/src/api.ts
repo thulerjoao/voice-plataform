@@ -69,6 +69,69 @@ export async function renameRoom(input: {
   return readRoomDetails(response, "Não foi possível alterar o nome.");
 }
 
+export async function leaveRoom(input: {
+  roomId: string;
+  uid: string;
+}): Promise<void> {
+  const response = await fetch(`/api/rooms/${input.roomId}/leave`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uid: input.uid }),
+  });
+  if (response.ok) return;
+  const payload = await readPayload(response);
+  throw new Error(errorMessage(payload, "Não foi possível sair do servidor."));
+}
+
+export type RegisteredIdentity = {
+  uid: string;
+  nickname: string;
+  recoveryCode: string;
+};
+
+export type RestoredRoom = {
+  id: string;
+  name: string;
+  code: string;
+  role: RoomRole;
+};
+
+export type RestoredIdentity = {
+  uid: string;
+  nickname: string;
+  rooms: RestoredRoom[];
+};
+
+export async function registerIdentity(input: {
+  nickname: string;
+  uid?: string;
+  recoveryCode?: string;
+}): Promise<RegisteredIdentity> {
+  const response = await fetch("/api/identity", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const payload = await readPayload(response);
+  if (!response.ok || !isRegisteredIdentity(payload)) {
+    throw new Error(errorMessage(payload, "Não foi possível criar a identidade."));
+  }
+  return payload;
+}
+
+export async function restoreIdentity(code: string): Promise<RestoredIdentity> {
+  const response = await fetch("/api/identity/restore", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  const payload = await readPayload(response);
+  if (!response.ok || !isRestoredIdentity(payload)) {
+    throw new Error(errorMessage(payload, "Não foi possível recuperar a conta."));
+  }
+  return payload;
+}
+
 async function readCreatedRoom(
   response: Response,
   fallback: string,
@@ -142,4 +205,38 @@ function isRoomDetails(value: unknown): value is RoomDetails {
   }
   const members = (value as RoomDetails).members;
   return Array.isArray(members) && members.every(isRoomMember);
+}
+
+function isRegisteredIdentity(value: unknown): value is RegisteredIdentity {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<RegisteredIdentity>;
+  return (
+    typeof item.uid === "string" &&
+    typeof item.nickname === "string" &&
+    typeof item.recoveryCode === "string" &&
+    Boolean(item.uid && item.nickname && item.recoveryCode)
+  );
+}
+
+function isRestoredRoom(value: unknown): value is RestoredRoom {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<RestoredRoom>;
+  return (
+    typeof item.id === "string" &&
+    typeof item.name === "string" &&
+    typeof item.code === "string" &&
+    isRole(item.role)
+  );
+}
+
+function isRestoredIdentity(value: unknown): value is RestoredIdentity {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<RestoredIdentity>;
+  return (
+    typeof item.uid === "string" &&
+    typeof item.nickname === "string" &&
+    Boolean(item.uid && item.nickname) &&
+    Array.isArray(item.rooms) &&
+    item.rooms.every(isRestoredRoom)
+  );
 }
