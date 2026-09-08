@@ -62,6 +62,7 @@ import {
   Shell,
   Sidebar,
   SidebarDock,
+  SidebarRule,
   DockRow,
   DockVolume,
   DockSlider,
@@ -70,7 +71,6 @@ import {
   SidebarRoom,
   SidebarRoomButton,
   SidebarCallMark,
-  SidebarRoomIcon,
   SidebarRoomName,
   SidebarRooms,
   StatusButton,
@@ -182,42 +182,198 @@ function HomeIcon() {
   );
 }
 
-function PeopleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="9" cy="8" r="2.6" stroke="currentColor" strokeWidth="1.7" />
-      <path
-        d="M4.5 18c.8-2.4 2.4-3.6 4.5-3.6s3.7 1.2 4.5 3.6"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-      <circle
-        cx="16.5"
-        cy="9"
-        r="2.1"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-      <path
-        d="M19.5 18c-.4-1.6-1.4-2.6-2.8-3"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function EmptyRoomsArt() {
   return (
-    <svg viewBox="0 0 168 96" fill="#8e95a3" aria-hidden="true">
-      <circle cx="32" cy="34" r="12" />
-      <rect x="14" y="50" width="36" height="24" rx="12" />
-      <circle cx="136" cy="34" r="12" />
-      <rect x="118" y="50" width="36" height="24" rx="12" />
-      <circle cx="84" cy="26" r="16" />
-      <rect x="58" y="46" width="52" height="34" rx="16" />
+    <svg viewBox="0 0 240 168" fill="none" aria-hidden="true">
+      <defs>
+        <radialGradient id="vpEmptyGlow" cx="50%" cy="46%" r="58%">
+          <stop offset="0%" stopColor="#0a84ff" stopOpacity="0.3" />
+          <stop offset="52%" stopColor="#0a84ff" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="#0a84ff" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="vpEmptyDisc" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3d3d42" />
+          <stop offset="100%" stopColor="#27272a" />
+        </linearGradient>
+        <linearGradient id="vpEmptyHead" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f2f4f8" />
+          <stop offset="100%" stopColor="#c5ccd8" />
+        </linearGradient>
+        <linearGradient id="vpEmptyBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#d5dae4" />
+          <stop offset="100%" stopColor="#8e97a8" />
+        </linearGradient>
+        <clipPath id="vpEmptyClipL">
+          <circle cx="62" cy="96" r="34" />
+        </clipPath>
+        <clipPath id="vpEmptyClipC">
+          <circle cx="120" cy="76" r="44" />
+        </clipPath>
+        <clipPath id="vpEmptyClipR">
+          <circle cx="178" cy="96" r="34" />
+        </clipPath>
+      </defs>
+
+      <ellipse cx="120" cy="92" rx="118" ry="72" fill="url(#vpEmptyGlow)" />
+      <ellipse
+        cx="120"
+        cy="148"
+        rx="72"
+        ry="8"
+        fill="#000"
+        opacity="0.22"
+      />
+
+      <circle
+        cx="120"
+        cy="86"
+        r="72"
+        stroke="#0a84ff"
+        strokeOpacity="0.16"
+        strokeWidth="1.4"
+      />
+      <circle
+        cx="120"
+        cy="86"
+        r="90"
+        stroke="#0a84ff"
+        strokeOpacity="0.07"
+        strokeWidth="1.2"
+      />
+
+      <path
+        d="M20 78c-11 8-11 26 0 34"
+        stroke="#0a84ff"
+        strokeOpacity="0.45"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+      <path
+        d="M10 70c-14 12-14 38 0 50"
+        stroke="#0a84ff"
+        strokeOpacity="0.22"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M2 62c-16 16-16 50 0 66"
+        stroke="#0a84ff"
+        strokeOpacity="0.1"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M220 78c11 8 11 26 0 34"
+        stroke="#0a84ff"
+        strokeOpacity="0.45"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+      <path
+        d="M230 70c14 12 14 38 0 50"
+        stroke="#0a84ff"
+        strokeOpacity="0.22"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M238 62c16 16 16 50 0 66"
+        stroke="#0a84ff"
+        strokeOpacity="0.1"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+
+      <circle cx="62" cy="96" r="34" fill="url(#vpEmptyDisc)" />
+      <g clipPath="url(#vpEmptyClipL)">
+        <circle cx="62" cy="86" r="12.4" fill="url(#vpEmptyHead)" />
+        <path
+          d="M38 132v-20c0-10 10-16 24-16s24 6 24 16v20z"
+          fill="url(#vpEmptyBody)"
+        />
+      </g>
+      <path
+        d="M50 83.5Q62 71 74 83.5"
+        stroke="#e8eaef"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <rect x="47.4" y="80.5" width="5.6" height="10.4" rx="2.6" fill="#d8dce4" />
+      <rect x="71" y="80.5" width="5.6" height="10.4" rx="2.6" fill="#d8dce4" />
+      <circle
+        cx="62"
+        cy="96"
+        r="34"
+        stroke="rgba(255,255,255,0.12)"
+        strokeWidth="1.6"
+      />
+
+      <circle cx="178" cy="96" r="34" fill="url(#vpEmptyDisc)" />
+      <g clipPath="url(#vpEmptyClipR)">
+        <circle cx="178" cy="86" r="12.4" fill="url(#vpEmptyHead)" />
+        <path
+          d="M154 132v-20c0-10 10-16 24-16s24 6 24 16v20z"
+          fill="url(#vpEmptyBody)"
+        />
+      </g>
+      <path
+        d="M166 83.5Q178 71 190 83.5"
+        stroke="#e8eaef"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <rect x="163.4" y="80.5" width="5.6" height="10.4" rx="2.6" fill="#d8dce4" />
+      <rect x="187" y="80.5" width="5.6" height="10.4" rx="2.6" fill="#d8dce4" />
+      <circle
+        cx="178"
+        cy="96"
+        r="34"
+        stroke="rgba(255,255,255,0.12)"
+        strokeWidth="1.6"
+      />
+
+      <circle
+        cx="120"
+        cy="76"
+        r="48"
+        stroke="#0a84ff"
+        strokeOpacity="0.28"
+        strokeWidth="2"
+      />
+      <circle cx="120" cy="76" r="44" fill="url(#vpEmptyDisc)" />
+      <g clipPath="url(#vpEmptyClipC)">
+        <circle cx="120" cy="62" r="15.4" fill="url(#vpEmptyHead)" />
+        <path
+          d="M88 124V96c0-12 13-20 32-20s32 8 32 20v28z"
+          fill="url(#vpEmptyBody)"
+        />
+      </g>
+      <path
+        d="M105.4 61Q120 45.5 134.6 61"
+        stroke="#f2f4f8"
+        strokeWidth="2.7"
+        strokeLinecap="round"
+      />
+      <rect x="101.6" y="57.5" width="6.4" height="12.6" rx="3.1" fill="#0a84ff" />
+      <rect x="132" y="57.5" width="6.4" height="12.6" rx="3.1" fill="#0a84ff" />
+      <path
+        d="M138.4 69.5c6.8 2.4 9 8.8 6.4 13.6"
+        stroke="#0a84ff"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+      <circle cx="144" cy="85.4" r="2.5" fill="#64d2ff" />
+      <circle cx="120" cy="76" r="44" stroke="#0a84ff" strokeWidth="2" />
+
+      <g fill="#0a84ff" transform="translate(120 154)">
+        <rect x="-26" y="-7" width="4.2" height="7" rx="2.1" opacity="0.28" />
+        <rect x="-18" y="-13" width="4.2" height="13" rx="2.1" opacity="0.48" />
+        <rect x="-10" y="-19" width="4.2" height="19" rx="2.1" opacity="0.9" />
+        <rect x="-2" y="-11" width="4.2" height="11" rx="2.1" opacity="0.7" />
+        <rect x="6" y="-16" width="4.2" height="16" rx="2.1" opacity="0.55" />
+        <rect x="14" y="-8" width="4.2" height="8" rx="2.1" opacity="0.34" />
+        <rect x="22" y="-5" width="4.2" height="5" rx="2.1" opacity="0.2" />
+      </g>
     </svg>
   );
 }
@@ -462,9 +618,6 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             lastViewRef.current.type === "server-settings")
         ? lastViewRef.current.roomId
         : undefined;
-  const callRoom = call
-    ? rooms.find((room) => room.roomId === call.roomId)
-    : undefined;
   const settingsRoom =
     view.type === "server-settings"
       ? rooms.find((room) => room.roomId === view.roomId)
@@ -712,10 +865,19 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             <EditIcon />
           </NickButton>
         )}
-        <NavItem type="button" onClick={backToHome}>
+        <NavItem
+          type="button"
+          $active={
+            view.type === "home" ||
+            view.type === "create" ||
+            view.type === "join"
+          }
+          onClick={backToHome}
+        >
           <HomeIcon />
           Servidores
         </NavItem>
+        {rooms.length > 0 ? <SidebarRule /> : null}
         {rooms.length > 0 ? (
           <SidebarRooms>
             {rooms.map((room: Bookmark) => {
@@ -729,9 +891,6 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
                     onClick={() => enterRoom(room.roomId)}
                     title={live ? `${room.name} · em uma sala` : room.name}
                   >
-                    <SidebarRoomIcon $live={live}>
-                      <PeopleIcon />
-                    </SidebarRoomIcon>
                     <SidebarRoomName>{room.name}</SidebarRoomName>
                     {live ? (
                       <SidebarCallMark aria-hidden="true">
@@ -889,16 +1048,12 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
               <EmptyTitle>
                 {rooms.length === 0
                   ? "Nenhum servidor ainda"
-                  : call
-                    ? "Você continua na call"
-                    : "Pronto para conversar"}
+                  : "Pronto para conversar"}
               </EmptyTitle>
               <EmptyText>
                 {rooms.length === 0
                   ? "Crie seu primeiro servidor ou entre em um existente para começar."
-                  : call
-                    ? `A marca azul na lista é ${callRoom?.name ?? "o servidor da call"}. Clique para voltar.`
-                    : "Seus servidores estão à esquerda. Crie outro ou entre com um código."}
+                  : "Seus servidores estão à esquerda. Crie outro ou entre com um código."}
               </EmptyText>
               <RoomActions
                 onCreate={() => setView({ type: "create" })}

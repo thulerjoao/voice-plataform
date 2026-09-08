@@ -90,33 +90,41 @@ export const NickName = styled.span`
   font-weight: 600;
 `;
 
-export const NavItem = styled.button`
+export const NavItem = styled.button<{ $active?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   width: 100%;
-  padding: 0.65rem 0.75rem;
+  padding: 0.5rem 0.65rem;
   border: 0;
-  border-radius: 0.75rem;
-  background: #0a84ff;
-  color: #fff;
-  font-size: 0.95rem;
+  border-radius: 0.55rem;
+  background: ${(p) =>
+    p.$active ? "rgba(10, 132, 255, 0.18)" : "transparent"};
+  color: ${(p) => (p.$active ? "#f5f5f7" : "#c7c7cc")};
+  font-size: 0.9rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
 
   svg {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    flex-shrink: 0;
+    color: ${(p) => (p.$active ? "#0a84ff" : "#8d8d93")};
   }
 
   &:hover {
-    background: #1a8cff;
+    color: #f5f5f7;
+    background: ${(p) =>
+      p.$active ? "rgba(10, 132, 255, 0.22)" : "rgba(255, 255, 255, 0.06)"};
   }
+`;
 
-  &:active {
-    transform: scale(0.99);
-  }
+export const SidebarRule = styled.div`
+  height: 1px;
+  margin: 0.55rem 0.45rem 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 `;
 
 export const SidebarDock = styled.div`
@@ -282,11 +290,11 @@ export const DockButton = styled.button<{ $on?: boolean }>`
 
 export const SidebarRooms = styled.ul`
   list-style: none;
-  margin: 0.45rem 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.5rem;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -296,53 +304,27 @@ export const SidebarRoom = styled.li`
   min-width: 0;
 `;
 
-export const SidebarRoomButton = styled.button<{ $active?: boolean; $live?: boolean }>`
+export const SidebarRoomButton = styled.button<{
+  $active?: boolean;
+  $live?: boolean;
+}>`
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.5rem;
   width: 100%;
   min-width: 0;
-  padding: 0.55rem 0.65rem 0.55rem 0.55rem;
-  border: 1px solid
-    ${(p) =>
-      p.$live
-        ? "rgba(10, 132, 255, 0.38)"
-        : p.$active
-          ? "rgba(255, 255, 255, 0.12)"
-          : "transparent"};
-  border-radius: 0.7rem;
+  padding: 0.5rem 0.65rem;
+  border: 0;
+  border-radius: 0.55rem;
   background: ${(p) =>
-    p.$live
-      ? "rgba(10, 132, 255, 0.14)"
-      : p.$active
-        ? "rgba(255, 255, 255, 0.08)"
-        : "rgba(255, 255, 255, 0.05)"};
-  box-shadow: ${(p) => (p.$live ? "inset 2px 0 0 #0a84ff" : "none")};
+    p.$active ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.045)"};
   color: #f5f5f7;
   text-align: left;
   cursor: pointer;
 
   &:hover {
     background: ${(p) =>
-      p.$live ? "rgba(10, 132, 255, 0.2)" : "rgba(255, 255, 255, 0.08)"};
-  }
-
-  &:active {
-    transform: scale(0.99);
-  }
-`;
-
-export const SidebarRoomIcon = styled.span<{ $live?: boolean }>`
-  display: grid;
-  place-items: center;
-  width: 1.7rem;
-  height: 1.7rem;
-  flex-shrink: 0;
-  color: ${(p) => (p.$live ? "#0a84ff" : "#8d8d93")};
-
-  svg {
-    width: 1.05rem;
-    height: 1.05rem;
+      p.$active ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.07)"};
   }
 `;
 
@@ -359,14 +341,14 @@ export const SidebarRoomName = styled.span`
 export const SidebarCallMark = styled.span`
   display: grid;
   place-items: center;
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.05rem;
+  height: 1.05rem;
   flex-shrink: 0;
   color: #0a84ff;
 
   svg {
-    width: 0.95rem;
-    height: 0.95rem;
+    width: 0.9rem;
+    height: 0.9rem;
   }
 `;
 
@@ -502,11 +484,11 @@ export const Empty = styled.div`
 `;
 
 export const EmptyArt = styled.div`
-  margin-bottom: 1.4rem;
+  margin-bottom: 1.15rem;
 
   svg {
     display: block;
-    width: 10.5rem;
+    width: 14.5rem;
     height: auto;
   }
 `;

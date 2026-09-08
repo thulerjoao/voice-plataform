@@ -1505,7 +1505,7 @@ export function RoomScreen({
             <ChatLog>
               {!current ? (
                 <ChatLine style={{ color: "#8d8d93" }}>
-                  Entre numa sala para conversar.
+                  Entre em uma sala para conversar.
                 </ChatLine>
               ) : (chats[current.id] ?? []).length === 0 ? (
                 <ChatLine style={{ color: "#8d8d93" }}>

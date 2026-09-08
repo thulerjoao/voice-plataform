@@ -117,7 +117,7 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. A bolinha da **
 
 ### Lista de servidores
 
-A sidebar é a lista local de **servidores** (bookmarks), não de salas. Cada um é um bloco (nome, sem o código — código só ao criar / entrar). O servidor que você está **olhando** destaca; o da **call** ganha a marca. Olhar outro servidor, a home, as configurações de áudio ou as **configurações do servidor** **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
+A sidebar é a lista local de **servidores** (bookmarks), não de salas. **Servidores** fica separado da lista (atalho + linha). Cada bookmark é um **card** baixo: só o nome; o que você olha destaca; a call ganha o ícone de áudio. Sem código, sem ícone de pessoas. Olhar outro servidor, a home, as configurações de áudio ou as **configurações do servidor** **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
 
 ### Configurações do servidor
 

@@ -9,7 +9,7 @@ export const Panel = styled.div`
 
 export const BackRow = styled.div`
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 `;
 
 export const BackButton = styled.button`
