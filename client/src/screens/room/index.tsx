@@ -1054,18 +1054,10 @@ export function RoomScreen({
   function deleteChannel(id: string) {
     if (roster.length < 2) return;
 
-    const removed = roster.find((channel) => channel.id === id);
     const leftover = roster.filter((channel) => channel.id !== id);
-    const target = leftover[0];
-    if (!removed || !target) return;
+    if (leftover.length === roster.length) return;
 
-    setRoster(
-      leftover.map((channel) =>
-        channel.id === target.id
-          ? { ...channel, users: [...channel.users, ...removed.users] }
-          : channel,
-      ),
-    );
+    setRoster(leftover);
     setChats((prev) => {
       const next = { ...prev };
       delete next[id];

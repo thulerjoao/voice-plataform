@@ -5,14 +5,14 @@ export const RoomShell = styled.div`
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.55rem;
 `;
 
 export const RoomHeader = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.85rem;
+  gap: 0.9rem;
   flex-wrap: wrap;
   flex-shrink: 0;
 `;
@@ -20,7 +20,7 @@ export const RoomHeader = styled.header`
 export const RoomHeading = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
   min-width: 0;
   flex: 1;
 `;
@@ -63,7 +63,7 @@ export const RoomGear = styled.button`
 export const Invite = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   flex-shrink: 0;
 `;
 
@@ -109,7 +109,10 @@ export const Copied = styled.span`
   color: #30d158;
   font-size: 0.75rem;
   font-weight: 600;
-  min-width: 4rem;
+
+  &:empty {
+    display: none;
+  }
 `;
 
 export const LeaveButton = styled.button`
@@ -149,7 +152,7 @@ export const TreeBar = styled.div`
   justify-content: space-between;
   gap: 0.5rem;
   flex-shrink: 0;
-  padding: 0.35rem 0.5rem 0.3rem 0.65rem;
+  padding: 0.45rem 0.6rem 0.4rem 0.75rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   color: #8d8d93;
   font-size: 0.72rem;
@@ -162,8 +165,8 @@ export const ChannelEdit = styled.button`
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 1.45rem;
-  height: 1.45rem;
+  width: 1.5rem;
+  height: 1.5rem;
   padding: 0;
   border: 0;
   border-radius: 0.3rem;
@@ -186,7 +189,7 @@ export const Tree = styled.div`
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 0.45rem 0.35rem;
+  padding: 0.55rem 0.42rem 0.55rem;
   font-size: 0.88rem;
 `;
 
@@ -196,8 +199,8 @@ export const ChannelBlock = styled.div<{ $drop?: boolean }>`
   background: ${(p) => (p.$drop ? "rgba(10, 132, 255, 0.14)" : "transparent")};
 
   & + & {
-    margin-top: 0.35rem;
-    padding-top: 0.4rem;
+    margin-top: 0.45rem;
+    padding-top: 0.45rem;
   }
 
   & + &::before {
@@ -214,9 +217,10 @@ export const ChannelBlock = styled.div<{ $drop?: boolean }>`
 export const ChannelRow = styled.div<{ $current?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.22rem;
   width: 100%;
-  border-radius: 0.3rem;
+  padding: 0.06rem 0.12rem 0.06rem 0.08rem;
+  border-radius: 0.35rem;
   background: ${(p) => (p.$current ? "rgba(10, 132, 255, 0.16)" : "transparent")};
   color: ${(p) => (p.$current ? "#f5f5f7" : "#d1d1d6")};
 
@@ -229,8 +233,8 @@ export const Chevron = styled.button<{ $open?: boolean }>`
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 1.35rem;
-  height: 1.55rem;
+  width: 1.4rem;
+  height: 1.65rem;
   padding: 0;
   border: 0;
   background: transparent;
@@ -255,8 +259,8 @@ export const ChannelHit = styled.button`
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  height: 1.55rem;
-  padding: 0 0.4rem 0 0;
+  height: 1.65rem;
+  padding: 0 0.45rem 0 0;
   border: 0;
   background: transparent;
   color: inherit;
@@ -293,8 +297,11 @@ export const ChannelCount = styled.span`
 
 export const UserList = styled.ul`
   list-style: none;
-  margin: 0.3rem 0 0.25rem;
-  padding: 0 0 0 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.06rem;
+  margin: 0.32rem 0 0.2rem;
+  padding: 0 0.1rem 0 1.45rem;
 `;
 
 export const UserRow = styled.li<{
@@ -304,16 +311,21 @@ export const UserRow = styled.li<{
 }>`
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.42rem;
   min-width: 0;
-  padding: 0.18rem 0.35rem;
-  border-radius: 0.28rem;
+  padding: 0.22rem 0.4rem;
+  border-radius: 0.3rem;
   color: #f5f5f7;
   font-weight: ${(p) => (p.$you ? 600 : 500)};
   background: ${(p) => (p.$you ? "rgba(255, 255, 255, 0.05)" : "transparent")};
   cursor: ${(p) => (p.$movable ? "grab" : "default")};
   opacity: ${(p) => (p.$dragging ? 0.4 : 1)};
   user-select: none;
+
+  &:hover {
+    background: ${(p) =>
+      p.$you ? "rgba(255, 255, 255, 0.07)" : "rgba(255, 255, 255, 0.04)"};
+  }
 
   &:active {
     cursor: ${(p) => (p.$movable ? "grabbing" : "default")};
@@ -458,8 +470,8 @@ export const SalaNameIcon = styled.button`
 
 export const SalaCreateWrap = styled.div`
   position: relative;
-  margin-top: 0.35rem;
-  padding-top: 0.4rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
 
   &::before {
     content: "";
@@ -476,7 +488,7 @@ export const SalaCreate = styled.button`
   display: block;
   width: 100%;
   max-width: 8.5rem;
-  margin: 0.35rem auto 0;
+  margin: 0.25rem auto 0.1rem;
   height: 2rem;
   border: 1px dashed rgba(255, 255, 255, 0.16);
   border-radius: 0.45rem;
@@ -688,9 +700,9 @@ export const UserLeave = styled.button`
   align-items: center;
   gap: 0.22rem;
   flex-shrink: 0;
-  height: 1.2rem;
+  height: 1.25rem;
   margin-left: auto;
-  padding: 0 0.18rem 0 0.28rem;
+  padding: 0 0.22rem 0 0.32rem;
   border: 0;
   border-radius: 0.28rem;
   background: transparent;

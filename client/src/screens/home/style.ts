@@ -359,7 +359,7 @@ export const Main = styled.main<{ $flush?: boolean }>`
   overflow: ${(p) => (p.$flush ? "hidden" : "auto")};
   display: flex;
   flex-direction: column;
-  padding: ${(p) => (p.$flush ? "0.85rem 1rem 0.85rem" : "2rem 2.25rem 1.5rem")};
+  padding: ${(p) => (p.$flush ? "0.95rem 1.1rem 0.9rem" : "2rem 2.25rem 1.5rem")};
 
   @media (max-width: 800px) {
     padding: 1.25rem 1rem 1.5rem;
