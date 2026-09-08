@@ -3,7 +3,6 @@ package realtime
 import (
 	"encoding/json"
 	"sync"
-	"time"
 )
 
 type Event struct {
@@ -16,7 +15,6 @@ type Event struct {
 	ID          string `json:"id,omitempty"`
 	ChannelID   string `json:"channelId,omitempty"`
 	Description string `json:"description,omitempty"`
-	JoinedAt    int64  `json:"joinedAt,omitempty"`
 }
 
 type client struct {
@@ -27,15 +25,11 @@ type client struct {
 type Hub struct {
 	mu      sync.RWMutex
 	clients map[string]map[*client]struct{}
-	seats   map[string]*Seat
-	offline map[string]*time.Timer
 }
 
 func NewHub() *Hub {
 	return &Hub{
 		clients: make(map[string]map[*client]struct{}),
-		seats:   make(map[string]*Seat),
-		offline: make(map[string]*time.Timer),
 	}
 }
 
@@ -45,10 +39,6 @@ func (h *Hub) add(c *client) {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if t := h.offline[c.uid]; t != nil {
-		t.Stop()
-		delete(h.offline, c.uid)
-	}
 	set := h.clients[c.uid]
 	if set == nil {
 		set = make(map[*client]struct{})
@@ -57,29 +47,40 @@ func (h *Hub) add(c *client) {
 	set[c] = struct{}{}
 }
 
-func (h *Hub) remove(c *client) (offline bool) {
+func (h *Hub) remove(c *client) {
 	if h == nil {
-		return false
+		return
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	set := h.clients[c.uid]
 	if set == nil {
-		return true
+		return
 	}
 	delete(set, c)
 	if len(set) == 0 {
 		delete(h.clients, c.uid)
-		return true
 	}
-	return false
+}
+
+func (h *Hub) Online(uid string) bool {
+	if h == nil || uid == "" {
+		return false
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients[uid]) > 0
 }
 
 func (h *Hub) Send(uids []string, ev Event) {
+	h.SendJSON(uids, ev)
+}
+
+func (h *Hub) SendJSON(uids []string, payload any) {
 	if h == nil || len(uids) == 0 {
 		return
 	}
-	payload, err := json.Marshal(ev)
+	raw, err := json.Marshal(payload)
 	if err != nil {
 		return
 	}
@@ -97,7 +98,7 @@ func (h *Hub) Send(uids []string, ev Event) {
 		seen[uid] = struct{}{}
 		for c := range h.clients[uid] {
 			select {
-			case c.send <- payload:
+			case c.send <- raw:
 			default:
 			}
 		}

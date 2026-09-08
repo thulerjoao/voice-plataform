@@ -50,7 +50,7 @@ type renameRequest struct {
 	Nickname string `json:"nickname"`
 }
 
-func HandleRename(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleRename(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req renameRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -68,7 +68,7 @@ func HandleRename(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)
-		emitNickname(r.Context(), store, hub, updated.UID, updated.Nickname)
+		emitNickname(r.Context(), store, hub, presence, updated.UID, updated.Nickname)
 	}
 }
 

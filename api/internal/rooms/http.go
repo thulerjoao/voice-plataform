@@ -58,15 +58,12 @@ func HandleCreate(store *db.DB) http.HandlerFunc {
 	}
 }
 
-func HandleGet(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleGet(store *db.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		details, err := Get(r.Context(), store, r.PathValue("id"), r.URL.Query().Get("uid"))
 		if err != nil {
 			writeRoomErr(w, err, "Não foi possível carregar o servidor.")
 			return
-		}
-		if hub != nil {
-			details.Occupancy = hub.Occupancy(details.ID)
 		}
 		writeRoom(w, http.StatusOK, details)
 	}
@@ -151,7 +148,7 @@ type leaveRequest struct {
 	UID string `json:"uid"`
 }
 
-func HandleLeave(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleLeave(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req leaveRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -175,7 +172,7 @@ func HandleLeave(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
-		publishSeatLeft(r.Context(), store, hub, hub.DropSeatInRoom(req.UID, r.PathValue("id")))
+		presence.AnnounceLeft(r.Context(), store, presence.DropSeatInRoom(req.UID, r.PathValue("id")))
 		publish(r.Context(), store, hub, r.PathValue("id"), []string{req.UID}, realtime.Event{
 			Type: "member.left",
 			UID:  req.UID,
@@ -278,7 +275,7 @@ func HandleUpdateChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	}
 }
 
-func HandleDeleteChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleDeleteChannel(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := DeleteSala(r.Context(), store, r.PathValue("id"), r.PathValue("channelId"), r.URL.Query().Get("uid"))
 		if err != nil {
@@ -286,7 +283,7 @@ func HandleDeleteChannel(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
-		hub.DropChannel(r.PathValue("channelId"))
+		presence.DropChannel(r.PathValue("channelId"))
 		publish(r.Context(), store, hub, r.PathValue("id"), nil, realtime.Event{
 			Type:      "channel.deleted",
 			ChannelID: r.PathValue("channelId"),
@@ -308,7 +305,7 @@ type blockRequest struct {
 	TargetUID string `json:"targetUid"`
 }
 
-func HandleSetRole(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleSetRole(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req roleRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -323,7 +320,7 @@ func HandleSetRole(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
-		hub.SetSeatRole(memberUID, details.ID, req.Role)
+		presence.SetSeatRole(memberUID, details.ID, req.Role)
 		publish(r.Context(), store, hub, details.ID, nil, realtime.Event{
 			Type: "member.role",
 			UID:  memberUID,
@@ -332,7 +329,7 @@ func HandleSetRole(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	}
 }
 
-func HandleKick(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleKick(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req actorRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -347,7 +344,7 @@ func HandleKick(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
-		publishSeatLeft(r.Context(), store, hub, hub.DropSeatInRoom(memberUID, details.ID))
+		presence.AnnounceLeft(r.Context(), store, presence.DropSeatInRoom(memberUID, details.ID))
 		publish(r.Context(), store, hub, details.ID, []string{memberUID}, realtime.Event{
 			Type: "member.kicked",
 			UID:  memberUID,
@@ -355,7 +352,7 @@ func HandleKick(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 	}
 }
 
-func HandleBlock(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
+func HandleBlock(store *db.DB, hub *realtime.Hub, presence *realtime.Presence) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req blockRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -369,7 +366,7 @@ func HandleBlock(store *db.DB, hub *realtime.Hub) http.HandlerFunc {
 			return
 		}
 		writeRoom(w, http.StatusOK, details)
-		publishSeatLeft(r.Context(), store, hub, hub.DropSeatInRoom(req.TargetUID, details.ID))
+		presence.AnnounceLeft(r.Context(), store, presence.DropSeatInRoom(req.TargetUID, details.ID))
 		nickname := ""
 		if user, err := store.Queries.GetUserByUID(r.Context(), req.TargetUID); err == nil {
 			nickname = user.Nickname

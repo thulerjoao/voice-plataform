@@ -26,11 +26,12 @@ import {
   type Identity,
 } from "../../identity";
 import { getRoom, type CreatedRoom } from "../../api";
+import { connectRealtime, subscribeRealtime, subscribeRealtimeOpen } from "../../realtime";
 import {
-  connectRealtime,
-  sendRealtime,
-  subscribeRealtime,
-} from "../../realtime";
+  connectOccupancy,
+  sendOccupancy,
+  subscribeOccupancy,
+} from "../../occupancy";
 import {
   isEditableTarget,
   loadAudioSettings,
@@ -830,27 +831,6 @@ export function HomeScreen({
     }
   }
 
-  async function adoptRemoteSeat() {
-    if (callRef.current) return;
-    for (const room of loadBookmarks()) {
-      try {
-        const details = await getRoom({
-          roomId: room.roomId,
-          uid: identity.uid,
-        });
-        const seat = details.occupancy?.find(
-          (item) => item.uid === identity.uid,
-        );
-        if (seat) {
-          followOwnSeat(details.id, seat.channelId);
-          return;
-        }
-      } catch {
-        /* bookmark velho */
-      }
-    }
-  }
-
   function handleCreated(room: CreatedRoom) {
     setRooms(rememberRoom(room));
     setView({ type: "create", created: room });
@@ -937,21 +917,14 @@ export function HomeScreen({
   }
 
   useEffect(() => {
-    return connectRealtime(identity.uid, {
-      onReady: () => {
-        const current = callRef.current;
-        if (current) {
-          sendRealtime({
-            type: "presence.join",
-            roomId: current.roomId,
-            channelId: current.salaId,
-          });
-          return;
-        }
-        void adoptRemoteSeat();
-      },
+    const stopData = connectRealtime(identity.uid, {
       onOpen: () => setSyncGen((value) => value + 1),
     });
+    const stopOccupancy = connectOccupancy();
+    return () => {
+      stopOccupancy();
+      stopData();
+    };
   }, [identity.uid]);
 
   useEffect(() => {
@@ -961,7 +934,7 @@ export function HomeScreen({
         skipPresenceSendRef.current = false;
         return;
       }
-      sendRealtime({
+      sendOccupancy({
         type: "presence.join",
         roomId: call.roomId,
         channelId: call.salaId,
@@ -974,8 +947,20 @@ export function HomeScreen({
       skipPresenceSendRef.current = false;
       return;
     }
-    sendRealtime({ type: "presence.leave" });
+    sendOccupancy({ type: "presence.leave" });
   }, [call]);
+
+  useEffect(() => {
+    return subscribeRealtimeOpen(() => {
+      const current = callRef.current;
+      if (!current) return;
+      sendOccupancy({
+        type: "presence.join",
+        roomId: current.roomId,
+        channelId: current.salaId,
+      });
+    });
+  }, []);
 
   useEffect(() => {
     return subscribeRealtime((event) => {
@@ -989,22 +974,6 @@ export function HomeScreen({
 
       if (event.type === "room.renamed") {
         updateRoomBookmark(event.roomId, { name: event.name });
-        return;
-      }
-
-      if (event.type === "presence.joined" && event.uid === identity.uid) {
-        followOwnSeat(event.roomId, event.channelId);
-        void rememberServer(event.roomId);
-        return;
-      }
-
-      if (event.type === "presence.left" && event.uid === identity.uid) {
-        followOwnLeave(event.roomId, event.channelId);
-        return;
-      }
-
-      if (event.type === "presence.full" && event.roomId) {
-        followOwnLeave(event.roomId, event.channelId);
         return;
       }
 
@@ -1028,6 +997,28 @@ export function HomeScreen({
       }
     });
   }, [identity, onNicknameChange]);
+
+  useEffect(() => {
+    return subscribeOccupancy((event) => {
+      if (event.type === "presence.joined" && event.uid === identity.uid) {
+        followOwnSeat(event.roomId, event.channelId);
+        return;
+      }
+      if (event.type === "presence.left" && event.uid === identity.uid) {
+        followOwnLeave(event.roomId, event.channelId);
+        return;
+      }
+      if (event.type === "presence.full") {
+        followOwnLeave(event.roomId, event.channelId);
+        return;
+      }
+      if (event.type === "presence.state") {
+        if (callRef.current) return;
+        const seat = event.occupants.find((item) => item.uid === identity.uid);
+        if (seat) followOwnSeat(event.roomId, seat.channelId);
+      }
+    });
+  }, [identity.uid]);
 
   return (
     <Shell>

@@ -34,35 +34,16 @@ export type RealtimeEvent =
       uid: string;
       nickname: string;
     }
-  | { type: "member.unblocked"; roomId: string; uid: string }
-  | {
-      type: "presence.joined";
-      roomId: string;
-      channelId: string;
-      uid: string;
-      nickname: string;
-      role: RoomRole;
-      joinedAt: number;
-    }
-  | { type: "presence.left"; roomId: string; channelId: string; uid: string }
-  | { type: "presence.full"; roomId: string; channelId: string };
-
-export type RealtimeClientMessage =
-  | { type: "presence.join"; roomId: string; channelId: string }
-  | { type: "presence.leave" }
-  | {
-      type: "presence.move";
-      roomId: string;
-      channelId: string;
-      uid: string;
-    };
+  | { type: "member.unblocked"; roomId: string; uid: string };
 
 const EVENT_NAME = "voice-realtime";
 
 type RealtimeListener = (event: RealtimeEvent) => void;
+type FrameListener = (raw: string) => void;
 
 let activeSocket: WebSocket | null = null;
-const pending: RealtimeClientMessage[] = [];
+const openListeners = new Set<() => void>();
+const frameListeners = new Set<FrameListener>();
 
 export function subscribeRealtime(listener: RealtimeListener): () => void {
   const onEvent = (event: Event) => {
@@ -72,43 +53,30 @@ export function subscribeRealtime(listener: RealtimeListener): () => void {
   return () => window.removeEventListener(EVENT_NAME, onEvent);
 }
 
-export function sendRealtime(message: RealtimeClientMessage): void {
-  if (activeSocket?.readyState === WebSocket.OPEN) {
-    activeSocket.send(JSON.stringify(message));
-    return;
-  }
-  if (
-    message.type === "presence.join" ||
-    message.type === "presence.leave" ||
-    message.type === "presence.move"
-  ) {
-    for (let i = pending.length - 1; i >= 0; i -= 1) {
-      const type = pending[i].type;
-      if (
-        type === "presence.join" ||
-        type === "presence.leave" ||
-        type === "presence.move"
-      ) {
-        pending.splice(i, 1);
-      }
-    }
-  }
-  pending.push(message);
+export function subscribeRealtimeOpen(listener: () => void): () => void {
+  openListeners.add(listener);
+  if (activeSocket?.readyState === WebSocket.OPEN) listener();
+  return () => {
+    openListeners.delete(listener);
+  };
 }
 
-function flushPending() {
-  if (activeSocket?.readyState !== WebSocket.OPEN || pending.length === 0) {
-    return;
-  }
-  for (const message of pending) {
-    activeSocket.send(JSON.stringify(message));
-  }
-  pending.length = 0;
+export function subscribeRealtimeFrame(listener: FrameListener): () => void {
+  frameListeners.add(listener);
+  return () => {
+    frameListeners.delete(listener);
+  };
+}
+
+export function sendRealtimePayload(value: unknown): boolean {
+  if (activeSocket?.readyState !== WebSocket.OPEN) return false;
+  activeSocket.send(JSON.stringify(value));
+  return true;
 }
 
 export function connectRealtime(
   uid: string,
-  options?: { onOpen?: () => void; onReady?: () => void },
+  options?: { onOpen?: () => void },
 ): () => void {
   let closed = false;
   let socket: WebSocket | null = null;
@@ -137,8 +105,7 @@ export function connectRealtime(
     next.onopen = () => {
       delay = 800;
       activeSocket = next;
-      flushPending();
-      options?.onReady?.();
+      for (const listener of openListeners) listener();
       if (skipFirstOpen) {
         skipFirstOpen = false;
         return;
@@ -147,14 +114,15 @@ export function connectRealtime(
     };
 
     next.onmessage = (message) => {
+      if (typeof message.data !== "string") return;
       const parsed = parseEvent(message.data);
       if (parsed) emit(parsed);
+      for (const listener of frameListeners) listener(message.data);
     };
 
     next.onclose = () => {
       if (socket === next) socket = null;
       if (activeSocket === next) activeSocket = null;
-      if (socket != null || closed) return;
       schedule();
     };
 
@@ -258,43 +226,6 @@ function parseEvent(raw: unknown): RealtimeEvent | null {
               roomId: value.roomId,
               uid: value.uid,
               nickname: value.nickname,
-            }
-          : null;
-      case "presence.joined":
-        return typeof value.roomId === "string" &&
-          typeof value.channelId === "string" &&
-          typeof value.uid === "string" &&
-          typeof value.nickname === "string" &&
-          isRole(value.role)
-          ? {
-              type: "presence.joined",
-              roomId: value.roomId,
-              channelId: value.channelId,
-              uid: value.uid,
-              nickname: value.nickname,
-              role: value.role,
-              joinedAt:
-                typeof value.joinedAt === "number" ? value.joinedAt : Date.now(),
-            }
-          : null;
-      case "presence.left":
-        return typeof value.roomId === "string" &&
-          typeof value.channelId === "string" &&
-          typeof value.uid === "string"
-          ? {
-              type: "presence.left",
-              roomId: value.roomId,
-              channelId: value.channelId,
-              uid: value.uid,
-            }
-          : null;
-      case "presence.full":
-        return typeof value.roomId === "string" &&
-          typeof value.channelId === "string"
-          ? {
-              type: "presence.full",
-              roomId: value.roomId,
-              channelId: value.channelId,
             }
           : null;
       default:

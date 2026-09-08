@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,14 +32,40 @@ type Seat struct {
 	JoinedAt  int64
 }
 
-func (h *Hub) Occupancy(roomID string) []Occupant {
+type occupancyEvent struct {
+	Type      string     `json:"type"`
+	RoomID    string     `json:"roomId,omitempty"`
+	UID       string     `json:"uid,omitempty"`
+	Nickname  string     `json:"nickname,omitempty"`
+	Role      string     `json:"role,omitempty"`
+	ChannelID string     `json:"channelId,omitempty"`
+	JoinedAt  int64      `json:"joinedAt,omitempty"`
+	Occupants []Occupant `json:"occupants,omitempty"`
+}
+
+type Presence struct {
+	hub     *Hub
+	mu      sync.Mutex
+	seats   map[string]*Seat
+	offline map[string]*time.Timer
+}
+
+func NewPresence(hub *Hub) *Presence {
+	return &Presence{
+		hub:     hub,
+		seats:   make(map[string]*Seat),
+		offline: make(map[string]*time.Timer),
+	}
+}
+
+func (p *Presence) Occupancy(roomID string) []Occupant {
 	out := make([]Occupant, 0)
-	if h == nil || roomID == "" {
+	if p == nil || roomID == "" {
 		return out
 	}
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	for _, seat := range h.seats {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, seat := range p.seats {
 		if seat.RoomID != roomID {
 			continue
 		}
@@ -59,8 +86,8 @@ func (h *Hub) Occupancy(roomID string) []Occupant {
 	return out
 }
 
-func (h *Hub) JoinSala(ctx context.Context, store *db.DB, uid, roomID, channelID string) {
-	if h == nil || store == nil {
+func (p *Presence) JoinSala(ctx context.Context, store *db.DB, uid, roomID, channelID string) {
+	if p == nil || store == nil {
 		return
 	}
 	uid = strings.TrimSpace(uid)
@@ -97,9 +124,9 @@ func (h *Hub) JoinSala(ctx context.Context, store *db.DB, uid, roomID, channelID
 		return
 	}
 
-	left, joined, full := h.place(uid, user.Nickname, member.Role, roomID, channelID)
+	left, joined, full := p.place(uid, user.Nickname, member.Role, roomID, channelID)
 	if full {
-		h.Send([]string{uid}, Event{
+		p.hub.SendJSON([]string{uid}, occupancyEvent{
 			Type:      "presence.full",
 			RoomID:    roomID,
 			ChannelID: channelID,
@@ -107,14 +134,14 @@ func (h *Hub) JoinSala(ctx context.Context, store *db.DB, uid, roomID, channelID
 		return
 	}
 	if left != nil {
-		publishRoom(ctx, store, h, left.RoomID, nil, Event{
+		p.announce(ctx, store, left.RoomID, occupancyEvent{
 			Type:      "presence.left",
 			ChannelID: left.ChannelID,
 			UID:       left.UID,
 		})
 	}
 	if joined != nil {
-		publishRoom(ctx, store, h, joined.RoomID, nil, Event{
+		p.announce(ctx, store, joined.RoomID, occupancyEvent{
 			Type:      "presence.joined",
 			ChannelID: joined.ChannelID,
 			UID:       joined.UID,
@@ -125,23 +152,23 @@ func (h *Hub) JoinSala(ctx context.Context, store *db.DB, uid, roomID, channelID
 	}
 }
 
-func (h *Hub) LeaveSala(ctx context.Context, store *db.DB, uid string) {
-	if h == nil {
+func (p *Presence) LeaveSala(ctx context.Context, store *db.DB, uid string) {
+	if p == nil {
 		return
 	}
-	seat := h.DropSeat(strings.TrimSpace(uid))
+	seat := p.DropSeat(strings.TrimSpace(uid))
 	if seat == nil {
 		return
 	}
-	publishRoom(ctx, store, h, seat.RoomID, nil, Event{
+	p.announce(ctx, store, seat.RoomID, occupancyEvent{
 		Type:      "presence.left",
 		ChannelID: seat.ChannelID,
 		UID:       seat.UID,
 	})
 }
 
-func (h *Hub) MoveSala(ctx context.Context, store *db.DB, actorUID, targetUID, roomID, channelID string) {
-	if h == nil || store == nil {
+func (p *Presence) MoveSala(ctx context.Context, store *db.DB, actorUID, targetUID, roomID, channelID string) {
+	if p == nil || store == nil {
 		return
 	}
 	actorUID = strings.TrimSpace(actorUID)
@@ -152,7 +179,7 @@ func (h *Hub) MoveSala(ctx context.Context, store *db.DB, actorUID, targetUID, r
 		return
 	}
 	if actorUID == targetUID {
-		h.JoinSala(ctx, store, actorUID, roomID, channelID)
+		p.JoinSala(ctx, store, actorUID, roomID, channelID)
 		return
 	}
 
@@ -176,98 +203,138 @@ func (h *Hub) MoveSala(ctx context.Context, store *db.DB, actorUID, targetUID, r
 	}); err != nil {
 		return
 	}
-	h.JoinSala(ctx, store, targetUID, roomID, channelID)
+	p.JoinSala(ctx, store, targetUID, roomID, channelID)
 }
 
-func (h *Hub) LeaveIfOffline(_ context.Context, store *db.DB, uid string) {
-	if h == nil || uid == "" {
+func (p *Presence) Sync(ctx context.Context, store *db.DB, uid, roomID string) {
+	if p == nil || store == nil {
 		return
 	}
-	h.mu.Lock()
-	if t := h.offline[uid]; t != nil {
+	uid = strings.TrimSpace(uid)
+	roomID = strings.TrimSpace(roomID)
+	if uid == "" || roomID == "" {
+		return
+	}
+	roomUUID, err := uuid.Parse(roomID)
+	if err != nil {
+		return
+	}
+	if _, err := store.Queries.GetMember(ctx, sqlc.GetMemberParams{
+		RoomID: roomUUID,
+		Uid:    uid,
+	}); err != nil {
+		return
+	}
+	p.hub.SendJSON([]string{uid}, occupancyEvent{
+		Type:      "presence.state",
+		RoomID:    roomID,
+		Occupants: p.Occupancy(roomID),
+	})
+}
+
+func (p *Presence) LeaveIfOffline(_ context.Context, store *db.DB, uid string) {
+	if p == nil || uid == "" {
+		return
+	}
+	p.mu.Lock()
+	if t := p.offline[uid]; t != nil {
 		t.Stop()
 	}
-	h.offline[uid] = time.AfterFunc(1500*time.Millisecond, func() {
-		h.mu.Lock()
-		delete(h.offline, uid)
-		h.mu.Unlock()
-		seat := h.dropIfOffline(uid)
+	p.offline[uid] = time.AfterFunc(1500*time.Millisecond, func() {
+		p.mu.Lock()
+		delete(p.offline, uid)
+		p.mu.Unlock()
+		seat := p.dropIfOffline(uid)
 		if seat == nil {
 			return
 		}
-		publishRoom(context.Background(), store, h, seat.RoomID, nil, Event{
+		p.announce(context.Background(), store, seat.RoomID, occupancyEvent{
 			Type:      "presence.left",
 			ChannelID: seat.ChannelID,
 			UID:       seat.UID,
 		})
 	})
-	h.mu.Unlock()
+	p.mu.Unlock()
 }
 
-func (h *Hub) DropSeat(uid string) *Seat {
-	if h == nil || uid == "" {
+func (p *Presence) DropSeat(uid string) *Seat {
+	if p == nil || uid == "" {
 		return nil
 	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.dropLocked(uid)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if t := p.offline[uid]; t != nil {
+		t.Stop()
+		delete(p.offline, uid)
+	}
+	return p.dropLocked(uid)
 }
 
-func (h *Hub) DropSeatInRoom(uid, roomID string) *Seat {
-	if h == nil || uid == "" || roomID == "" {
+func (p *Presence) DropSeatInRoom(uid, roomID string) *Seat {
+	if p == nil || uid == "" || roomID == "" {
 		return nil
 	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	seat := h.seats[uid]
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	seat := p.seats[uid]
 	if seat == nil || seat.RoomID != roomID {
 		return nil
 	}
-	delete(h.seats, uid)
+	delete(p.seats, uid)
 	copy := *seat
 	return &copy
 }
 
-func (h *Hub) DropChannel(channelID string) []Seat {
-	dropped := make([]Seat, 0)
-	if h == nil || channelID == "" {
-		return dropped
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	for uid, seat := range h.seats {
-		if seat.ChannelID != channelID {
-			continue
-		}
-		dropped = append(dropped, *seat)
-		delete(h.seats, uid)
-	}
-	return dropped
-}
-
-func (h *Hub) RenameSeat(uid, nickname string) {
-	if h == nil || uid == "" || nickname == "" {
+func (p *Presence) AnnounceLeft(ctx context.Context, store *db.DB, seat *Seat) {
+	if seat == nil {
 		return
 	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if seat := h.seats[uid]; seat != nil {
+	p.announce(ctx, store, seat.RoomID, occupancyEvent{
+		Type:      "presence.left",
+		ChannelID: seat.ChannelID,
+		UID:       seat.UID,
+	})
+}
+
+func (p *Presence) DropChannel(channelID string) {
+	if p == nil || channelID == "" {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for uid, seat := range p.seats {
+		if seat.ChannelID == channelID {
+			delete(p.seats, uid)
+		}
+	}
+}
+
+func (p *Presence) RenameSeat(uid, nickname string) {
+	if p == nil || uid == "" || nickname == "" {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if seat := p.seats[uid]; seat != nil {
 		seat.Nickname = nickname
 	}
 }
 
-func (h *Hub) SetSeatRole(uid, roomID, role string) {
-	if h == nil || uid == "" || roomID == "" {
+func (p *Presence) SetSeatRole(uid, roomID, role string) {
+	if p == nil || uid == "" || roomID == "" {
 		return
 	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if seat := h.seats[uid]; seat != nil && seat.RoomID == roomID {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if seat := p.seats[uid]; seat != nil && seat.RoomID == roomID {
 		seat.Role = role
 	}
 }
 
-func (h *Hub) handleMessage(ctx context.Context, store *db.DB, uid string, raw []byte) {
+func (p *Presence) HandleMessage(ctx context.Context, store *db.DB, uid string, raw []byte) {
+	if p == nil {
+		return
+	}
 	var msg struct {
 		Type      string `json:"type"`
 		RoomID    string `json:"roomId"`
@@ -279,22 +346,24 @@ func (h *Hub) handleMessage(ctx context.Context, store *db.DB, uid string, raw [
 	}
 	switch msg.Type {
 	case "presence.join":
-		h.JoinSala(ctx, store, uid, msg.RoomID, msg.ChannelID)
+		p.JoinSala(ctx, store, uid, msg.RoomID, msg.ChannelID)
 	case "presence.leave":
-		h.LeaveSala(ctx, store, uid)
+		p.LeaveSala(ctx, store, uid)
 	case "presence.move":
-		h.MoveSala(ctx, store, uid, msg.UID, msg.RoomID, msg.ChannelID)
+		p.MoveSala(ctx, store, uid, msg.UID, msg.RoomID, msg.ChannelID)
+	case "presence.sync":
+		p.Sync(ctx, store, uid, msg.RoomID)
 	}
 }
 
-func (h *Hub) place(uid, nickname, role, roomID, channelID string) (left *Seat, joined *Seat, full bool) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.placeLocked(uid, nickname, role, roomID, channelID)
+func (p *Presence) place(uid, nickname, role, roomID, channelID string) (left *Seat, joined *Seat, full bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.placeLocked(uid, nickname, role, roomID, channelID)
 }
 
-func (h *Hub) placeLocked(uid, nickname, role, roomID, channelID string) (left *Seat, joined *Seat, full bool) {
-	current := h.seats[uid]
+func (p *Presence) placeLocked(uid, nickname, role, roomID, channelID string) (left *Seat, joined *Seat, full bool) {
+	current := p.seats[uid]
 	if current != nil && current.RoomID == roomID && current.ChannelID == channelID {
 		current.Nickname = nickname
 		current.Role = role
@@ -302,7 +371,7 @@ func (h *Hub) placeLocked(uid, nickname, role, roomID, channelID string) (left *
 	}
 
 	occupied := 0
-	for _, seat := range h.seats {
+	for _, seat := range p.seats {
 		if seat.ChannelID == channelID && seat.UID != uid {
 			occupied++
 		}
@@ -314,7 +383,7 @@ func (h *Hub) placeLocked(uid, nickname, role, roomID, channelID string) (left *
 	if current != nil {
 		copy := *current
 		left = &copy
-		delete(h.seats, uid)
+		delete(p.seats, uid)
 	}
 
 	next := &Seat{
@@ -325,39 +394,39 @@ func (h *Hub) placeLocked(uid, nickname, role, roomID, channelID string) (left *
 		ChannelID: channelID,
 		JoinedAt:  time.Now().UnixMilli(),
 	}
-	h.seats[uid] = next
+	p.seats[uid] = next
 	copy := *next
 	return left, &copy, false
 }
 
-func (h *Hub) dropIfOffline(uid string) *Seat {
-	if h == nil || uid == "" {
+func (p *Presence) dropIfOffline(uid string) *Seat {
+	if p == nil || uid == "" {
 		return nil
 	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if len(h.clients[uid]) > 0 {
+	if p.hub.Online(uid) {
 		return nil
 	}
-	return h.dropLocked(uid)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.dropLocked(uid)
 }
 
-func (h *Hub) dropLocked(uid string) *Seat {
-	seat := h.seats[uid]
+func (p *Presence) dropLocked(uid string) *Seat {
+	seat := p.seats[uid]
 	if seat == nil {
 		return nil
 	}
-	delete(h.seats, uid)
+	delete(p.seats, uid)
 	copy := *seat
 	return &copy
 }
 
-func publishRoom(ctx context.Context, store *db.DB, hub *Hub, roomID string, extra []string, ev Event) {
-	if hub == nil {
+func (p *Presence) announce(ctx context.Context, store *db.DB, roomID string, ev occupancyEvent) {
+	if p == nil || p.hub == nil {
 		return
 	}
 	ev.RoomID = strings.TrimSpace(roomID)
-	uids := append([]string{}, extra...)
+	uids := []string{}
 	id, err := uuid.Parse(ev.RoomID)
 	if err == nil && store != nil {
 		members, err := store.Queries.ListMemberUIDsByRoom(ctx, id)
@@ -365,5 +434,5 @@ func publishRoom(ctx context.Context, store *db.DB, hub *Hub, roomID string, ext
 			uids = append(uids, members...)
 		}
 	}
-	hub.Send(uids, ev)
+	p.hub.SendJSON(uids, ev)
 }

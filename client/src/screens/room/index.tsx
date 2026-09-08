@@ -16,9 +16,13 @@ import {
   setMemberRole,
   updateChannel as patchSala,
   type RoomDetails,
-  type RoomOccupant,
 } from "../../api";
-import { sendRealtime, subscribeRealtime } from "../../realtime";
+import { subscribeRealtime } from "../../realtime";
+import {
+  sendOccupancy,
+  subscribeOccupancy,
+  type Occupant,
+} from "../../occupancy";
 import { playConnectSound, playDisconnectSound } from "../../sounds";
 import {
   ChannelBlock,
@@ -358,7 +362,16 @@ function formatOnline(since: number) {
 
 const CHANNEL_CAP = 12;
 
-function occupantUser(occupant: RoomOccupant): TreeUser {
+function rosterFromDetails(details: RoomDetails): TreeChannel[] {
+  return details.channels.map((channel) => ({
+    id: channel.id,
+    name: channel.name,
+    description: channel.description,
+    users: [],
+  }));
+}
+
+function occupantUser(occupant: Occupant): TreeUser {
   return {
     id: occupant.uid,
     nick: occupant.nickname,
@@ -368,26 +381,13 @@ function occupantUser(occupant: RoomOccupant): TreeUser {
   };
 }
 
-function rosterFromDetails(details: RoomDetails): TreeChannel[] {
-  const occupancy = details.occupancy ?? [];
-  return details.channels.map((channel) => ({
-    id: channel.id,
-    name: channel.name,
-    description: channel.description,
-    users: occupancy
-      .filter((item) => item.channelId === channel.id)
-      .map(occupantUser),
-  }));
-}
-
-function removeUid(users: TreeUser[], uid: string): TreeUser[] {
-  return users.filter((user) => user.id !== uid);
-}
-
-function upsertUid(users: TreeUser[], user: TreeUser): TreeUser[] {
-  const next = [...removeUid(users, user.id), user];
+function upsertOccupant(occupants: Occupant[], occupant: Occupant): Occupant[] {
+  const next = [
+    ...occupants.filter((item) => item.uid !== occupant.uid),
+    occupant,
+  ];
   next.sort(
-    (a, b) => a.onlineSince - b.onlineSince || a.id.localeCompare(b.id),
+    (a, b) => a.joinedAt - b.joinedAt || a.uid.localeCompare(b.uid),
   );
   return next;
 }
@@ -418,9 +418,8 @@ function upsertChannel(
   ];
 }
 
-function salaIsFull(channel: TreeChannel | undefined, uid: string): boolean {
-  if (!channel) return false;
-  return channel.users.filter((user) => user.id !== uid).length >= CHANNEL_CAP;
+function salaIsFull(occupants: Occupant[], channelId: string, uid: string): boolean {
+  return occupants.filter((item) => item.channelId === channelId && item.uid !== uid).length >= CHANNEL_CAP;
 }
 const CHANNEL_NAME_MAX = 24;
 const CHANNEL_DESC_MAX = 80;
@@ -513,6 +512,7 @@ export function RoomScreen({
   onOccupancyChange,
 }: RoomScreenProps) {
   const [roster, setRoster] = useState<TreeChannel[]>([]);
+  const [occupants, setOccupants] = useState<Occupant[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileState | null>(null);
@@ -558,11 +558,13 @@ export function RoomScreen({
 
   useEffect(() => {
     setRoster([]);
+    setOccupants([]);
   }, [room.roomId]);
 
   useEffect(() => {
     let cancelled = false;
     setSalaError("");
+    sendOccupancy({ type: "presence.sync", roomId: room.roomId });
 
     void getRoom({ roomId: room.roomId, uid: identity.uid })
       .then((details) => {
@@ -586,90 +588,30 @@ export function RoomScreen({
   useEffect(() => {
     return subscribeRealtime((event) => {
       if (event.type === "user.nickname") {
-        setRoster((prev) =>
-          prev.map((channel) => ({
-            ...channel,
-            users: channel.users.map((user) =>
-              user.id === event.uid ? { ...user, nick: event.nickname } : user,
-            ),
-          })),
+        setOccupants((prev) =>
+          prev.map((item) =>
+            item.uid === event.uid ? { ...item, nickname: event.nickname } : item,
+          ),
         );
         return;
       }
 
       if (!("roomId" in event) || event.roomId !== room.roomId) return;
 
-      if (event.type === "presence.joined") {
-        const occupant = occupantUser({
-          uid: event.uid,
-          nickname: event.nickname,
-          role: event.role,
-          channelId: event.channelId,
-          joinedAt: event.joinedAt,
-        });
-        setRoster((prev) =>
-          prev.map((channel) => ({
-            ...channel,
-            users:
-              channel.id === event.channelId
-                ? upsertUid(channel.users, occupant)
-                : removeUid(channel.users, event.uid),
-          })),
-        );
-        if (
-          event.uid !== identity.uid &&
-          event.channelId === currentIdRef.current &&
-          !deafenedRef.current
-        ) {
-          playConnectSound();
-        }
-        return;
-      }
-
-      if (event.type === "presence.left") {
-        const wasHere = event.channelId === currentIdRef.current;
-        setRoster((prev) =>
-          prev.map((channel) => ({
-            ...channel,
-            users: removeUid(channel.users, event.uid),
-          })),
-        );
-        if (event.uid !== identity.uid && wasHere && !deafenedRef.current) {
-          playDisconnectSound();
-        }
-        return;
-      }
-
-      if (event.type === "presence.full") {
-        if (currentIdRef.current === event.channelId) {
-          onLeaveSalaRef.current();
-          setDraft("");
-        }
-        return;
-      }
-
       if (
         event.type === "member.left" ||
         event.type === "member.kicked" ||
         event.type === "member.blocked"
       ) {
-        setRoster((prev) =>
-          prev.map((channel) => ({
-            ...channel,
-            users: removeUid(channel.users, event.uid),
-          })),
-        );
+        setOccupants((prev) => prev.filter((item) => item.uid !== event.uid));
         return;
       }
 
       if (event.type === "member.role") {
-        setRoster((prev) =>
-          prev.map((channel) => ({
-            ...channel,
-            users: channel.users.map((user) =>
-              user.id === event.uid ? { ...user, role: event.role } : user,
-            ),
-          })),
+        setOccupants((prev) =>
+          prev.map((item) =>
+            item.uid === event.uid ? { ...item, role: event.role } : item,
+          ),
         );
         return;
       }
@@ -704,6 +646,9 @@ export function RoomScreen({
         setRoster((prev) =>
           prev.filter((channel) => channel.id !== event.channelId),
         );
+        setOccupants((prev) =>
+          prev.filter((item) => item.channelId !== event.channelId),
+        );
         setChats((prev) => {
           const next = { ...prev };
           delete next[event.channelId];
@@ -727,17 +672,60 @@ export function RoomScreen({
   }, [room.roomId, identity.uid]);
 
   useEffect(() => {
+    return subscribeOccupancy((event) => {
+      if (!("roomId" in event) || event.roomId !== room.roomId) return;
+
+      if (event.type === "presence.state") {
+        setOccupants(event.occupants);
+        return;
+      }
+
+      if (event.type === "presence.joined") {
+        setOccupants((prev) =>
+          upsertOccupant(prev, {
+            uid: event.uid,
+            nickname: event.nickname,
+            role: event.role,
+            channelId: event.channelId,
+            joinedAt: event.joinedAt,
+          }),
+        );
+        if (
+          event.uid !== identity.uid &&
+          event.channelId === currentIdRef.current &&
+          !deafenedRef.current
+        ) {
+          playConnectSound();
+        }
+        return;
+      }
+
+      if (event.type === "presence.left") {
+        const wasHere = event.channelId === currentIdRef.current;
+        setOccupants((prev) => prev.filter((item) => item.uid !== event.uid));
+        if (event.uid !== identity.uid && wasHere && !deafenedRef.current) {
+          playDisconnectSound();
+        }
+        return;
+      }
+
+      if (event.type === "presence.full") {
+        if (currentIdRef.current === event.channelId) {
+          onLeaveSalaRef.current();
+          setDraft("");
+        }
+      }
+    });
+  }, [room.roomId, identity.uid]);
+
+  useEffect(() => {
     saveSalaOpen(room.roomId, open);
   }, [room.roomId, open]);
 
   useEffect(() => {
-    const uids = [
-      ...new Set(
-        roster.flatMap((channel) => channel.users.map((user) => user.id)),
-      ),
-    ];
+    const uids = [...new Set(occupants.map((item) => item.uid))];
     onOccupancyChange?.(room.roomId, uids);
-  }, [roster, room.roomId, onOccupancyChange]);
+  }, [occupants, room.roomId, onOccupancyChange]);
 
   useEffect(() => {
     const roomId = room.roomId;
@@ -757,11 +745,12 @@ export function RoomScreen({
   };
 
   const channels = roster.map((channel) => {
-    const users = channel.users.map((user) =>
-      user.id === identity.uid
-        ? { ...you, onlineSince: user.onlineSince }
-        : user,
-    );
+    const users = occupants
+      .filter((item) => item.channelId === channel.id)
+      .map((item) => occupantUser(item))
+      .map((user) =>
+        user.id === identity.uid ? { ...you, onlineSince: user.onlineSince } : user,
+      );
     if (channel.id === currentId && !users.some((user) => user.id === identity.uid)) {
       return { ...channel, users: [you, ...users] };
     }
@@ -885,7 +874,7 @@ export function RoomScreen({
   function joinChannel(id: string) {
     setOpen((prev) => ({ ...prev, [id]: true }));
     if (id === currentId) return;
-    if (salaIsFull(roster.find((channel) => channel.id === id), identity.uid)) {
+    if (salaIsFull(occupants, id, identity.uid)) {
       return;
     }
 
@@ -911,11 +900,12 @@ export function RoomScreen({
 
     if (!canMoveOthers) return;
 
-    const target = roster.find((channel) => channel.id === channelId);
-    if (target?.users.some((item) => item.id === userId)) return;
-    if (salaIsFull(target, userId)) return;
+    if (occupants.some((item) => item.uid === userId && item.channelId === channelId)) {
+      return;
+    }
+    if (salaIsFull(occupants, channelId, userId)) return;
 
-    sendRealtime({
+    sendOccupancy({
       type: "presence.move",
       roomId: room.roomId,
       channelId,
@@ -970,15 +960,12 @@ export function RoomScreen({
         memberUid: userId,
         role: makeAdmin ? "admin" : "member",
       });
-      setRoster((prev) =>
-        prev.map((channel) => ({
-          ...channel,
-          users: channel.users.map((user) =>
-            user.id === userId
-              ? { ...user, role: makeAdmin ? "admin" : "member" }
-              : user,
-          ),
-        })),
+      setOccupants((prev) =>
+        prev.map((item) =>
+          item.uid === userId
+            ? { ...item, role: makeAdmin ? "admin" : "member" }
+            : item,
+        ),
       );
     } catch {
       /* cargo na árvore volta no próximo passo de presença */

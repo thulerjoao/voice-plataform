@@ -24,14 +24,3 @@ func publish(ctx context.Context, store *db.DB, hub *realtime.Hub, roomID string
 	}
 	hub.Send(uids, ev)
 }
-
-func publishSeatLeft(ctx context.Context, store *db.DB, hub *realtime.Hub, seat *realtime.Seat) {
-	if seat == nil {
-		return
-	}
-	publish(ctx, store, hub, seat.RoomID, nil, realtime.Event{
-		Type:      "presence.left",
-		ChannelID: seat.ChannelID,
-		UID:       seat.UID,
-	})
-}
