@@ -1,4 +1,4 @@
-import styled, { css, keyframes } from "styled-components";
+import styled from "styled-components";
 
 export const RoomShell = styled.div`
   flex: 1;
@@ -259,11 +259,6 @@ export const UserList = styled.ul`
   list-style: none;
   margin: 0.3rem 0 0.25rem;
   padding: 0 0 0 1.35rem;
-`;
-
-const talkPulse = keyframes`
-  0%, 100% { background-color: var(--dot); }
-  50% { background-color: transparent; }
 `;
 
 export const UserRow = styled.li<{
@@ -629,52 +624,6 @@ export const PokeSend = styled.button`
   }
 `;
 
-export const PokeOverlay = styled.div`
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  padding: 1.25rem;
-  background: rgba(0, 0, 0, 0.45);
-`;
-
-export const PokeAlert = styled.div`
-  width: min(22rem, 100%);
-  padding: 1rem 1.05rem 1.05rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.75rem;
-  background: #2c2c2e;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
-`;
-
-export const PokeAlertKicker = styled.div`
-  color: #7eb0ff;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-`;
-
-export const PokeAlertFrom = styled.div`
-  margin-top: 0.35rem;
-  font-size: 1.05rem;
-  font-weight: 700;
-`;
-
-export const PokeAlertText = styled.p`
-  margin: 0.7rem 0 0;
-  color: #f5f5f7;
-  font-size: 0.92rem;
-  line-height: 1.4;
-`;
-
-export const PokeAlertNote = styled.p`
-  margin: 0.55rem 0 0;
-  color: #8d8d93;
-  font-size: 0.7rem;
-`;
-
 export const StatusDot = styled.span<{ $color: string; $talking?: boolean }>`
   box-sizing: border-box;
   width: 0.5rem;
@@ -682,13 +631,8 @@ export const StatusDot = styled.span<{ $color: string; $talking?: boolean }>`
   flex-shrink: 0;
   border-radius: 999px;
   border: 1.5px solid ${(p) => p.$color};
-  background: transparent;
-  --dot: ${(p) => p.$color};
-  ${(p) =>
-    p.$talking &&
-    css`
-      animation: ${talkPulse} 1s ease-in-out infinite;
-    `}
+  background: ${(p) => (p.$talking ? p.$color : "transparent")};
+  transition: background-color 80ms linear;
 `;
 
 export const UserFlag = styled.span`
@@ -738,6 +682,14 @@ export const UserName = styled.span`
   white-space: nowrap;
 `;
 
+export const UserRole = styled.span`
+  flex-shrink: 0;
+  color: #8d8d93;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+`;
+
 export const Splitter = styled.div`
   flex-shrink: 0;
   height: 0.55rem;
@@ -770,17 +722,83 @@ export const Chat = styled.section<{ $height?: number }>`
   flex-shrink: 0;
   height: ${(p) => (p.$height == null ? "11.5rem" : `${p.$height}px`)};
   min-height: 0;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.55rem;
   background: #1c1c1e;
 `;
 
 export const ChatHead = styled.div`
-  padding: 0.4rem 0.7rem;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  color: #a1a1a6;
+`;
+
+export const ChatTabs = styled.div`
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+`;
+
+export const ChatTab = styled.div<{ $active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  min-width: 6.25rem;
+  max-width: 8rem;
+  height: 1.85rem;
+  padding: 0 0.4rem 0 0.55rem;
+  border: 0;
+  border-bottom: 2px solid ${(p) => (p.$active ? "#2f6fed" : "transparent")};
+  background: ${(p) => (p.$active ? "rgba(255, 255, 255, 0.06)" : "transparent")};
+  color: ${(p) => (p.$active ? "#f5f5f7" : "#8d8d93")};
   font-size: 0.75rem;
   font-weight: 600;
+  cursor: pointer;
+
+  &:first-child {
+    border-top-left-radius: 0.5rem;
+  }
+
+  &:hover {
+    color: #f5f5f7;
+    background: rgba(255, 255, 255, 0.05);
+  }
+`;
+
+export const ChatTabLabel = styled.span`
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+export const ChatClose = styled.button`
+  display: grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: #8d8d93;
+  cursor: pointer;
+
+  svg {
+    width: 0.7rem;
+    height: 0.7rem;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f5f5f7;
+  }
 `;
 
 export const ChatLog = styled.div`

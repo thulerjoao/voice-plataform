@@ -37,7 +37,12 @@ function pluck(
   osc.stop(time + duration + 0.03);
 }
 
-function whoosh(ctx: AudioContext, dest: AudioNode, time: number) {
+function whoosh(
+  ctx: AudioContext,
+  dest: AudioNode,
+  time: number,
+  down = false,
+) {
   const length = Math.floor(ctx.sampleRate * 0.14);
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -52,8 +57,13 @@ function whoosh(ctx: AudioContext, dest: AudioNode, time: number) {
   const filter = ctx.createBiquadFilter();
   filter.type = "bandpass";
   filter.Q.value = 5;
-  filter.frequency.setValueAtTime(380, time);
-  filter.frequency.exponentialRampToValueAtTime(2100, time + 0.11);
+  if (down) {
+    filter.frequency.setValueAtTime(2100, time);
+    filter.frequency.exponentialRampToValueAtTime(280, time + 0.11);
+  } else {
+    filter.frequency.setValueAtTime(380, time);
+    filter.frequency.exponentialRampToValueAtTime(2100, time + 0.11);
+  }
 
   const env = ctx.createGain();
   env.gain.setValueAtTime(0.2, time);
@@ -123,6 +133,23 @@ export function playConnectSound() {
     pluck(ctx, master, now + 0.04, 392, 0.22, 0.45);
     pluck(ctx, master, now + 0.12, 523.25, 0.3, 0.55);
     pluck(ctx, master, now + 0.21, 659.25, 0.36, 0.4);
+  } catch {
+    // Autoplay bloqueado ou Web Audio indisponível — silêncio.
+  }
+}
+
+export function playDisconnectSound() {
+  try {
+    const ctx = audioContext();
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.18 * loadMasterGain(), now);
+    master.connect(ctx.destination);
+
+    whoosh(ctx, master, now, true);
+    pluck(ctx, master, now + 0.03, 523.25, 0.2, 0.5);
+    pluck(ctx, master, now + 0.11, 392, 0.26, 0.42);
+    pluck(ctx, master, now + 0.2, 293.66, 0.32, 0.32);
   } catch {
     // Autoplay bloqueado ou Web Audio indisponível — silêncio.
   }

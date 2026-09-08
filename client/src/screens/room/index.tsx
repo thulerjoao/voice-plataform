@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { Bookmark } from "../../bookmarks";
 import type { Identity } from "../../identity";
-import { playConnectSound, playPokeSound } from "../../sounds";
+import { playConnectSound, playDisconnectSound } from "../../sounds";
 import {
   ChannelBlock,
   ChannelCount,
@@ -19,6 +19,7 @@ import {
   ChannelName,
   ChannelRow,
   Chat,
+  ChatClose,
   ChatForm,
   ChatHead,
   ChatInput,
@@ -26,24 +27,19 @@ import {
   ChatLog,
   ChatNick,
   ChatSend,
+  ChatTab,
+  ChatTabLabel,
+  ChatTabs,
   Chevron,
   Copied,
   CopyButton,
   Invite,
   InviteCode,
   LeaveButton,
-  PokeAlert,
-  PokeAlertFrom,
-  PokeAlertKicker,
-  PokeAlertNote,
-  PokeAlertText,
   PokeForm,
   PokeInput,
-  PokeOverlay,
   PokeSend,
-  ProfileActions,
   ProfileAdminLink,
-  ProfileButton,
   ProfileCard,
   ProfileConnected,
   ProfileHead,
@@ -75,6 +71,7 @@ import {
   UserLeave,
   UserList,
   UserName,
+  UserRole,
   UserRow,
 } from "./style";
 
@@ -99,9 +96,16 @@ type ProfileState = {
   y: number;
 };
 
-type PokeAlertState = {
-  from: string;
+type ChatMessage = {
+  id: string;
+  nick: string;
   text: string;
+};
+
+type DirectThread = {
+  nick: string;
+  lines: ChatMessage[];
+  draft: string;
 };
 
 type MockChannel = {
@@ -111,18 +115,17 @@ type MockChannel = {
   users: MockUser[];
 };
 
-type ChatMessage = {
-  id: string;
-  nick: string;
-  text: string;
-};
-
 type RoomScreenProps = {
   room: Bookmark;
   identity: Identity;
   muted?: boolean;
   deafened?: boolean;
+  currentId: string | null;
+  talking?: boolean;
+  presence: Presence;
   onLeave: () => void;
+  onJoinSala: (salaId: string) => void;
+  onLeaveSala: () => void;
 };
 
 const PRESENCE_COLOR: Record<Presence, string> = {
@@ -140,6 +143,12 @@ const PRESENCE_LABEL: Record<Presence, string> = {
 const ROLE_LABEL: Record<Role, string> = {
   owner: "Dono",
   admin: "Administrador",
+  member: "Membro",
+};
+
+const ROLE_TREE_LABEL: Record<Role, string> = {
+  owner: "Dono",
+  admin: "Admin",
   member: "Membro",
 };
 
@@ -349,7 +358,6 @@ function mockChannels(): MockChannel[] {
           id: "joao",
           nick: "joaov",
           presence: "online",
-          talking: true,
           onlineSince: minutesAgo(8),
         },
         {
@@ -395,7 +403,6 @@ function mockChannels(): MockChannel[] {
           id: "pedro",
           nick: "Pedro",
           presence: "online",
-          talking: true,
           onlineSince: minutesAgo(41),
         },
         {
@@ -582,18 +589,23 @@ export function RoomScreen({
   identity,
   muted,
   deafened,
+  currentId,
+  talking,
+  presence,
   onLeave,
+  onJoinSala,
+  onLeaveSala,
 }: RoomScreenProps) {
   const [roster, setRoster] = useState(() =>
     applySalaMeta(mockChannels(), loadSalaMeta(room.roomId)),
   );
-  const [currentId, setCurrentId] = useState<string | null>("geral");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileState | null>(null);
   const [pokeDraft, setPokeDraft] = useState("");
+  const [chatTab, setChatTab] = useState("sala");
+  const [directs, setDirects] = useState<Record<string, DirectThread>>({});
   const [volumes, setVolumes] = useState<Record<string, number>>({});
-  const [incoming, setIncoming] = useState<PokeAlertState | null>(null);
   const [salaCard, setSalaCard] = useState<ProfileState | null>(null);
   const [editingSala, setEditingSala] = useState(false);
   const [salaDraft, setSalaDraft] = useState("");
@@ -617,7 +629,7 @@ export function RoomScreen({
   const [copied, setCopied] = useState(false);
   const [chatHeight, setChatHeight] = useState<number | null>(loadChatHeight);
   const shellRef = useRef<HTMLDivElement>(null);
-  const chatRef = useRef<HTMLElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
   const chatHeightRef = useRef(chatHeight);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
   chatHeightRef.current = chatHeight;
@@ -633,11 +645,12 @@ export function RoomScreen({
   const you: MockUser = {
     id: "you",
     nick: identity.nickname,
-    presence: "online",
+    presence,
     role: myRole,
     onlineSince: youSince,
     muted: muted || deafened,
     deafened,
+    talking,
     you: true,
   };
 
@@ -647,6 +660,7 @@ export function RoomScreen({
       : channel,
   );
   const current = channels.find((item) => item.id === currentId) ?? null;
+  const direct = chatTab !== "sala" ? (directs[chatTab] ?? null) : null;
   const profileUser =
     profile == null
       ? null
@@ -751,7 +765,7 @@ export function RoomScreen({
     setOpen((prev) => ({ ...prev, [id]: true }));
     if (id === currentId) return;
 
-    setCurrentId(id);
+    onJoinSala(id);
     setDraft("");
     if (!deafened) playConnectSound();
   }
@@ -760,8 +774,9 @@ export function RoomScreen({
     event.preventDefault();
     event.stopPropagation();
     if (!currentId) return;
-    setCurrentId(null);
+    onLeaveSala();
     setDraft("");
+    if (!deafened) playDisconnectSound();
   }
 
   function moveUser(userId: string, channelId: string) {
@@ -792,7 +807,17 @@ export function RoomScreen({
       }));
     });
     setOpen((prev) => ({ ...prev, [channelId]: true }));
-    if (channelId === currentId && !deafened) playConnectSound();
+    if (deafened) return;
+    if (channelId === currentId) playConnectSound();
+    else if (
+      roster.some(
+        (channel) =>
+          channel.id === currentId &&
+          channel.users.some((item) => item.id === userId),
+      )
+    ) {
+      playDisconnectSound();
+    }
   }
 
   function handleUserDragStart(
@@ -851,14 +876,54 @@ export function RoomScreen({
     const text = pokeDraft.trim();
     if (!text || !profileUser || profileUser.you) return;
 
+    const line: ChatMessage = {
+      id: `dm-${Date.now()}`,
+      nick: identity.nickname,
+      text,
+    };
+    setDirects((prev) => {
+      const existing = prev[profileUser.id];
+      return {
+        ...prev,
+        [profileUser.id]: {
+          nick: profileUser.nick,
+          draft: existing?.draft ?? "",
+          lines: [...(existing?.lines ?? []), line],
+        },
+      };
+    });
+    setChatTab(profileUser.id);
     setPokeDraft("");
     setProfile(null);
-    setIncoming({ from: identity.nickname, text });
-    if (!deafened) playPokeSound();
   }
 
-  function closePoke() {
-    setIncoming(null);
+  function handleDirect(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!direct) return;
+    const text = direct.draft.trim();
+    if (!text) return;
+    const line: ChatMessage = {
+      id: `dm-${Date.now()}`,
+      nick: identity.nickname,
+      text,
+    };
+    setDirects((prev) => {
+      const existing = prev[chatTab];
+      if (!existing) return prev;
+      return {
+        ...prev,
+        [chatTab]: { ...existing, draft: "", lines: [...existing.lines, line] },
+      };
+    });
+  }
+
+  function closeDirect(userId: string) {
+    setDirects((prev) => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
+    if (chatTab === userId) setChatTab("sala");
   }
 
   function handleUserDragEnd() {
@@ -994,8 +1059,9 @@ export function RoomScreen({
       return next;
     });
     if (currentId === id) {
-      setCurrentId(null);
+      onLeaveSala();
       setDraft("");
+      if (!deafened) playDisconnectSound();
     }
     setSalaCard(null);
     setEditingSala(false);
@@ -1124,6 +1190,11 @@ export function RoomScreen({
                           $talking={user.talking}
                         />
                         <UserName>{user.nick}</UserName>
+                        {user.you ? (
+                          <UserRole>
+                           - {ROLE_TREE_LABEL[user.role ?? "member"]}
+                          </UserRole>
+                        ) : null}
                         {user.muted ? (
                           <UserFlag title="Mudo">
                             <MicOffIcon />
@@ -1329,26 +1400,6 @@ export function RoomScreen({
         </ProfileCard>
       ) : null}
 
-      {incoming ? (
-        <PokeOverlay onClick={closePoke}>
-          <PokeAlert
-            role="alertdialog"
-            aria-label="Recado"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <PokeAlertKicker>Alguém quer falar com você</PokeAlertKicker>
-            <PokeAlertFrom>{incoming.from}</PokeAlertFrom>
-            <PokeAlertText>{incoming.text}</PokeAlertText>
-            <PokeAlertNote>Visualização única · some ao fechar</PokeAlertNote>
-            <ProfileActions>
-              <ProfileButton type="button" onClick={closePoke}>
-                Fechar
-              </ProfileButton>
-            </ProfileActions>
-          </PokeAlert>
-        </PokeOverlay>
-      ) : null}
-
       <Splitter
         role="separator"
         aria-orientation="horizontal"
@@ -1360,39 +1411,104 @@ export function RoomScreen({
       />
 
       <Chat ref={chatRef} $height={chatHeight ?? undefined}>
-        <ChatHead>{current ? `Chat · ${current.name}` : "Chat"}</ChatHead>
-        <ChatLog>
-          {!current ? (
-            <ChatLine style={{ color: "#8d8d93" }}>
-              Entre numa sala para conversar.
-            </ChatLine>
-          ) : (chats[current.id] ?? []).length === 0 ? (
-            <ChatLine style={{ color: "#8d8d93" }}>
-              Nenhuma mensagem neste canal.
-            </ChatLine>
-          ) : (
-            (chats[current.id] ?? []).map((line) => (
-              <ChatLine key={line.id}>
-                <ChatNick>{line.nick}:</ChatNick> {line.text}
-              </ChatLine>
-            ))
-          )}
-        </ChatLog>
-        <ChatForm onSubmit={handleChat}>
-          <ChatInput
-            value={draft}
-            disabled={!current}
-            placeholder={
-              current
-                ? `Mensagem em ${current.name}`
-                : "Entre numa sala para conversar"
-            }
-            onChange={(event) => setDraft(event.target.value)}
-          />
-          <ChatSend type="submit" disabled={!current}>
-            Enviar
-          </ChatSend>
-        </ChatForm>
+        <ChatHead>
+          <ChatTabs>
+            <ChatTab
+              $active={chatTab === "sala"}
+              title={current ? `Chat · ${current.name}` : "Chat"}
+              onClick={() => setChatTab("sala")}
+            >
+              <ChatTabLabel>
+                {current ? `Chat · ${current.name}` : "Chat"}
+              </ChatTabLabel>
+            </ChatTab>
+            {Object.entries(directs).map(([id, thread]) => (
+              <ChatTab
+                key={id}
+                $active={chatTab === id}
+                title={thread.nick}
+                onClick={() => setChatTab(id)}
+              >
+                <ChatTabLabel>{thread.nick}</ChatTabLabel>
+                <ChatClose
+                  type="button"
+                  title="Fechar conversa"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    closeDirect(id);
+                  }}
+                >
+                  <CloseIcon />
+                </ChatClose>
+              </ChatTab>
+            ))}
+          </ChatTabs>
+        </ChatHead>
+        {direct ? (
+          <>
+            <ChatLog>
+              {direct.lines.map((line) => (
+                <ChatLine key={line.id}>
+                  <ChatNick>{line.nick}:</ChatNick> {line.text}
+                </ChatLine>
+              ))}
+            </ChatLog>
+            <ChatForm onSubmit={handleDirect}>
+              <ChatInput
+                value={direct.draft}
+                placeholder={`Mensagem para ${direct.nick}`}
+                onChange={(event) =>
+                  setDirects((prev) => {
+                    const existing = prev[chatTab];
+                    if (!existing) return prev;
+                    return {
+                      ...prev,
+                      [chatTab]: { ...existing, draft: event.target.value },
+                    };
+                  })
+                }
+              />
+              <ChatSend type="submit" disabled={!direct.draft.trim()}>
+                Enviar
+              </ChatSend>
+            </ChatForm>
+          </>
+        ) : (
+          <>
+            <ChatLog>
+              {!current ? (
+                <ChatLine style={{ color: "#8d8d93" }}>
+                  Entre numa sala para conversar.
+                </ChatLine>
+              ) : (chats[current.id] ?? []).length === 0 ? (
+                <ChatLine style={{ color: "#8d8d93" }}>
+                  Nenhuma mensagem neste canal.
+                </ChatLine>
+              ) : (
+                (chats[current.id] ?? []).map((line) => (
+                  <ChatLine key={line.id}>
+                    <ChatNick>{line.nick}:</ChatNick> {line.text}
+                  </ChatLine>
+                ))
+              )}
+            </ChatLog>
+            <ChatForm onSubmit={handleChat}>
+              <ChatInput
+                value={draft}
+                disabled={!current}
+                placeholder={
+                  current
+                    ? `Mensagem em ${current.name}`
+                    : "Entre numa sala para conversar"
+                }
+                onChange={(event) => setDraft(event.target.value)}
+              />
+              <ChatSend type="submit" disabled={!current}>
+                Enviar
+              </ChatSend>
+            </ChatForm>
+          </>
+        )}
       </Chat>
     </RoomShell>
   );

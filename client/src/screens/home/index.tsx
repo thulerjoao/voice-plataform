@@ -33,6 +33,7 @@ import {
   subscribeAudioSettings,
 } from "../../audio-settings";
 import { playMuteSound, playUnmuteSound } from "../../sounds";
+import { useTalking } from "../../use-talking";
 import { CreateRoomScreen } from "../create-room";
 import { JoinRoomScreen } from "../join-room";
 import { RoomScreen } from "../room";
@@ -48,6 +49,7 @@ import {
   Header,
   HeaderCopy,
   Main,
+  RoomMount,
   NavItem,
   NickButton,
   NickEdit,
@@ -66,9 +68,8 @@ import {
   DockButton,
   SidebarRoom,
   SidebarRoomButton,
-  SidebarRoomCode,
+  SidebarCallMark,
   SidebarRoomIcon,
-  SidebarRoomMeta,
   SidebarRoomName,
   SidebarRooms,
   StatusButton,
@@ -84,6 +85,11 @@ import {
 type HomeScreenProps = {
   identity: Identity;
   onNicknameChange: (identity: Identity) => void;
+};
+
+type VoiceCall = {
+  roomId: string;
+  salaId: string;
 };
 
 type View =
@@ -348,6 +354,25 @@ function VolumeIcon() {
   );
 }
 
+function CallMarkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4.5 9.5h3.2L12 6v12l-4.3-3.5H4.5V9.5z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15.2 9.4a3.2 3.2 0 0 1 0 5.2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function GearIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -416,6 +441,8 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
   const [outputVolume, setOutputVolume] = useState(
     () => loadAudioSettings().outputVolume,
   );
+  const [call, setCall] = useState<VoiceCall | null>(null);
+  const talking = useTalking(Boolean(call) && !muted && !deafened);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(identity.nickname);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -424,10 +451,18 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
   const silencedRef = useRef<boolean | null>(null);
   const currentStatus = statusMeta(status);
   const created = view.type === "create" ? view.created : undefined;
-  const openRoom =
-    view.type === "room"
-      ? rooms.find((room) => room.roomId === view.roomId)
-      : undefined;
+  const visibleRoomId = view.type === "room" ? view.roomId : undefined;
+  const viewingRoomId =
+    visibleRoomId ??
+    (view.type === "settings" && lastViewRef.current.type === "room"
+      ? lastViewRef.current.roomId
+      : undefined);
+  const callRoom = call
+    ? rooms.find((room) => room.roomId === call.roomId)
+    : undefined;
+  const mountedRooms = rooms.filter(
+    (room) => room.roomId === visibleRoomId || room.roomId === call?.roomId,
+  );
 
   function openEdit() {
     setDraft(identity.nickname);
@@ -607,6 +642,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
 
   function leaveRoomList(roomId: string) {
     setRooms(removeBookmark(roomId));
+    setCall((prev) => (prev?.roomId === roomId ? null : prev));
     setView({ type: "home" });
   }
 
@@ -652,23 +688,30 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
         </NavItem>
         {rooms.length > 0 ? (
           <SidebarRooms>
-            {rooms.map((room: Bookmark) => (
-              <SidebarRoom key={room.roomId}>
-                <SidebarRoomButton
-                  type="button"
-                  $active={openRoom?.roomId === room.roomId}
-                  onClick={() => enterRoom(room.roomId)}
-                >
-                  <SidebarRoomIcon>
-                    <PeopleIcon />
-                  </SidebarRoomIcon>
-                  <SidebarRoomMeta>
+            {rooms.map((room: Bookmark) => {
+              const live = call?.roomId === room.roomId;
+              return (
+                <SidebarRoom key={room.roomId}>
+                  <SidebarRoomButton
+                    type="button"
+                    $active={viewingRoomId === room.roomId}
+                    $live={live}
+                    onClick={() => enterRoom(room.roomId)}
+                    title={live ? `${room.name} · em uma sala` : room.name}
+                  >
+                    <SidebarRoomIcon $live={live}>
+                      <PeopleIcon />
+                    </SidebarRoomIcon>
                     <SidebarRoomName>{room.name}</SidebarRoomName>
-                    <SidebarRoomCode>{room.code}</SidebarRoomCode>
-                  </SidebarRoomMeta>
-                </SidebarRoomButton>
-              </SidebarRoom>
-            ))}
+                    {live ? (
+                      <SidebarCallMark aria-hidden="true">
+                        <CallMarkIcon />
+                      </SidebarCallMark>
+                    ) : null}
+                  </SidebarRoomButton>
+                </SidebarRoom>
+              );
+            })}
           </SidebarRooms>
         ) : null}
         <SidebarDock>
@@ -744,7 +787,27 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
         </SidebarDock>
       </Sidebar>
 
-      <Main $flush={Boolean(openRoom)}>
+      <Main $flush={view.type === "room"}>
+        {mountedRooms.map((room) => (
+          <RoomMount key={room.roomId} $hidden={room.roomId !== visibleRoomId}>
+            <RoomScreen
+              room={room}
+              identity={identity}
+              muted={muted}
+              deafened={deafened}
+              currentId={call?.roomId === room.roomId ? call.salaId : null}
+              talking={talking}
+              presence={status}
+              onLeave={() => leaveRoomList(room.roomId)}
+              onJoinSala={(salaId) => setCall({ roomId: room.roomId, salaId })}
+              onLeaveSala={() =>
+                setCall((prev) =>
+                  prev?.roomId === room.roomId ? null : prev,
+                )
+              }
+            />
+          </RoomMount>
+        ))}
         {view.type === "create" ? (
           <CreateRoomScreen
             identity={identity}
@@ -753,28 +816,22 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
             onCreated={handleCreated}
             onEnter={enterCreatedRoom}
           />
-        ) : view.type === "join" ? (
+        ) : null}
+        {view.type === "join" ? (
           <JoinRoomScreen
             identity={identity}
             onCancel={backToHome}
             onJoined={handleJoined}
           />
-        ) : view.type === "settings" ? (
+        ) : null}
+        {view.type === "settings" ? (
           <SettingsScreen
             onBack={closeSettings}
             deafened={deafened}
             onOutputVolume={handleOutputVolume}
           />
-        ) : openRoom ? (
-          <RoomScreen
-            key={openRoom.roomId}
-            room={openRoom}
-            identity={identity}
-            muted={muted}
-            deafened={deafened}
-            onLeave={() => leaveRoomList(openRoom.roomId)}
-          />
-        ) : (
+        ) : null}
+        {view.type === "home" ? (
           <>
             <Header>
               <HeaderCopy>
@@ -792,12 +849,16 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
               <EmptyTitle>
                 {rooms.length === 0
                   ? "Nenhum servidor ainda"
-                  : "Pronto para conversar"}
+                  : call
+                    ? "Você continua na call"
+                    : "Pronto para conversar"}
               </EmptyTitle>
               <EmptyText>
                 {rooms.length === 0
                   ? "Crie seu primeiro servidor ou entre em um existente para começar."
-                  : "Seus servidores estão à esquerda. Crie outro ou entre com um código."}
+                  : call
+                    ? `A marca azul na lista é ${callRoom?.name ?? "o servidor da call"}. Clique para voltar.`
+                    : "Seus servidores estão à esquerda. Crie outro ou entre com um código."}
               </EmptyText>
               <RoomActions
                 onCreate={() => setView({ type: "create" })}
@@ -805,7 +866,7 @@ export function HomeScreen({ identity, onNicknameChange }: HomeScreenProps) {
               />
             </Empty>
           </>
-        )}
+        ) : null}
       </Main>
     </Shell>
   );

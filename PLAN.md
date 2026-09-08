@@ -93,7 +93,7 @@ Se o `localStorage` for apagado (reinstalou, limpou dados, formatou o PC): a pes
 
 O backend grava um registro de cliente **por sala** (uid, nickname, papel) quando a pessoa cria ou entra.
 
-Status local (sidebar): **online**, **ocupado**, **volto logo**. Sem invisível — no P2P quem está no canal precisa aparecer. Por enquanto só no PC; a sinalização vem com o WebSocket.
+Status local (sidebar): **online**, **ocupado**, **volto logo**. A bolinha da **sua** linha nas salas segue esse status. Sem invisível — no P2P quem está no canal precisa aparecer. Por enquanto só no PC; a sinalização vem com o WebSocket.
 
 ---
 
@@ -105,7 +105,7 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. Sem invisível 
 2. A API gera um **código de acesso** (ex.: `K7P-TIGRE`), único.
 3. O `uid` de quem criou fica como **owner** e **admin**.
 4. Sala padrão: `Geral`.
-5. O client **entra sozinho** no servidor após criar.
+5. O client **entra sozinho** no servidor após criar (só visualiza; não entra em call).
 6. Bookmark salvo **só no PC** (nome, código, id do servidor).
 
 ### Entrar
@@ -117,7 +117,7 @@ Status local (sidebar): **online**, **ocupado**, **volto logo**. Sem invisível 
 
 ### Lista de servidores
 
-A sidebar é a lista local de **servidores** (bookmarks), não de salas. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
+A sidebar é a lista local de **servidores** (bookmarks), não de salas. Cada um é um bloco (nome, sem o código — código só ao criar / entrar). O servidor que você está **olhando** destaca; o da **call** ganha a marca. Olhar outro servidor, a home ou as configurações **não** sai da call. Entrar numa sala noutro servidor é que troca a call. O centro mostra o empty ou o servidor aberto — nunca a listagem. **Remover da lista** tira só o bookmark; o servidor continua no banco.
 
 ### Código vazou
 
@@ -133,7 +133,7 @@ No MVP: o dono **cria outro servidor**. O código serve para copiar e chamar gen
 
 ## 7. Papéis e presença
 
-Quem tem o código entra em qualquer canal. Status na árvore: bolinha **oca** (online / ocupado / volto logo). Mudo / ensurdecido: ícone azul à direita do nick. Quem está falando: a bolinha pisca **sólida**.
+Quem tem o código entra em qualquer canal. Status na árvore: bolinha **oca** (online / ocupado / volto logo). Mudo / ensurdecido: ícone azul à direita do nick. Quem está falando: a bolinha fica **sólida** (sua linha: o mic, corte do VAD ou PTT + voz; mudo/ensurdecido não).
 
 Cargos mínimos:
 
@@ -143,18 +143,18 @@ Cargos mínimos:
 | **Admin**  | mover gente + criar / renomear / apagar sala. Não mexe no dono nem rebaixa outro admin |
 | **Member** | entrar em sala e arrastar só a si                                                      |
 
-Cargo não aparece na listagem (você se reconhece pelo fundo). Cargo só na ficha.
+Cargo não aparece nas linhas dos outros (você se reconhece pelo fundo). Na **sua** linha, o papel fica discreto **à direita** do nick, só quando você está numa sala. Cargo completo na ficha.
 
-Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume local daquela pessoa, promover (só dono). Recado rápido: um toque, som no destinatário, some ao fechar, sem histórico.
+Clique no nick abre a **ficha**: status com bolinha, tempo conectado, volume local daquela pessoa, promover (só dono). Recado: envia a primeira mensagem e abre uma **aba** no chat (1:1). Uma conversa visível por vez; clicar na aba troca. Som no destinatário. Sem modal. Sem banco — some ao recarregar. Dá para fechar a aba e reabrir no mesmo uso.
 
 ---
 
 ## 8. Salas e voz
 
 - Um servidor tem N **salas** (layout tipo TS3: árvore + chat embaixo). Admin/dono abre a ficha da sala (engrenagem): **Nome** e **Descrição** no mesmo padrão do nickname (texto + lápis; input só ao editar; check salva neste PC). “Excluir sala” no fim da ficha (não apaga a última). **Nova sala** no fim da lista, só admin/dono. Na lista: **nome à esquerda**, descrição ao lado (reticências se for longa), `n/12`. Expandir/recolher a árvore fica neste PC.
-- Ao abrir um servidor na sidebar, o client cai no `Geral` (sem som). À direita da **sua** linha, **Sair** tira da sala e fica no servidor sem estar em nenhuma (sem som). Chat só com sala.
+- Ao abrir um servidor (sidebar, criar ou entrar), você **só visualiza** — não entra em sala nem no `Geral`. Clique numa sala (ou arraste o nick) para entrar na call. Se já há call noutro servidor, ela continua até você entrar numa sala daqui. À direita da **sua** linha, **Sair** tira da sala e fica no servidor sem estar em nenhuma (som de saída). Chat só com sala.
 - **Trocar de canal** = sair do P2P antigo e entrar no P2P novo, ainda no mesmo servidor. Clique no canal ou arrastar o nick.
-- Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Ensurdecido = sem som.
+- Som curto quando **você** entra num canal e quando **alguém entra no canal em que você está**. Outro som, mais baixo, quando **você** sai (**Sair** ou a sala some) e quando **alguém sai da sua sala**. Trocar de sala: só o de entrada. Ensurdecido = sem som.
 - Arrastar **outra pessoa** para um canal é só de **admin/dono**. Qualquer um arrasta a si.
 - Chat por sala: **simples**. Broadcast no WebSocket; **sem banco**. A mensagem chega só a quem estava naquela sala na hora. Cada um desses clients guarda o texto **no próprio PC**; quem não estava não vê depois, nem ao entrar. Não é MVP, mas não é difícil.
 - Cada canal = malha **estrela**: um **host** (primeiro que entrou) e os outros como client dele.
@@ -197,7 +197,7 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 ## 10. Telas do MVP
 
 1. **Onboarding (uma vez):** nickname.
-2. **Home:** lista de **servidores** só na sidebar; centro = empty ou o servidor aberto; Criar / Entrar no centro.
+2. **Home:** lista de **servidores** só na sidebar; centro = empty ou o servidor aberto; Criar / Entrar no centro. Home / outro servidor / configurações não encerram a call.
 3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar no servidor”.
 4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Admin/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
 5. Trocar de servidor pela lista, com o mesmo usuário.

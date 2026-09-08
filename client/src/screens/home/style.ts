@@ -282,11 +282,11 @@ export const DockButton = styled.button<{ $on?: boolean }>`
 
 export const SidebarRooms = styled.ul`
   list-style: none;
-  margin: 0.35rem 0 0;
+  margin: 0.45rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.55rem;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -296,22 +296,35 @@ export const SidebarRoom = styled.li`
   min-width: 0;
 `;
 
-export const SidebarRoomButton = styled.button<{ $active?: boolean }>`
+export const SidebarRoomButton = styled.button<{ $active?: boolean; $live?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.55rem;
   width: 100%;
   min-width: 0;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid ${(p) => (p.$active ? "#636366" : "transparent")};
+  padding: 0.55rem 0.65rem 0.55rem 0.55rem;
+  border: 1px solid
+    ${(p) =>
+      p.$live
+        ? "rgba(10, 132, 255, 0.38)"
+        : p.$active
+          ? "rgba(255, 255, 255, 0.12)"
+          : "transparent"};
   border-radius: 0.7rem;
-  background: ${(p) => (p.$active ? "rgba(255, 255, 255, 0.06)" : "transparent")};
+  background: ${(p) =>
+    p.$live
+      ? "rgba(10, 132, 255, 0.14)"
+      : p.$active
+        ? "rgba(255, 255, 255, 0.08)"
+        : "rgba(255, 255, 255, 0.05)"};
+  box-shadow: ${(p) => (p.$live ? "inset 2px 0 0 #0a84ff" : "none")};
   color: #f5f5f7;
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: ${(p) =>
+      p.$live ? "rgba(10, 132, 255, 0.2)" : "rgba(255, 255, 255, 0.08)"};
   }
 
   &:active {
@@ -319,13 +332,13 @@ export const SidebarRoomButton = styled.button<{ $active?: boolean }>`
   }
 `;
 
-export const SidebarRoomIcon = styled.span`
+export const SidebarRoomIcon = styled.span<{ $live?: boolean }>`
   display: grid;
   place-items: center;
   width: 1.7rem;
   height: 1.7rem;
   flex-shrink: 0;
-  color: #8d8d93;
+  color: ${(p) => (p.$live ? "#0a84ff" : "#8d8d93")};
 
   svg {
     width: 1.05rem;
@@ -333,15 +346,9 @@ export const SidebarRoomIcon = styled.span`
   }
 `;
 
-export const SidebarRoomMeta = styled.span`
+export const SidebarRoomName = styled.span`
   min-width: 0;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-`;
-
-export const SidebarRoomName = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -349,13 +356,18 @@ export const SidebarRoomName = styled.span`
   font-weight: 600;
 `;
 
-export const SidebarRoomCode = styled.span`
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #8d8d93;
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
+export const SidebarCallMark = styled.span`
+  display: grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  color: #0a84ff;
+
+  svg {
+    width: 0.95rem;
+    height: 0.95rem;
+  }
 `;
 
 export const Main = styled.main<{ $flush?: boolean }>`
@@ -370,6 +382,14 @@ export const Main = styled.main<{ $flush?: boolean }>`
   @media (max-width: 800px) {
     padding: 1.25rem 1rem 1.5rem;
   }
+`;
+
+export const RoomMount = styled.div<{ $hidden?: boolean }>`
+  display: ${(p) => (p.$hidden ? "none" : "flex")};
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
 `;
 
 export const Header = styled.header`
