@@ -620,6 +620,15 @@ export const Warn = styled.p`
   line-height: 1.5;
 `;
 
+export const AppVersion = styled.p`
+  margin: 1.6rem 0 0;
+  color: #6e6e73;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+`;
+
 export const DangerButton = styled.button`
   display: block;
   height: 2.05rem;

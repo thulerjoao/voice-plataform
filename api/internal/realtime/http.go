@@ -42,7 +42,11 @@ func HandleWS(store *db.DB, hub *Hub, presence *Presence, chat *Chat, rtc *RTC) 
 			return
 		}
 
-		c := &client{uid: uid, send: make(chan []byte, sendBuffer)}
+		c := &client{
+			uid:     uid,
+			version: strings.TrimSpace(r.URL.Query().Get("v")),
+			send:    make(chan []byte, sendBuffer),
+		}
 		hub.add(c)
 
 		go c.writePump(conn)

@@ -1,4 +1,5 @@
 import type { RoomRole } from "./api";
+import { CLIENT_VERSION } from "./version";
 
 export type RealtimeEvent =
   | { type: "user.nickname"; uid: string; nickname: string }
@@ -94,7 +95,7 @@ function emitRealtime(event: RealtimeEvent) {
 
 function socketUrl(uid: string): string {
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  return `${protocol}://${window.location.host}/ws?uid=${encodeURIComponent(uid)}`;
+  return `${protocol}://${window.location.host}/ws?uid=${encodeURIComponent(uid)}&v=${encodeURIComponent(CLIENT_VERSION)}`;
 }
 
 function dropLive(session: LiveSocket) {

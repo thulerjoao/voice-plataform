@@ -26,6 +26,7 @@ import {
   type Identity,
 } from "../../identity";
 import { getRoom, type CreatedRoom } from "../../api";
+import type { ClientVersionInfo } from "../../version";
 import { connectRealtime, subscribeRealtime, subscribeRealtimeOpen } from "../../realtime";
 import {
   connectOccupancy,
@@ -35,6 +36,7 @@ import {
 import { connectChat } from "../../chat";
 import { connectActivity } from "../../activity";
 import { connectRtc } from "../../rtc";
+import { UpdateScreen } from "../update";
 import {
   setRtcMedia,
   startRtcSignaling,
@@ -623,6 +625,7 @@ export function HomeScreen({
     () => loadAudioSettings().outputVolume,
   );
   const [call, setCall] = useState<VoiceCall | null>(null);
+  const [outdated, setOutdated] = useState<ClientVersionInfo | null>(null);
   const callRef = useRef<VoiceCall | null>(null);
   const seatedRef = useRef(false);
   const skipPresenceSendRef = useRef(false);
@@ -1062,6 +1065,11 @@ export function HomeScreen({
         followOwnLeave(event.roomId, event.channelId);
         return;
       }
+      if (event.type === "presence.outdated") {
+        followOwnLeave(event.roomId, event.channelId);
+        setOutdated({ min: event.min, current: event.current });
+        return;
+      }
       if (event.type === "presence.state") {
         if (callRef.current) return;
         const seat = event.occupants.find((item) => item.uid === identity.uid);
@@ -1069,6 +1077,10 @@ export function HomeScreen({
       }
     });
   }, [identity.uid]);
+
+  if (outdated) {
+    return <UpdateScreen info={outdated} />;
+  }
 
   return (
     <Shell>

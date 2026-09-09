@@ -3,6 +3,8 @@ package realtime
 import (
 	"encoding/json"
 	"sync"
+
+	"github.com/thulerjoao/voice-plataform/api/internal/version"
 )
 
 type Event struct {
@@ -18,8 +20,9 @@ type Event struct {
 }
 
 type client struct {
-	uid  string
-	send chan []byte
+	uid     string
+	version string
+	send    chan []byte
 }
 
 type Hub struct {
@@ -61,6 +64,21 @@ func (h *Hub) remove(c *client) {
 	if len(set) == 0 {
 		delete(h.clients, c.uid)
 	}
+}
+
+func (h *Hub) Version(uid string) string {
+	if h == nil || uid == "" {
+		return ""
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	best := ""
+	for c := range h.clients[uid] {
+		if version.Compare(c.version, best) > 0 {
+			best = c.version
+		}
+	}
+	return best
 }
 
 func (h *Hub) Online(uid string) bool {

@@ -22,6 +22,7 @@ import {
   type Keybind,
 } from "../../audio-settings";
 import {
+  AppVersion,
   BackButton,
   BackRow,
   BindActions,
@@ -76,6 +77,7 @@ import {
 } from "./style";
 import type { Identity } from "../../identity";
 import { NICKNAME_MAX_LENGTH, persistNickname } from "../../identity";
+import { CLIENT_VERSION } from "../../version";
 
 type SettingsScreenProps = {
   identity: Identity;
@@ -755,7 +757,7 @@ export function SettingsScreen({
         <Lead>
           {tab === "audio"
             ? "Áudio - válido em todos os servidores."
-            : "Identidade deste PC"}
+            : "Identidade da conta"}
         </Lead>
 
         {tab === "account" ? (
@@ -854,6 +856,7 @@ export function SettingsScreen({
                 </Hint>
               ) : null}
             </Section>
+            <AppVersion>Versão {CLIENT_VERSION}</AppVersion>
           </>
         ) : (
           <>

@@ -14,6 +14,7 @@ import (
 	"github.com/thulerjoao/voice-plataform/api/internal/identity"
 	"github.com/thulerjoao/voice-plataform/api/internal/realtime"
 	"github.com/thulerjoao/voice-plataform/api/internal/rooms"
+	"github.com/thulerjoao/voice-plataform/api/internal/version"
 )
 
 //go:generate sqlc generate
@@ -51,6 +52,7 @@ func main() {
 			"db":     dbStatus,
 		})
 	})
+	mux.HandleFunc("GET /api/version", version.HandleGet())
 	mux.HandleFunc("POST /api/identity", identity.HandleRegister(store))
 	mux.HandleFunc("PATCH /api/identity", identity.HandleRename(store, hub, presence))
 	mux.HandleFunc("POST /api/identity/restore", identity.HandleRestore(store))

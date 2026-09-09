@@ -1,16 +1,56 @@
 import { useEffect, useState } from "react";
-import { registerIdentity } from "./api";
+import { fetchClientVersion, registerIdentity } from "./api";
 import { clearBookmarks } from "./bookmarks";
 import { clearIdentity, loadIdentity, saveIdentity } from "./identity";
 import { HomeScreen } from "./screens/home";
 import { NicknameScreen } from "./screens/nickname";
+import { UpdateScreen } from "./screens/update";
+import {
+  CLIENT_VERSION,
+  versionBelow,
+  type ClientVersionInfo,
+} from "./version";
 
 export default function App() {
   const [identity, setIdentity] = useState(loadIdentity);
   const [identityReady, setIdentityReady] = useState(false);
+  const [gate, setGate] = useState<"loading" | "ok" | "outdated">("loading");
+  const [versionInfo, setVersionInfo] = useState<ClientVersionInfo | null>(
+    null,
+  );
 
   useEffect(() => {
-    if (!identity) {
+    let cancelled = false;
+    const preview = new URLSearchParams(window.location.search).has(
+      "desatualizado",
+    );
+    void fetchClientVersion()
+      .then((info) => {
+        if (cancelled) return;
+        if (preview) {
+          setVersionInfo({ min: "0.0.2", current: "0.0.2" });
+          setGate("outdated");
+          return;
+        }
+        setVersionInfo(info);
+        setGate(versionBelow(CLIENT_VERSION, info.min) ? "outdated" : "ok");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        if (preview) {
+          setVersionInfo({ min: "0.0.2", current: "0.0.2" });
+          setGate("outdated");
+          return;
+        }
+        setGate("ok");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!identity || gate !== "ok") {
       setIdentityReady(false);
       return;
     }
@@ -36,12 +76,17 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [identity]);
+  }, [identity, gate]);
 
   function handleLogout() {
     clearIdentity();
     clearBookmarks();
     setIdentity(null);
+  }
+
+  if (gate === "loading") return null;
+  if (gate === "outdated" && versionInfo) {
+    return <UpdateScreen info={versionInfo} />;
   }
 
   if (!identity) {

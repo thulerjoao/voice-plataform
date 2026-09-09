@@ -45,6 +45,30 @@ func TestPlaceKeepsOneSeatAndEnforcesCap(t *testing.T) {
 	}
 }
 
+func TestAllowsNewSeatRespectsVersion(t *testing.T) {
+	hub := NewHub()
+	presence := NewPresence(hub)
+	if presence.allowsNewSeat("u1", "room-a", "sala-1") {
+		t.Fatal("missing version must not take a new seat")
+	}
+
+	hub.add(&client{uid: "u1", version: "0.0.1", send: make(chan []byte, 1)})
+	if !presence.allowsNewSeat("u1", "room-a", "sala-1") {
+		t.Fatal("current version should enter")
+	}
+
+	hub = NewHub()
+	presence = NewPresence(hub)
+	hub.add(&client{uid: "u1", version: "0.0.0", send: make(chan []byte, 1)})
+	presence.seats["u1"] = &Seat{UID: "u1", RoomID: "room-a", ChannelID: "sala-1"}
+	if !presence.allowsNewSeat("u1", "room-a", "sala-1") {
+		t.Fatal("already seated must reconnect")
+	}
+	if presence.allowsNewSeat("u1", "room-a", "sala-2") {
+		t.Fatal("outdated client must not switch sala")
+	}
+}
+
 func TestMediaFlagsPersistOnMove(t *testing.T) {
 	presence := NewPresence(NewHub())
 	_, joined, full := presence.place("u1", "Ana", "member", "room-a", "sala-1")

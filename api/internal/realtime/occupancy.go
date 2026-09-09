@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/thulerjoao/voice-plataform/api/internal/db"
 	"github.com/thulerjoao/voice-plataform/api/internal/db/sqlc"
+	"github.com/thulerjoao/voice-plataform/api/internal/version"
 )
 
 const ChannelCap = 12
@@ -46,6 +47,8 @@ type occupancyEvent struct {
 	JoinedAt  int64      `json:"joinedAt,omitempty"`
 	Muted     bool       `json:"muted,omitempty"`
 	Deafened  bool       `json:"deafened,omitempty"`
+	Min       string     `json:"min,omitempty"`
+	Current   string     `json:"current,omitempty"`
 	Occupants []Occupant `json:"occupants,omitempty"`
 }
 
@@ -160,6 +163,9 @@ func (p *Presence) JoinSala(ctx context.Context, store *db.DB, uid, roomID, chan
 	if err != nil {
 		return
 	}
+	if p.rejectOutdated(uid, roomID, channelID) {
+		return
+	}
 
 	left, joined, full := p.place(uid, user.Nickname, member.Role, roomID, channelID)
 	if full {
@@ -189,6 +195,41 @@ func (p *Presence) JoinSala(ctx context.Context, store *db.DB, uid, roomID, chan
 			Deafened:  joined.Deafened,
 		})
 	}
+}
+
+func (p *Presence) seatedHere(uid, roomID, channelID string) bool {
+	seat := p.SeatOf(uid)
+	return seat != nil && seat.RoomID == roomID && seat.ChannelID == channelID
+}
+
+func (p *Presence) allowsNewSeat(uid, roomID, channelID string) bool {
+	if p == nil {
+		return false
+	}
+	if p.seatedHere(uid, roomID, channelID) {
+		return true
+	}
+	if p.hub == nil {
+		return !version.BelowMin("")
+	}
+	return !version.BelowMin(p.hub.Version(uid))
+}
+
+func (p *Presence) rejectOutdated(uid, roomID, channelID string) bool {
+	if p.allowsNewSeat(uid, roomID, channelID) {
+		return false
+	}
+	if p.hub == nil {
+		return true
+	}
+	p.hub.SendJSON([]string{uid}, occupancyEvent{
+		Type:      "presence.outdated",
+		RoomID:    roomID,
+		ChannelID: channelID,
+		Min:       version.Min(),
+		Current:   version.Current(),
+	})
+	return true
 }
 
 func (p *Presence) LeaveSala(ctx context.Context, store *db.DB, uid string) {

@@ -36,6 +36,13 @@ export type OccupancyEvent =
       uid: string;
       muted: boolean;
       deafened: boolean;
+    }
+  | {
+      type: "presence.outdated";
+      roomId: string;
+      channelId: string;
+      min: string;
+      current: string;
     };
 
 export type OccupancyClientMessage =
@@ -194,6 +201,19 @@ function parseOccupancy(raw: string): OccupancyEvent | null {
               uid: value.uid,
               muted: value.muted === true,
               deafened: value.deafened === true,
+            }
+          : null;
+      case "presence.outdated":
+        return typeof value.roomId === "string" &&
+          typeof value.channelId === "string" &&
+          typeof value.min === "string" &&
+          typeof value.current === "string"
+          ? {
+              type: "presence.outdated",
+              roomId: value.roomId,
+              channelId: value.channelId,
+              min: value.min,
+              current: value.current,
             }
           : null;
       default:

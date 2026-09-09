@@ -1,3 +1,5 @@
+import type { ClientVersionInfo } from "./version";
+
 export const ROOM_NAME_MIN = 3;
 export const ROOM_NAME_MAX = 24;
 
@@ -232,6 +234,15 @@ export type RestoredIdentity = {
   rooms: RestoredRoom[];
 };
 
+export async function fetchClientVersion(): Promise<ClientVersionInfo> {
+  const response = await fetch("/api/version");
+  const payload = await readPayload(response);
+  if (!response.ok || !isClientVersion(payload)) {
+    throw new Error(errorMessage(payload, "Não foi possível ler a versão."));
+  }
+  return payload;
+}
+
 export async function registerIdentity(input: {
   nickname: string;
   uid?: string;
@@ -332,6 +343,12 @@ function errorMessage(payload: unknown, fallback: string): string {
     return payload.error;
   }
   return fallback;
+}
+
+function isClientVersion(value: unknown): value is ClientVersionInfo {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<ClientVersionInfo>;
+  return typeof item.min === "string" && typeof item.current === "string";
 }
 
 function isRole(value: unknown): value is RoomRole {

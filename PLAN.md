@@ -209,7 +209,7 @@ STUN público no MVP. **coturn** quando a falha de NAT pedir.
 3. **Criar servidor:** no centro da home; nome → código + copiar → “Entrar no servidor”.
 4. **Servidor:** árvore tipo TS3 + chat embaixo; clique no nick abre ficha. Abaixo do nome: pílula do cargo e botão **Configurações** (engrenagem) abre as **configurações do servidor**. Administrador/dono gerencia cada **sala** numa ficha (renomear, excluir, nova no fim). Só eles arrastam os outros. Altura do chat arrastável. Mute/config na sidebar.
 5. Trocar de servidor pela lista, com o mesmo usuário.
-6. **Configurações:** abas **Áudio** e **Conta**. Áudio: dispositivos, medidor, ganho, automático/PTT, atalho de mudo (vale em todos os servidores). Conta: nickname, código de recuperação (copiar + aviso) e **Sair deste PC**.
+6. **Configurações:** abas **Áudio** e **Conta**. Áudio: dispositivos, medidor, ganho, automático/PTT, atalho de mudo (vale em todos os servidores). Conta: nickname, código de recuperação (copiar + aviso), **Sair deste PC** e a versão deste client no fim, em cinza.
 7. **Configurações do servidor:** engrenagem para todo mundo. Nome, código, data, membros e bloqueados reais. Promover: dono e administrador. Excluir/bloquear membro: dono e administrador; excluir/bloquear/rebaixar administrador: só dono. No fim: **Sair do servidor** (membro/administrador; confirmar). Plano/expiração depois.
 
 Visual: escuro, poucos botões, janela de app.
@@ -233,11 +233,11 @@ Visual: escuro, poucos botões, janela de app.
 - `POST /api/rooms/{id}/members/{uid}/role` — promover (`admin`) ou rebaixar (`member`)
 - `POST /api/rooms/{id}/members/{uid}/kick` — excluir do servidor
 - `POST /api/rooms/{id}/blocked` e `DELETE …/blocked/{uid}` — bloquear / desbloquear
-- `GET` versão mínima do client
+- `GET /api/version` — `{ min, current }` do client
 
-**WebSocket** (`GET /ws?uid=`)
+**WebSocket** (`GET /ws?uid=&v=`)
 
-Um socket (`GET /ws?uid=`). Cinco módulos no mesmo fio; cada um ignora tipos que não conhece:
+Um socket (`GET /ws?uid=&v=`). Cinco módulos no mesmo fio; cada um ignora tipos que não conhece:
 
 1. **dados** — servidor/sala/membro persistidos (`room.*`, `channel.*`, `member.*`, `user.nickname`)
 2. **ocupação** — assentos em RAM (`presence.*`)
@@ -256,8 +256,8 @@ Dados:
 
 Ocupação (RAM, teto 12, um `uid` numa sala; **não** vai no GET do servidor):
 
-- client → `presence.join` / `presence.leave` / `presence.move` / `presence.sync` / `presence.media`
-- API → `presence.joined` / `presence.left` / `presence.full` / `presence.state` / `presence.media`
+- client → `presence.join` / `presence.leave` / `presence.move` / `presence.sync` / `presence.media` (`v` no `GET /ws`)
+- API → `presence.joined` / `presence.left` / `presence.full` / `presence.state` / `presence.media` / `presence.outdated`
 - mute / ensurdecer de cada assento via `presence.media` (`muted`, `deafened`); vai no snapshot e no `presence.joined` (troca de sala mantém). Ícones na árvore para todo mundo, iguais aos da sua linha.
 
 Chat (sem banco; teto 120 caracteres):
@@ -284,7 +284,9 @@ Sinalização de voz (sem áudio no fio; STUN público no client):
 - Só **quem está a entrar** na sala pisca cinza forte até o P2P com quem já estava fechar (`connected`). Quem já estava sentado mantém a bolinha de presença. Sozinho na sala, ninguém pisca.
 - Bolinha de fala dos outros: analyser no P2P (sem `talk.*` no fio)
 
-- (depois) gate de versão / Tauri
+- Gate de versão: client abaixo da mínima não toma **assento novo**. Quem já está naquela sala reconecta. `presence.outdated` só para o uid. Tela: “Seu client precisa ser atualizado” + versão deste PC e a atual do produto.
+
+- (depois) share de tela / Tauri
 
 Reconexão: o client faz de novo o `GET` do servidor que está na tela.
 
@@ -367,10 +369,12 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 ### Comunicação extra (no mesmo canal)
 
 - chat de texto (canal + recado; log da sala neste PC)
-- **Streaming (depois do MVP), P2P em árvore:** o streamer **não** manda uma cópia para cada um. Elege **2–3 relés** (boa NAT/upload, de preferência quem não está no jogo pesado). Relé **só encaminha** o pacote já codificado — sem decodificar/recodificar. O resto assiste no segundo salto. Até **12** no canal podem ver.
-- Se um relé cair: sucessor já escolhido (igual voz). Máximo **2 saltos**.
-- Voz continua na malha do canal — não mistura com vídeo.
-- Até **2 streams** por canal. Qualidade: **720p 30fps** padrão. **1080p 30fps** só se a árvore estiver folgada. Sem 60fps.
+- **Share de tela (depois do gate de versão):** P2P em árvore, **não** na malha de voz. Cada share abre PCs e sinalização próprios (`stream.*`). Sem teto de quantos shares na sala; cada um **assiste só um** por vez (um decode).
+- Relés = quem **está assistindo aquele** share (até **3** quando a sala inteira abre a mesma tela). Quem não assiste não encaminha. Máximo **2 saltos**. Relé encaminha o pacote já codificado — sem recodificar, quando o browser deixar.
+- Mídia só sobe com assistente. Ninguém assistindo = só o aviso na árvore. O primeiro liga direto no streamer; 1–4 assistentes podem ficar direto; com mais gente, elegem relés entre eles. Relé que para de assistir: reelege; senão o streamer assume mais um salto direto.
+- Qualidade no nível do Discord grátis: **720p 30fps** + camada **480p 30fps**. Sem 60fps. Sem upscale por IA; a janela só estica o que chegou.
+- Se a subida do streamer não carrega as duas camadas, o encode fica **só em 480**. O share **não** cai. Só recusa começar se nem 480 for para o primeiro assistente (aviso de banda).
+- TURN deixa de ser opcional quando o share existir. Voz continua na malha.
 
 ### UX de jogo
 
@@ -405,6 +409,7 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 - [x] Administrador cria canal e promove
 - [x] Teto 8–12 por canal
 - [x] Update: trava no entrar; call atual segue
+- [x] Gate de versão (entrada nova; call atual segue)
 
 O restante está na seção 14.
 
@@ -412,4 +417,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Malha P2P por sala; bolinha de fala dos outros no áudio que chega. Próximo: gate de versão / Tauri.
+Gate de versão na entrada nova. Próximo: share de tela (árvore 720+480). Tauri na sequência.
