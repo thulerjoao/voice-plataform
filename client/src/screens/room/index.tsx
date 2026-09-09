@@ -5,7 +5,6 @@ import {
   type DragEvent,
   type FormEvent,
   type MouseEvent,
-  type PointerEvent,
 } from "react";
 import type { Bookmark } from "../../bookmarks";
 import type { Identity } from "../../identity";
@@ -23,21 +22,9 @@ import {
   subscribeOccupancy,
   type Occupant,
 } from "../../occupancy";
-import {
-  CHAT_TEXT_MAX,
-  clearSalaLog,
-  salaLog,
-  sendChat,
-  subscribeChat,
-  type ChatLine as ChatLogLine,
-} from "../../chat";
-import {
-  clearSalaActivity,
-  salaActivity,
-  subscribeActivity,
-  type ActivityLine,
-} from "../../activity";
-import { playConnectSound, playDisconnectSound, playPokeSound } from "../../sounds";
+import { CHAT_TEXT_MAX, clearSalaLog, sendChat } from "../../chat";
+import { clearSalaActivity } from "../../activity";
+import { playConnectSound, playDisconnectSound } from "../../sounds";
 import {
   rtcLinkReady,
   rtcPeerTalking,
@@ -45,6 +32,8 @@ import {
   subscribeRtcTalking,
   syncRtcSignaling,
 } from "../../rtc-session";
+import { SalaChat, type SalaChatHandle } from "../sala-chat";
+import { ChatLine } from "../sala-chat/style";
 import {
   ChannelBlock,
   ChannelCount,
@@ -53,20 +42,6 @@ import {
   ChannelHit,
   ChannelName,
   ChannelRow,
-  Chat,
-  ChatClose,
-  ChatDay,
-  ChatForm,
-  ChatHead,
-  ChatInput,
-  ChatLine,
-  ChatLog,
-  ChatNick,
-  ChatSend,
-  ChatTime,
-  ChatTab,
-  ChatTabLabel,
-  ChatTabs,
   Chevron,
   Copied,
   CopyButton,
@@ -105,7 +80,6 @@ import {
   SalaNameEdit,
   SalaNameIcon,
   SalaNameInput,
-  Splitter,
   StatusDot,
   Tree,
   TreeBar,
@@ -137,116 +111,6 @@ type ProfileState = {
   userId: string;
   x: number;
   y: number;
-};
-
-type ChatMessage = {
-  id: string;
-  uid: string;
-  nick: string;
-  text: string;
-  at: number;
-};
-
-type SalaFeedLine =
-  | { kind: "chat"; id: string; at: number; uid: string; nick: string; text: string }
-  | { kind: "log"; id: string; at: number; text: string };
-
-function mergeSalaFeed(
-  chat: ChatLogLine[],
-  logs: ActivityLine[],
-): SalaFeedLine[] {
-  const rows: SalaFeedLine[] = [
-    ...logs.map((line) => ({
-      kind: "log" as const,
-      id: `log:${line.id}`,
-      at: line.at,
-      text: line.text,
-    })),
-    ...chat.map((line) => ({
-      kind: "chat" as const,
-      id: `chat:${line.id}`,
-      at: line.at,
-      uid: line.uid,
-      nick: line.nick,
-      text: line.text,
-    })),
-  ];
-  rows.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
-  return rows;
-}
-
-function formatChatClock(at: number): string | null {
-  if (!at || !Number.isFinite(at) || at <= 0) return null;
-  return new Date(at).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
-function ChatStamp({ at }: { at: number }) {
-  const clock = formatChatClock(at);
-  if (!clock) return null;
-  return <ChatTime>{clock} - </ChatTime>;
-}
-
-type ChatDaySep = { kind: "day"; id: string; label: string };
-
-function dayKey(at: number): string {
-  if (!at || !Number.isFinite(at) || at <= 0) return "";
-  const d = new Date(at);
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${month}-${day}`;
-}
-
-function startOfLocalDay(at: number): number {
-  const d = new Date(at);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-function formatChatDay(at: number): string {
-  const day = startOfLocalDay(at);
-  const today = startOfLocalDay(Date.now());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (day === today) return "Hoje";
-  if (day === yesterday.getTime()) return "Ontem";
-  const date = new Date(at);
-  const sameYear = date.getFullYear() === new Date().getFullYear();
-  return date.toLocaleDateString("pt-BR", {
-    day: "numeric",
-    month: "long",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-}
-
-function withChatDays<T extends { id: string; at: number }>(
-  lines: T[],
-): Array<ChatDaySep | T> {
-  const rows: Array<ChatDaySep | T> = [];
-  let last = "";
-  for (const line of lines) {
-    const key = dayKey(line.at);
-    if (key && key !== last) {
-      last = key;
-      rows.push({ kind: "day", id: `day:${key}`, label: formatChatDay(line.at) });
-    }
-    rows.push(line);
-  }
-  return rows;
-}
-
-function isChatDay(row: { kind?: string }): row is ChatDaySep {
-  return row.kind === "day";
-}
-
-type DirectThread = {
-  nick: string;
-  lines: ChatMessage[];
-  draft: string;
-  unread?: boolean;
 };
 
 type TreeChannel = {
@@ -545,20 +409,7 @@ function salaIsFull(occupants: Occupant[], channelId: string, uid: string): bool
 }
 const CHANNEL_NAME_MAX = 24;
 const CHANNEL_DESC_MAX = 80;
-const CHAT_MIN = 120;
-const CHAT_TREE_MIN = 140;
-const CHAT_HEIGHT_KEY = "voice.chatHeight";
 const PEER_VOLUME_KEY = "voice.peerVolumes";
-
-function loadChatHeight() {
-  const stored = Number(window.localStorage.getItem(CHAT_HEIGHT_KEY));
-  if (Number.isFinite(stored) && stored >= CHAT_MIN) return stored;
-  return null;
-}
-
-function saveChatHeight(height: number) {
-  window.localStorage.setItem(CHAT_HEIGHT_KEY, String(Math.round(height)));
-}
 
 function salaOpenKey(roomId: string) {
   return `voice.salaOpen.${roomId}`;
@@ -640,10 +491,6 @@ export function RoomScreen({
   const [dropId, setDropId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileState | null>(null);
   const [pokeDraft, setPokeDraft] = useState("");
-  const [chatTab, setChatTab] = useState("sala");
-  const [directs, setDirects] = useState<Record<string, DirectThread>>({});
-  const [salaLines, setSalaLines] = useState<ChatLogLine[]>([]);
-  const [activityLines, setActivityLines] = useState<ActivityLine[]>([]);
   const [volumes, setVolumes] = useState<Record<string, number>>(loadPeerVolumes);
   const [salaCard, setSalaCard] = useState<ProfileState | null>(null);
   const [editingSala, setEditingSala] = useState(false);
@@ -656,6 +503,7 @@ export function RoomScreen({
   const [youSince] = useState(() => Date.now());
   const profileRef = useRef<HTMLDivElement>(null);
   const draggedRef = useRef(false);
+  const chatRef = useRef<SalaChatHandle>(null);
   const myRole: Role = room.role;
   const canMoveOthers = myRole === "owner" || myRole === "admin";
   const canManageChannels = myRole === "owner" || myRole === "admin";
@@ -664,21 +512,12 @@ export function RoomScreen({
   const [open, setOpen] = useState<Record<string, boolean>>(
     () => loadSalaOpen(room.roomId) ?? {},
   );
-  const [draft, setDraft] = useState("");
   const [copied, setCopied] = useState(false);
   const [salaError, setSalaError] = useState("");
-  const [chatHeight, setChatHeight] = useState<number | null>(loadChatHeight);
-  const shellRef = useRef<HTMLDivElement>(null);
-  const chatRef = useRef<HTMLDivElement>(null);
-  const chatHeightRef = useRef(chatHeight);
-  const dragRef = useRef<{ startY: number; startH: number } | null>(null);
   const currentIdRef = useRef(currentId);
-  const chatTabRef = useRef(chatTab);
   const deafenedRef = useRef(deafened);
   const onLeaveSalaRef = useRef(onLeaveSala);
-  chatHeightRef.current = chatHeight;
   currentIdRef.current = currentId;
-  chatTabRef.current = chatTab;
   deafenedRef.current = deafened;
   onLeaveSalaRef.current = onLeaveSala;
 
@@ -777,10 +616,6 @@ export function RoomScreen({
         );
         clearSalaLog(room.roomId, event.channelId);
         clearSalaActivity(room.roomId, event.channelId);
-        if (currentIdRef.current === event.channelId) {
-          setSalaLines([]);
-          setActivityLines([]);
-        }
         setOpen((prev) => {
           const next = { ...prev };
           delete next[event.channelId];
@@ -788,7 +623,6 @@ export function RoomScreen({
         });
         if (currentIdRef.current === event.channelId) {
           onLeaveSalaRef.current();
-          setDraft("");
           if (!deafenedRef.current) playDisconnectSound();
         }
         setSalaCard((prev) =>
@@ -862,85 +696,10 @@ export function RoomScreen({
       if (event.type === "presence.full") {
         if (currentIdRef.current === event.channelId) {
           onLeaveSalaRef.current();
-          setDraft("");
         }
       }
     });
   }, [room.roomId, identity.uid]);
-
-  useEffect(() => {
-    if (!currentId) {
-      setSalaLines([]);
-      setActivityLines([]);
-      return;
-    }
-    setSalaLines(salaLog(room.roomId, currentId));
-    setActivityLines(salaActivity(room.roomId, currentId));
-  }, [room.roomId, currentId]);
-
-  useEffect(() => {
-    return subscribeActivity((event) => {
-      if (event.roomId !== room.roomId) return;
-      const seated = currentIdRef.current;
-      if (!seated) return;
-      if (event.type === "log.sala" && event.channelId !== seated) return;
-      setActivityLines(salaActivity(room.roomId, seated));
-    });
-  }, [room.roomId]);
-
-  useEffect(() => {
-    return subscribeChat((event) => {
-      if (event.roomId !== room.roomId) return;
-
-      if (event.type === "chat.sala") {
-        if (event.channelId === currentIdRef.current) {
-          setSalaLines(salaLog(room.roomId, event.channelId));
-        }
-        return;
-      }
-
-      const peerId = event.uid === identity.uid ? event.to : event.uid;
-      const peerNick =
-        event.uid === identity.uid ? event.toNickname : event.nickname;
-      const line: ChatMessage = {
-        id: event.id,
-        uid: event.uid,
-        nick: event.nickname,
-        text: event.text,
-        at: event.at,
-      };
-      setDirects((prev) => {
-        const existing = prev[peerId];
-        if (existing?.lines.some((item) => item.id === line.id)) return prev;
-        const viewing = chatTabRef.current === peerId;
-        return {
-          ...prev,
-          [peerId]: {
-            nick: peerNick,
-            draft: existing?.draft ?? "",
-            lines: [...(existing?.lines ?? []), line],
-            unread: viewing
-              ? false
-              : event.uid !== identity.uid
-                ? true
-                : Boolean(existing?.unread),
-          },
-        };
-      });
-      if (event.uid !== identity.uid && !deafenedRef.current) {
-        playPokeSound();
-      }
-    });
-  }, [room.roomId, identity.uid]);
-
-  useEffect(() => {
-    if (chatTab === "sala") return;
-    setDirects((prev) => {
-      const existing = prev[chatTab];
-      if (!existing?.unread) return prev;
-      return { ...prev, [chatTab]: { ...existing, unread: false } };
-    });
-  }, [chatTab]);
 
   useEffect(() => {
     saveSalaOpen(room.roomId, open);
@@ -1034,8 +793,6 @@ export function RoomScreen({
     return { ...channel, users };
   });
   const current = channels.find((item) => item.id === currentId) ?? null;
-  const salaFeed = current ? mergeSalaFeed(salaLines, activityLines) : [];
-  const direct = chatTab !== "sala" ? (directs[chatTab] ?? null) : null;
   const profileUser =
     profile == null
       ? null
@@ -1157,7 +914,6 @@ export function RoomScreen({
     }
 
     onJoinSala(id);
-    setDraft("");
     if (!deafened) playConnectSound();
   }
 
@@ -1166,7 +922,6 @@ export function RoomScreen({
     event.stopPropagation();
     if (!currentId) return;
     onLeaveSala();
-    setDraft("");
     if (!deafened) playDisconnectSound();
   }
 
@@ -1255,17 +1010,6 @@ export function RoomScreen({
     const text = pokeDraft.trim().slice(0, CHAT_TEXT_MAX);
     if (!text || !profileUser || profileUser.you) return;
 
-    setDirects((prev) => {
-      const existing = prev[profileUser.id];
-      return {
-        ...prev,
-        [profileUser.id]: {
-          nick: profileUser.nick,
-          draft: existing?.draft ?? "",
-          lines: existing?.lines ?? [],
-        },
-      };
-    });
     sendChat({
       type: "chat.direct",
       roomId: room.roomId,
@@ -1273,40 +1017,9 @@ export function RoomScreen({
       id: crypto.randomUUID(),
       text,
     });
-    setChatTab(profileUser.id);
+    chatRef.current?.openDirect({ userId: profileUser.id, nick: profileUser.nick });
     setPokeDraft("");
     setProfile(null);
-  }
-
-  function handleDirect(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!direct) return;
-    const text = direct.draft.trim().slice(0, CHAT_TEXT_MAX);
-    if (!text) return;
-    sendChat({
-      type: "chat.direct",
-      roomId: room.roomId,
-      uid: chatTab,
-      id: crypto.randomUUID(),
-      text,
-    });
-    setDirects((prev) => {
-      const existing = prev[chatTab];
-      if (!existing) return prev;
-      return {
-        ...prev,
-        [chatTab]: { ...existing, draft: "" },
-      };
-    });
-  }
-
-  function closeDirect(userId: string) {
-    setDirects((prev) => {
-      const next = { ...prev };
-      delete next[userId];
-      return next;
-    });
-    if (chatTab === userId) setChatTab("sala");
   }
 
   function handleUserDragEnd() {
@@ -1332,38 +1045,6 @@ export function RoomScreen({
     setDropId(null);
     setDraggingId(null);
     if (userId) moveUser(userId, channelId);
-  }
-
-  function clampChatHeight(next: number) {
-    const shell = shellRef.current;
-    const header = shell?.querySelector("header")?.clientHeight ?? 56;
-    const max = shell
-      ? Math.max(CHAT_MIN, shell.clientHeight - header - CHAT_TREE_MIN - 24)
-      : 420;
-    return Math.min(max, Math.max(CHAT_MIN, next));
-  }
-
-  function handleSplitDown(event: PointerEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const startH =
-      chatHeight ?? chatRef.current?.getBoundingClientRect().height ?? 184;
-    dragRef.current = { startY: event.clientY, startH };
-  }
-
-  function handleSplitMove(event: PointerEvent<HTMLDivElement>) {
-    if (!dragRef.current) return;
-    const next = clampChatHeight(
-      dragRef.current.startH + (dragRef.current.startY - event.clientY),
-    );
-    chatHeightRef.current = next;
-    setChatHeight(next);
-  }
-
-  function handleSplitUp() {
-    if (!dragRef.current) return;
-    dragRef.current = null;
-    if (chatHeightRef.current != null) saveChatHeight(chatHeightRef.current);
   }
 
   function openSalaCard(
@@ -1475,10 +1156,6 @@ export function RoomScreen({
     setRoster(leftover);
     clearSalaLog(room.roomId, id);
     clearSalaActivity(room.roomId, id);
-    if (currentId === id) {
-      setSalaLines([]);
-      setActivityLines([]);
-    }
     setOpen((prev) => {
       const next = { ...prev };
       delete next[id];
@@ -1486,7 +1163,6 @@ export function RoomScreen({
     });
     if (currentId === id) {
       onLeaveSala();
-      setDraft("");
       if (!deafened) playDisconnectSound();
     }
     setSalaCard(null);
@@ -1529,23 +1205,8 @@ export function RoomScreen({
     }
   }
 
-  function handleChat(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const text = draft.trim().slice(0, CHAT_TEXT_MAX);
-    if (!current || !text) return;
-
-    sendChat({
-      type: "chat.sala",
-      roomId: room.roomId,
-      channelId: current.id,
-      id: crypto.randomUUID(),
-      text,
-    });
-    setDraft("");
-  }
-
   return (
-    <RoomShell ref={shellRef}>
+    <RoomShell>
       <RoomHeader>
         <RoomHeading>
           <RoomTitle>{room.name}</RoomTitle>
@@ -1865,140 +1526,14 @@ export function RoomScreen({
         </ProfileCard>
       ) : null}
 
-      <Splitter
-        role="separator"
-        aria-orientation="horizontal"
-        aria-label="Redimensionar chat"
-        onPointerDown={handleSplitDown}
-        onPointerMove={handleSplitMove}
-        onPointerUp={handleSplitUp}
-        onPointerCancel={handleSplitUp}
+      <SalaChat
+        ref={chatRef}
+        roomId={room.roomId}
+        channelId={currentId}
+        channelName={current?.name ?? null}
+        identity={identity}
+        deafened={Boolean(deafened)}
       />
-
-      <Chat ref={chatRef} $height={chatHeight ?? undefined}>
-        <ChatHead>
-          <ChatTabs>
-            <ChatTab
-              $active={chatTab === "sala"}
-              title={current ? `Chat · ${current.name}` : "Chat"}
-              onClick={() => setChatTab("sala")}
-            >
-              <ChatTabLabel>
-                {current ? `Chat · ${current.name}` : "Chat"}
-              </ChatTabLabel>
-            </ChatTab>
-            {Object.entries(directs).map(([id, thread]) => (
-              <ChatTab
-                key={id}
-                $active={chatTab === id}
-                $unread={chatTab !== id && Boolean(thread.unread)}
-                title={thread.nick}
-                onClick={() => setChatTab(id)}
-              >
-                <ChatTabLabel>{thread.nick}</ChatTabLabel>
-                <ChatClose
-                  type="button"
-                  title="Fechar conversa"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    closeDirect(id);
-                  }}
-                >
-                  <CloseIcon />
-                </ChatClose>
-              </ChatTab>
-            ))}
-          </ChatTabs>
-        </ChatHead>
-        {direct ? (
-          <>
-            <ChatLog>
-              {withChatDays(direct.lines).map((row) =>
-                isChatDay(row) ? (
-                  <ChatDay key={row.id}>{row.label}</ChatDay>
-                ) : (
-                  <ChatLine key={row.id}>
-                    <ChatStamp at={row.at} />
-                    <ChatNick $you={row.uid === identity.uid}>
-                      {row.nick}:
-                    </ChatNick>{" "}
-                    {row.text}
-                  </ChatLine>
-                ),
-              )}
-            </ChatLog>
-            <ChatForm onSubmit={handleDirect}>
-              <ChatInput
-                value={direct.draft}
-                maxLength={CHAT_TEXT_MAX}
-                placeholder={`Mensagem para ${direct.nick}`}
-                onChange={(event) =>
-                  setDirects((prev) => {
-                    const existing = prev[chatTab];
-                    if (!existing) return prev;
-                    return {
-                      ...prev,
-                      [chatTab]: { ...existing, draft: event.target.value },
-                    };
-                  })
-                }
-              />
-              <ChatSend type="submit" disabled={!direct.draft.trim()}>
-                Enviar
-              </ChatSend>
-            </ChatForm>
-          </>
-        ) : (
-          <>
-            <ChatLog>
-              {!current ? (
-                <ChatLine $log>
-                  Entre em uma sala para conversar.
-                </ChatLine>
-              ) : salaFeed.length === 0 ? (
-                <ChatLine $log>
-                  Nenhuma mensagem neste canal.
-                </ChatLine>
-              ) : (
-                withChatDays(salaFeed).map((row) =>
-                  isChatDay(row) ? (
-                    <ChatDay key={row.id}>{row.label}</ChatDay>
-                  ) : row.kind === "log" ? (
-                    <ChatLine key={row.id} $log>
-                      <ChatStamp at={row.at} />
-                      {row.text}
-                    </ChatLine>
-                  ) : (
-                    <ChatLine key={row.id}>
-                      <ChatStamp at={row.at} />
-                      <ChatNick $you={row.uid === identity.uid}>
-                      {row.nick}:
-                    </ChatNick>{" "}
-                    {row.text}
-                    </ChatLine>
-                  ),
-                )
-              )}
-            </ChatLog>
-            <ChatForm onSubmit={handleChat}>
-              <ChatInput
-                value={draft}
-                disabled={!current}
-                maxLength={CHAT_TEXT_MAX}
-                placeholder={
-                  current
-                    ? `Mensagem em ${current.name}`
-                    : "Entre numa sala para conversar"
-                }
-                onChange={(event) => setDraft(event.target.value)}
-              />
-              <ChatSend type="submit" disabled={!current}>
-                Enviar
-              </ChatSend>
-            </ChatForm>
-          </>
-        )}
-      </Chat>
     </RoomShell>
   );
 }

@@ -21,4 +21,19 @@ export const Main = styled.main`
   flex: 1;
   min-width: 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  background: var(--bg-app);
+`;
+
+export const Stage = styled.section`
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-app);
 `;

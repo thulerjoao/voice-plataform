@@ -9,6 +9,8 @@ import {
   subscribeAudioSettings,
 } from "../../audio-settings";
 import { loadBookmarks, saveBookmark } from "../../bookmarks";
+import { connectActivity } from "../../activity";
+import { connectChat } from "../../chat";
 import type { Identity } from "../../identity";
 import {
   connectOccupancy,
@@ -30,6 +32,7 @@ import {
 } from "../../rtc-session";
 import { playConnectSound, playMuteSound, playUnmuteSound } from "../../sounds";
 import { useTalking } from "../../use-talking";
+import { SalaChat } from "../sala-chat";
 import { SettingsScreen } from "../settings";
 import { WorkspaceFooter } from "./components/footer";
 import { WorkspaceHeader } from "./components/header";
@@ -38,7 +41,7 @@ import {
   loadSidebarWidth,
   WorkspaceSidebar,
 } from "./components/sidebar";
-import { Body, Frame, Main } from "./style";
+import { Body, Frame, Main, Stage } from "./style";
 
 type VoiceCall = {
   roomId: string;
@@ -138,11 +141,15 @@ export function WorkspaceScreen({
   useEffect(() => {
     const stopData = connectRealtime(identity.uid);
     const stopOccupancy = connectOccupancy();
+    const stopChat = connectChat();
+    const stopActivity = connectActivity();
     const stopRtc = connectRtc();
     const stopSignal = startRtcSignaling(identity.uid, () => callRef.current);
     return () => {
       stopSignal();
       stopRtc();
+      stopActivity();
+      stopChat();
       stopOccupancy();
       stopData();
     };
@@ -514,6 +521,10 @@ export function WorkspaceScreen({
     if (!deafened) playConnectSound();
   }
 
+  const activeSalaId = call?.roomId === roomId ? call.salaId : null;
+  const activeSalaName =
+    channels.find((item) => item.id === activeSalaId)?.name ?? null;
+
   if (showSettings) {
     return (
       <SettingsScreen
@@ -545,9 +556,7 @@ export function WorkspaceScreen({
           identity={identity}
           channels={channels}
           occupants={occupants}
-          activeSalaId={
-            call?.roomId === roomId ? call.salaId : null
-          }
+          activeSalaId={activeSalaId}
           callRoomId={call?.roomId ?? null}
           status={status}
           muted={muted}
@@ -559,7 +568,16 @@ export function WorkspaceScreen({
           onEnterSala={handleEnterSala}
           onSwitchServer={onSwitchServer}
         />
-        <Main />
+        <Main>
+          <Stage aria-label="Área principal" />
+          <SalaChat
+            roomId={roomId}
+            channelId={activeSalaId}
+            channelName={activeSalaName}
+            identity={identity}
+            deafened={deafened}
+          />
+        </Main>
       </Body>
       <WorkspaceFooter
         nickname={identity.nickname}
