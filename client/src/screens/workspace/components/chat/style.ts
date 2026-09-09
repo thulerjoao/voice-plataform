@@ -7,7 +7,6 @@ export const Splitter = styled.div`
   cursor: ns-resize;
   touch-action: none;
   position: relative;
-  background: var(--bg-app);
 
   &::after {
     content: "";
@@ -40,8 +39,8 @@ export const Chat = styled.section<{ $height?: number; $collapsed?: boolean }>`
   min-height: 0;
   overflow: hidden;
   border: 0;
+  border-top: ${(p) => (p.$collapsed ? "1px solid var(--border)" : "0")};
   border-radius: 0;
-  background: var(--bg-secondary);
   color: var(--text-primary);
 `;
 
@@ -108,7 +107,7 @@ export const ChatTab = styled.div<{ $active?: boolean; $unread?: boolean }>`
     p.$unread
       ? "var(--selection-strong)"
       : p.$active
-        ? "var(--bg-secondary)"
+        ? "var(transparent)"
         : "transparent"};
   color: ${(p) =>
     p.$active || p.$unread ? "var(--text-primary)" : "var(--text-secondary)"};

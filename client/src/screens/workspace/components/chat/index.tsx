@@ -11,16 +11,16 @@ import {
   salaActivity,
   subscribeActivity,
   type ActivityLine,
-} from "../../activity";
+} from "../../../../activity";
 import {
   CHAT_TEXT_MAX,
   salaLog,
   sendChat,
   subscribeChat,
   type ChatLine as ChatLogLine,
-} from "../../chat";
-import type { Identity } from "../../identity";
-import { playPokeSound } from "../../sounds";
+} from "../../../../chat";
+import type { Identity } from "../../../../identity";
+import { playPokeSound } from "../../../../sounds";
 import {
   Chat,
   ChatClose,
@@ -61,11 +61,11 @@ type DirectThread = {
   unread?: boolean;
 };
 
-export type SalaChatHandle = {
+export type WorkspaceChatHandle = {
   openDirect: (input: { userId: string; nick: string }) => void;
 };
 
-type SalaChatProps = {
+type WorkspaceChatProps = {
   roomId: string;
   channelId: string | null;
   channelName?: string | null;
@@ -205,8 +205,8 @@ function CollapseIcon() {
   );
 }
 
-export const SalaChat = forwardRef<SalaChatHandle, SalaChatProps>(
-  function SalaChat(
+export const WorkspaceChat = forwardRef<WorkspaceChatHandle, WorkspaceChatProps>(
+  function WorkspaceChat(
     { roomId, channelId, channelName, identity, deafened },
     ref,
   ) {

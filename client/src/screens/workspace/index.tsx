@@ -32,8 +32,8 @@ import {
 } from "../../rtc-session";
 import { playConnectSound, playMuteSound, playUnmuteSound } from "../../sounds";
 import { useTalking } from "../../use-talking";
-import { SalaChat } from "../sala-chat";
 import { SettingsScreen } from "../settings";
+import { WorkspaceChat } from "./components/chat";
 import { WorkspaceFooter } from "./components/footer";
 import { WorkspaceHeader } from "./components/header";
 import {
@@ -570,7 +570,7 @@ export function WorkspaceScreen({
         />
         <Main>
           <Stage aria-label="Área principal" />
-          <SalaChat
+          <WorkspaceChat
             roomId={roomId}
             channelId={activeSalaId}
             channelName={activeSalaName}

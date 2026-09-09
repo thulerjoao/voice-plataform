@@ -22,7 +22,6 @@ export const Aside = styled.aside<{ $width: number }>`
   width: ${(p) => p.$width}px;
   flex-shrink: 0;
   min-height: 0;
-  background: var(--bg-secondary);
   border-right: 1px solid var(--border);
 `;
 
@@ -42,7 +41,7 @@ export const ResizeHandle = styled.div`
     top: 0;
     bottom: 0;
     left: 2px;
-    width: 2px;
+    width: 1px;
     border-radius: 1px;
     background: transparent;
     transition: background 0.12s ease;
@@ -51,6 +50,7 @@ export const ResizeHandle = styled.div`
   &:hover::after,
   &:active::after {
     background: var(--border-hover);
+    border-right: 1px solid var(--border-hover);
   }
 `;
 

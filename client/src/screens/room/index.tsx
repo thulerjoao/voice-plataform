@@ -32,8 +32,11 @@ import {
   subscribeRtcTalking,
   syncRtcSignaling,
 } from "../../rtc-session";
-import { SalaChat, type SalaChatHandle } from "../sala-chat";
-import { ChatLine } from "../sala-chat/style";
+import {
+  WorkspaceChat,
+  type WorkspaceChatHandle,
+} from "../workspace/components/chat";
+import { ChatLine } from "../workspace/components/chat/style";
 import {
   ChannelBlock,
   ChannelCount,
@@ -503,7 +506,7 @@ export function RoomScreen({
   const [youSince] = useState(() => Date.now());
   const profileRef = useRef<HTMLDivElement>(null);
   const draggedRef = useRef(false);
-  const chatRef = useRef<SalaChatHandle>(null);
+  const chatRef = useRef<WorkspaceChatHandle>(null);
   const myRole: Role = room.role;
   const canMoveOthers = myRole === "owner" || myRole === "admin";
   const canManageChannels = myRole === "owner" || myRole === "admin";
@@ -1526,7 +1529,7 @@ export function RoomScreen({
         </ProfileCard>
       ) : null}
 
-      <SalaChat
+      <WorkspaceChat
         ref={chatRef}
         roomId={room.roomId}
         channelId={currentId}
