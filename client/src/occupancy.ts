@@ -1,4 +1,5 @@
 import type { RoomRole } from "./api";
+import { parseStatusId, type StatusId } from "./presence";
 import {
   sendRealtimePayload,
   subscribeRealtimeFrame,
@@ -13,6 +14,7 @@ export type Occupant = {
   joinedAt: number;
   muted: boolean;
   deafened: boolean;
+  status: StatusId;
 };
 
 export type OccupancyEvent =
@@ -26,6 +28,7 @@ export type OccupancyEvent =
       joinedAt: number;
       muted: boolean;
       deafened: boolean;
+      status: StatusId;
     }
   | { type: "presence.left"; roomId: string; channelId: string; uid: string }
   | { type: "presence.full"; roomId: string; channelId: string }
@@ -36,6 +39,12 @@ export type OccupancyEvent =
       uid: string;
       muted: boolean;
       deafened: boolean;
+    }
+  | {
+      type: "presence.status";
+      roomId: string;
+      uid: string;
+      status: StatusId;
     }
   | {
       type: "presence.outdated";
@@ -50,7 +59,8 @@ export type OccupancyClientMessage =
   | { type: "presence.leave" }
   | { type: "presence.move"; roomId: string; channelId: string; uid: string }
   | { type: "presence.sync"; roomId: string }
-  | { type: "presence.media"; muted: boolean; deafened: boolean };
+  | { type: "presence.media"; muted: boolean; deafened: boolean }
+  | { type: "presence.status"; status: StatusId };
 
 const EVENT_NAME = "voice-occupancy";
 
@@ -71,6 +81,10 @@ export function sendOccupancy(message: OccupancyClientMessage): void {
   if (message.type === "presence.media") {
     for (let i = pending.length - 1; i >= 0; i -= 1) {
       if (pending[i].type === "presence.media") pending.splice(i, 1);
+    }
+  } else if (message.type === "presence.status") {
+    for (let i = pending.length - 1; i >= 0; i -= 1) {
+      if (pending[i].type === "presence.status") pending.splice(i, 1);
     }
   } else if (
     message.type === "presence.join" ||
@@ -117,7 +131,7 @@ function isRole(value: unknown): value is RoomRole {
 
 function parseOccupant(value: unknown): Occupant | null {
   if (!value || typeof value !== "object") return null;
-  const item = value as Partial<Occupant>;
+  const item = value as Partial<Occupant> & { status?: unknown };
   if (
     typeof item.uid !== "string" ||
     typeof item.nickname !== "string" ||
@@ -134,12 +148,16 @@ function parseOccupant(value: unknown): Occupant | null {
     joinedAt: typeof item.joinedAt === "number" ? item.joinedAt : Date.now(),
     muted: item.muted === true,
     deafened: item.deafened === true,
+    status: parseStatusId(item.status),
   };
 }
 
 function parseOccupancy(raw: string): OccupancyEvent | null {
   try {
-    const value = JSON.parse(raw) as Partial<OccupancyEvent> & { type?: string };
+    const value = JSON.parse(raw) as Partial<OccupancyEvent> & {
+      type?: string;
+      status?: unknown;
+    };
     if (!value || typeof value.type !== "string") return null;
     switch (value.type) {
       case "presence.joined":
@@ -159,6 +177,7 @@ function parseOccupancy(raw: string): OccupancyEvent | null {
                 typeof value.joinedAt === "number" ? value.joinedAt : Date.now(),
               muted: value.muted === true,
               deafened: value.deafened === true,
+              status: parseStatusId(value.status),
             }
           : null;
       case "presence.left":
@@ -201,6 +220,15 @@ function parseOccupancy(raw: string): OccupancyEvent | null {
               uid: value.uid,
               muted: value.muted === true,
               deafened: value.deafened === true,
+            }
+          : null;
+      case "presence.status":
+        return typeof value.roomId === "string" && typeof value.uid === "string"
+          ? {
+              type: "presence.status",
+              roomId: value.roomId,
+              uid: value.uid,
+              status: parseStatusId(value.status),
             }
           : null;
       case "presence.outdated":

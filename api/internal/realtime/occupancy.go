@@ -24,6 +24,7 @@ type Occupant struct {
 	JoinedAt  int64  `json:"joinedAt"`
 	Muted     bool   `json:"muted"`
 	Deafened  bool   `json:"deafened"`
+	Status    string `json:"status"`
 }
 
 type Seat struct {
@@ -35,6 +36,7 @@ type Seat struct {
 	JoinedAt  int64
 	Muted     bool
 	Deafened  bool
+	Status    string
 }
 
 type occupancyEvent struct {
@@ -47,6 +49,7 @@ type occupancyEvent struct {
 	JoinedAt  int64      `json:"joinedAt,omitempty"`
 	Muted     bool       `json:"muted,omitempty"`
 	Deafened  bool       `json:"deafened,omitempty"`
+	Status    string     `json:"status,omitempty"`
 	Min       string     `json:"min,omitempty"`
 	Current   string     `json:"current,omitempty"`
 	Occupants []Occupant `json:"occupants,omitempty"`
@@ -115,6 +118,7 @@ func (p *Presence) Occupancy(roomID string) []Occupant {
 			JoinedAt:  seat.JoinedAt,
 			Muted:     seat.Muted,
 			Deafened:  seat.Deafened,
+			Status:    normalizeStatus(seat.Status),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -193,6 +197,7 @@ func (p *Presence) JoinSala(ctx context.Context, store *db.DB, uid, roomID, chan
 			JoinedAt:  joined.JoinedAt,
 			Muted:     joined.Muted,
 			Deafened:  joined.Deafened,
+			Status:    normalizeStatus(joined.Status),
 		})
 	}
 }
@@ -422,6 +427,7 @@ func (p *Presence) HandleMessage(ctx context.Context, store *db.DB, uid string, 
 		UID       string `json:"uid"`
 		Muted     bool   `json:"muted"`
 		Deafened  bool   `json:"deafened"`
+		Status    string `json:"status"`
 	}
 	if json.Unmarshal(raw, &msg) != nil {
 		return
@@ -437,6 +443,8 @@ func (p *Presence) HandleMessage(ctx context.Context, store *db.DB, uid string, 
 		p.Sync(ctx, store, uid, msg.RoomID)
 	case "presence.media":
 		p.SetMedia(ctx, store, uid, msg.Muted, msg.Deafened)
+	case "presence.status":
+		p.SetStatus(ctx, store, uid, msg.Status)
 	}
 }
 
@@ -465,8 +473,10 @@ func (p *Presence) placeLocked(uid, nickname, role, roomID, channelID string) (l
 	}
 
 	muted, deafened := false, false
+	status := "online"
 	if current != nil {
 		muted, deafened = current.Muted, current.Deafened
+		status = normalizeStatus(current.Status)
 		copy := *current
 		left = &copy
 		delete(p.seats, uid)
@@ -481,6 +491,7 @@ func (p *Presence) placeLocked(uid, nickname, role, roomID, channelID string) (l
 		JoinedAt:  time.Now().UnixMilli(),
 		Muted:     muted,
 		Deafened:  deafened,
+		Status:    status,
 	}
 	p.seats[uid] = next
 	copy := *next
@@ -515,6 +526,45 @@ func (p *Presence) SetMedia(ctx context.Context, store *db.DB, uid string, muted
 		UID:      copy.UID,
 		Muted:    copy.Muted,
 		Deafened: copy.Deafened,
+	})
+}
+
+func normalizeStatus(status string) string {
+	switch strings.TrimSpace(status) {
+	case "busy", "brb":
+		return strings.TrimSpace(status)
+	default:
+		return "online"
+	}
+}
+
+func (p *Presence) SetStatus(ctx context.Context, store *db.DB, uid, status string) {
+	if p == nil {
+		return
+	}
+	uid = strings.TrimSpace(uid)
+	if uid == "" {
+		return
+	}
+	status = normalizeStatus(status)
+	p.mu.Lock()
+	seat := p.seats[uid]
+	if seat == nil {
+		p.mu.Unlock()
+		return
+	}
+	if normalizeStatus(seat.Status) == status {
+		p.mu.Unlock()
+		return
+	}
+	seat.Status = status
+	roomID := seat.RoomID
+	copy := *seat
+	p.mu.Unlock()
+	p.announce(ctx, store, roomID, occupancyEvent{
+		Type:   "presence.status",
+		UID:    copy.UID,
+		Status: normalizeStatus(copy.Status),
 	})
 }
 

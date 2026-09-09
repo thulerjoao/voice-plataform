@@ -4,8 +4,9 @@ import {
   ROOM_NAME_MAX,
   ROOM_NAME_MIN,
   type CreatedRoom,
-} from "../../api";
-import type { Identity } from "../../identity";
+} from "../../../../api";
+import type { Identity } from "../../../../identity";
+import addServerIcon from "../../icons/addserver.svg";
 import {
   AdminBadge,
   BackButton,
@@ -50,45 +51,6 @@ function BackIcon() {
         strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ServerPlusIcon() {
-  return (
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <defs>
-        <mask id="create-room-hero-cut">
-          <rect width="32" height="32" fill="#fff" />
-          <circle cx="24.2" cy="24.2" r="5.15" fill="#000" />
-        </mask>
-      </defs>
-      <g
-        mask="url(#create-room-hero-cut)"
-        stroke="currentColor"
-        strokeWidth="1.05"
-      >
-        <rect x="4" y="2.4" width="24" height="6.4" rx="1.7" />
-        <rect x="4" y="11.8" width="24" height="6.4" rx="1.7" />
-        <rect x="4" y="21.2" width="24" height="6.4" rx="1.7" />
-        <path
-          d="M7.2 4.3h2.6M7.2 6.9h2.6M7.2 13.7h2.6M7.2 16.3h2.6M7.2 23.1h2.6M7.2 25.7h2.6"
-          strokeLinecap="round"
-        />
-      </g>
-      <circle
-        cx="24.2"
-        cy="24.2"
-        r="4.35"
-        stroke="currentColor"
-        strokeWidth="1.05"
-      />
-      <path
-        d="M24.2 22.15v4.1M22.15 24.2h4.1"
-        stroke="currentColor"
-        strokeWidth="1.05"
-        strokeLinecap="round"
       />
     </svg>
   );
@@ -223,7 +185,7 @@ function CreateStep({
   return (
     <>
       <HeroIcon>
-        <ServerPlusIcon />
+        <img src={addServerIcon} alt="" aria-hidden="true" />
       </HeroIcon>
       <Title>Novo servidor</Title>
       <Subtitle>

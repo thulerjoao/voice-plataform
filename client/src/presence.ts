@@ -8,10 +8,16 @@ export const STATUSES = [
 
 export type StatusId = (typeof STATUSES)[number]["id"];
 
+export function isStatusId(value: unknown): value is StatusId {
+  return value === "online" || value === "busy" || value === "brb";
+}
+
+export function parseStatusId(value: unknown): StatusId {
+  return isStatusId(value) ? value : "online";
+}
+
 export function loadStatus(): StatusId {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw === "busy" || raw === "brb" || raw === "online") return raw;
-  return "online";
+  return parseStatusId(localStorage.getItem(STORAGE_KEY));
 }
 
 export function saveStatus(status: StatusId): void {

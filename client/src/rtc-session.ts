@@ -63,6 +63,7 @@ function onOccupancy(event: OccupancyEvent) {
       joinedAt: event.joinedAt,
       muted: event.muted,
       deafened: event.deafened,
+      status: event.status,
     });
     void reconcile();
     return;

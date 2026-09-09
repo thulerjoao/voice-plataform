@@ -2,12 +2,15 @@ import styled from "styled-components";
 
 export const Panel = styled.div`
   flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
 `;
 
 export const BackRow = styled.div`
+  position: relative;
+  z-index: 1;
   display: flex;
   justify-content: flex-start;
 `;
@@ -44,7 +47,8 @@ export const BackButton = styled.button`
 `;
 
 export const Body = styled.div`
-  flex: 1;
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -59,14 +63,16 @@ export const Body = styled.div`
 export const HeroIcon = styled.div`
   display: grid;
   place-items: center;
-  width: 4.5rem;
-  height: 4.5rem;
+  width: 6.2rem;
+  height: 6.2rem;
   margin-bottom: 1.15rem;
   color: #a1a1a6;
 
-  svg {
-    width: 3.6rem;
-    height: 3.6rem;
+  svg,
+  img {
+    display: block;
+    width: 5.4rem;
+    height: 5.4rem;
   }
 `;
 

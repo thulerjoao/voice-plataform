@@ -495,7 +495,7 @@ function occupantUser(occupant: Occupant): TreeUser {
   return {
     id: occupant.uid,
     nick: occupant.nickname,
-    presence: "online",
+    presence: occupant.status,
     role: occupant.role,
     onlineSince: occupant.joinedAt,
     muted: occupant.muted || occupant.deafened,
@@ -817,6 +817,7 @@ export function RoomScreen({
             joinedAt: event.joinedAt,
             muted: event.muted,
             deafened: event.deafened,
+            status: event.status,
           }),
         );
         if (
@@ -844,6 +845,15 @@ export function RoomScreen({
             item.uid === event.uid
               ? { ...item, muted: event.muted, deafened: event.deafened }
               : item,
+          ),
+        );
+        return;
+      }
+
+      if (event.type === "presence.status") {
+        setOccupants((prev) =>
+          prev.map((item) =>
+            item.uid === event.uid ? { ...item, status: event.status } : item,
           ),
         );
         return;

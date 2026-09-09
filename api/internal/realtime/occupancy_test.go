@@ -77,17 +77,23 @@ func TestMediaFlagsPersistOnMove(t *testing.T) {
 	}
 	presence.seats["u1"].Muted = true
 	presence.seats["u1"].Deafened = true
+	presence.seats["u1"].Status = "busy"
 
 	_, moved, full := presence.place("u1", "Ana", "member", "room-a", "sala-2")
 	if full || moved == nil {
 		t.Fatal("move")
 	}
-	if !moved.Muted || !moved.Deafened {
-		t.Fatalf("move dropped media flags: muted=%v deafened=%v", moved.Muted, moved.Deafened)
+	if !moved.Muted || !moved.Deafened || moved.Status != "busy" {
+		t.Fatalf(
+			"move dropped flags: muted=%v deafened=%v status=%s",
+			moved.Muted,
+			moved.Deafened,
+			moved.Status,
+		)
 	}
 	occ := presence.Occupancy("room-a")
-	if len(occ) != 1 || !occ[0].Muted || !occ[0].Deafened {
-		t.Fatalf("occupancy lost media flags: %+v", occ)
+	if len(occ) != 1 || !occ[0].Muted || !occ[0].Deafened || occ[0].Status != "busy" {
+		t.Fatalf("occupancy lost flags: %+v", occ)
 	}
 }
 

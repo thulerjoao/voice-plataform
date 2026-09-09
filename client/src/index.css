@@ -1,8 +1,33 @@
 :root {
   color-scheme: dark;
   font-family: Inter, "SF Pro Text", system-ui, sans-serif;
-  background: #1c1c1e;
-  color: #f5f5f7;
+  --bg-app: #15181f;
+  --bg-secondary: #191d25;
+  --bg-header: #1c2028;
+  --bg-footer: #1c2028;
+  --bg-surface: #252a33;
+  --bg-surface-hover: #2b3039;
+  --selection: rgba(10, 132, 255, 0.16);
+  --selection-strong: rgba(10, 132, 255, 0.22);
+  --selection-border: rgba(10, 132, 255, 0.45);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --border-soft: rgba(255, 255, 255, 0.05);
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-tertiary: #6e6e73;
+  --blue: #0a84ff;
+  --blue-hover: #2b95ff;
+  --green: #30d158;
+  --red: #ea2d2d;
+  --red-soft: rgba(255, 69, 58, 0.18);
+  --red-soft-hover: rgba(255, 69, 58, 0.26);
+  --text-on-accent: #ffffff;
+  
+
+
+  background: var(--bg-app);
+  color: var(--text-primary);
 }
 
 * {
@@ -18,7 +43,7 @@ body,
 }
 
 body {
-  background: #1c1c1e;
+  background: var(--bg-app);
 }
 
 button,

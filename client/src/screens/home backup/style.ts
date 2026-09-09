@@ -5,8 +5,8 @@ export const Shell = styled.div`
   height: 100%;
   max-height: 100dvh;
   overflow: hidden;
-  background: var(--bg-app);
-  color: var(--text-primary);
+  background: #1c1c1e;
+  color: #f5f5f7;
 
   @media (max-width: 800px) {
     flex-direction: column;
@@ -22,13 +22,13 @@ export const Sidebar = styled.aside`
   flex-direction: column;
   gap: 0.35rem;
   padding: 1.25rem 0.85rem;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border);
+  background: #2c2c2e;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 
   @media (max-width: 800px) {
     width: 100%;
     border-right: 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding: 1rem;
   }
 `;
@@ -46,7 +46,7 @@ export const Brand = styled.div`
 export const BrandIcon = styled.span`
   display: grid;
   place-items: center;
-  color: var(--blue);
+  color: #0a84ff;
 
   svg {
     width: 1.35rem;
@@ -64,19 +64,19 @@ export const NickButton = styled.button`
   border: 0;
   border-radius: 0.7rem;
   background: transparent;
-  color: var(--text-primary);
+  color: #f5f5f7;
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    background: var(--border-soft);
+    background: rgba(255, 255, 255, 0.06);
   }
 
   svg {
     flex-shrink: 0;
     width: 1rem;
     height: 1rem;
-    color: var(--text-secondary);
+    color: #a1a1a6;
   }
 `;
 
@@ -90,45 +90,13 @@ export const NickName = styled.span`
   font-weight: 600;
 `;
 
-export const SalasNav = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  width: 100%;
-  margin-top: 0.35rem;
-  padding: 0.38rem 0.45rem;
-  border: 0;
-  border-radius: 9px;
-  background: var(--bg-surface-hover);
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  font-weight: 700;
-  text-align: left;
-`;
-
-export const SalasIcon = styled.span`
-  display: grid;
-  place-items: center;
-  width: 2.15rem;
-  height: 2.15rem;
-  flex-shrink: 0;
-  border-radius: 0.55rem;
-  background: var(--blue);
-  color: #fff;
-
-  svg {
-    width: 1.15rem;
-    height: 1.15rem;
-  }
-`;
-
 export const NavLabel = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
   width: 100%;
   padding: 0.5rem 0.65rem;
-  color: var(--text-secondary);
+  color: #c7c7cc;
   font-size: 0.9rem;
   font-weight: 600;
 
@@ -136,14 +104,14 @@ export const NavLabel = styled.div`
     width: 1.05rem;
     height: 1.05rem;
     flex-shrink: 0;
-    color: var(--text-tertiary);
+    color: #8d8d93;
   }
 `;
 
 export const SidebarRule = styled.div`
   height: 1px;
   margin: 0.55rem 0.45rem 0.5rem;
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 `;
 
@@ -170,8 +138,8 @@ export const DockVolume = styled.div`
   height: 2.1rem;
   padding: 0 0.55rem;
   border-radius: 0.65rem;
-  background: var(--border-soft);
-  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  color: #a1a1a6;
 
   svg {
     width: 0.95rem;
@@ -185,14 +153,14 @@ export const DockSlider = styled.input`
   min-width: 0;
   height: 0.35rem;
   margin: 0;
-  accent-color: var(--blue);
+  accent-color: #2f6fed;
   cursor: pointer;
 `;
 
 export const DockVolumeValue = styled.span`
   width: 2.3rem;
   flex-shrink: 0;
-  color: var(--text-primary);
+  color: #f5f5f7;
   font-size: 0.7rem;
   font-weight: 600;
   text-align: right;
@@ -215,14 +183,14 @@ export const StatusButton = styled.button`
   padding: 0 0.6rem;
   border: 0;
   border-radius: 0.65rem;
-  background: var(--border-soft);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5f5f7;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
 
   &:hover {
-    background: var(--border-hover);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   &:active {
@@ -257,9 +225,9 @@ export const StatusMenu = styled.div`
   width: max-content;
   min-width: 100%;
   padding: 0.3rem;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.7rem;
-  background: var(--bg-surface);
+  background: #3a3a3c;
 `;
 
 export const StatusOption = styled.button<{ $active?: boolean }>`
@@ -271,15 +239,15 @@ export const StatusOption = styled.button<{ $active?: boolean }>`
   white-space: nowrap;
   border: 0;
   border-radius: 0.5rem;
-  background: ${(p) => (p.$active ? "var(--border)" : "transparent")};
-  color: var(--text-primary);
+  background: ${(p) => (p.$active ? "rgba(255, 255, 255, 0.08)" : "transparent")};
+  color: #f5f5f7;
   font-size: 0.82rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    background: var(--border-hover);
+    background: rgba(255, 255, 255, 0.1);
   }
 `;
 
@@ -290,9 +258,8 @@ export const DockButton = styled.button<{ $on?: boolean }>`
   height: 2.4rem;
   border: 0;
   border-radius: 0.65rem;
-  background: ${(p) =>
-    p.$on ? "rgba(255, 69, 58, 0.18)" : "var(--border-soft)"};
-  color: ${(p) => (p.$on ? "var(--red)" : "var(--text-primary)")};
+  background: ${(p) => (p.$on ? "rgba(255, 69, 58, 0.18)" : "rgba(255, 255, 255, 0.06)")};
+  color: ${(p) => (p.$on ? "#ff453a" : "#f5f5f7")};
   cursor: pointer;
 
   svg {
@@ -301,8 +268,7 @@ export const DockButton = styled.button<{ $on?: boolean }>`
   }
 
   &:hover {
-    background: ${(p) =>
-      p.$on ? "rgba(255, 69, 58, 0.26)" : "var(--border-hover)"};
+    background: ${(p) => (p.$on ? "rgba(255, 69, 58, 0.26)" : "rgba(255, 255, 255, 0.1)")};
   }
 
   &:active {
@@ -329,7 +295,7 @@ export const SidebarRoom = styled.li`
 export const SidebarDash = styled.li`
   height: 0;
   margin: 0.15rem 0.45rem;
-  border-top: 1px dashed var(--border-hover);
+  border-top: 1px dashed rgba(255, 255, 255, 0.2);
 `;
 
 export const SidebarRoomButton = styled.button<{
@@ -344,16 +310,17 @@ export const SidebarRoomButton = styled.button<{
   padding: 0.5rem 0.65rem;
   border: 0;
   border-radius: 0.55rem;
-  border: 1px solid
-    ${(p) => (p.$active ? "var(--selection-border)" : "var(--border-soft)")};
-  background: ${(p) => (p.$active ? "var(--selection)" : "var(--border-soft)")};
-  color: var(--text-primary);
+  border: 1px solid ${(p) =>
+    p.$active ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.045)"};;
+  background: ${(p) =>
+    p.$active ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.045)"};
+  color: #f5f5f7;
   text-align: left;
   cursor: pointer;
 
   &:hover {
     background: ${(p) =>
-      p.$active ? "var(--selection-strong)" : "var(--border)"};
+      p.$active ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.07)"};
   }
 `;
 
@@ -373,7 +340,7 @@ export const SidebarAddMark = styled.span`
   width: 1.05rem;
   height: 1.05rem;
   flex-shrink: 0;
-  color: var(--text-tertiary);
+  color: #8d8d93;
 
   svg {
     width: 1.05rem;
@@ -387,7 +354,7 @@ export const SidebarCallMark = styled.span<{ $tone?: "live" | "busy" }>`
   width: 1.05rem;
   height: 1.05rem;
   flex-shrink: 0;
-  color: ${(p) => (p.$tone === "live" ? "var(--green)" : "var(--blue)")};
+  color: ${(p) => (p.$tone === "live" ? "#30d158" : "#0a84ff")};
 
   svg {
     width: 0.9rem;
@@ -402,8 +369,7 @@ export const Main = styled.main<{ $flush?: boolean }>`
   overflow: ${(p) => (p.$flush ? "hidden" : "auto")};
   display: flex;
   flex-direction: column;
-  padding: ${(p) =>
-    p.$flush ? "0.95rem 1.1rem 0.9rem" : "2rem 2.25rem 1.5rem"};
+  padding: ${(p) => (p.$flush ? "0.95rem 1.1rem 0.9rem" : "2rem 2.25rem 1.5rem")};
 
   @media (max-width: 800px) {
     padding: 1.25rem 1rem 1.5rem;
@@ -423,28 +389,26 @@ export const HomePane = styled.div`
   max-width: 72rem;
   margin: 0 auto;
   flex: 1;
-  position: relative;
   min-height: 0;
   display: flex;
   flex-direction: column;
 `;
 
 export const Header = styled.header`
-  position: relative;
-  z-index: 1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.5rem;
-  flex-wrap: wrap;
 
   @media (max-width: 800px) {
     flex-direction: column;
   }
 `;
 
-export const HeaderCopy = styled.div``;
+export const HeaderCopy = styled.div`
+  min-width: 0;
+`;
 
 export const Title = styled.h1`
   margin: 0 0 0.4rem;
@@ -456,7 +420,7 @@ export const Title = styled.h1`
 export const Subtitle = styled.p`
   margin: 0;
   max-width: 28rem;
-  color: var(--text-secondary);
+  color: #a1a1a6;
   font-size: 0.95rem;
   line-height: 1.45;
 `;
@@ -481,8 +445,8 @@ export const PrimaryButton = styled.button`
   padding: 0 1.85rem;
   border: 0;
   border-radius: 0.75rem;
-  background: var(--blue);
-  color: var(--text-primary);
+  background: #2f6fed;
+  color: #fff;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
@@ -493,7 +457,7 @@ export const PrimaryButton = styled.button`
   }
 
   &:hover {
-    background: #2b95ff;
+    background: #3b7cff;
   }
 
   &:active {
@@ -508,10 +472,10 @@ export const SecondaryButton = styled.button`
   gap: 0.45rem;
   height: 3rem;
   padding: 0 1.85rem;
-  border: 1px solid var(--border-hover);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 0.75rem;
   background: transparent;
-  color: var(--text-primary);
+  color: #f5f5f7;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
@@ -522,7 +486,7 @@ export const SecondaryButton = styled.button`
   }
 
   &:hover {
-    background: var(--border-soft);
+    background: rgba(255, 255, 255, 0.06);
   }
   &:active {
     transform: scale(0.99);
@@ -530,8 +494,7 @@ export const SecondaryButton = styled.button`
 `;
 
 export const Empty = styled.div`
-  position: absolute;
-  inset: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -543,8 +506,7 @@ export const Empty = styled.div`
 export const EmptyArt = styled.div`
   margin-bottom: 1.15rem;
 
-  svg,
-  img {
+  svg {
     display: block;
     width: 14.5rem;
     height: auto;
@@ -555,13 +517,13 @@ export const EmptyTitle = styled.h2`
   margin: 0 0 0.5rem;
   font-size: 1.4rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #ffffff;
 `;
 
 export const EmptyText = styled.p`
   margin: 0 0 1.5rem;
   max-width: 18.5rem;
-  color: var(--text-tertiary);
+  color: #8a8a8a;
   font-size: 0.9rem;
   line-height: 1.45;
 `;
@@ -574,7 +536,7 @@ export const NickEdit = styled.form`
   margin: 0 0 0.55rem;
   padding: 0.25rem 0.3rem;
   border-radius: 0.7rem;
-  background: var(--bg-app);
+  background: #1c1c1e;
 `;
 
 export const NickInput = styled.input`
@@ -584,7 +546,7 @@ export const NickInput = styled.input`
   padding: 0 0.45rem;
   border: 0;
   background: transparent;
-  color: var(--text-primary);
+  color: #f5f5f7;
   font-size: 0.95rem;
   font-weight: 600;
   outline: none;
@@ -599,7 +561,7 @@ export const NickIconButton = styled.button`
   border: 0;
   border-radius: 0.4rem;
   background: transparent;
-  color: var(--text-secondary);
+  color: #a1a1a6;
   cursor: pointer;
 
   svg {
@@ -608,8 +570,8 @@ export const NickIconButton = styled.button`
   }
 
   &:hover {
-    background: var(--border);
-    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
   }
 `;
 
@@ -621,4 +583,97 @@ export const ServerList = styled.div`
   flex-direction: column;
   gap: 0.75rem;
   padding-bottom: 0.5rem;
+`;
+
+export const ServerCard = styled.button<{ $active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border: 1px solid
+    ${(p) =>
+      p.$active ? "rgba(10, 132, 255, 0.45)" : "rgba(255, 255, 255, 0.08)"};
+  border-radius: 0.9rem;
+  background: ${(p) =>
+    p.$active ? "rgba(10, 132, 255, 0.14)" : "#3a3a3c"};
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: ${(p) =>
+      p.$active ? "rgba(10, 132, 255, 0.2)" : "rgba(255, 255, 255, 0.08)"};
+  }
+
+  &:active {
+    transform: scale(0.997);
+  }
+`;
+
+export const ServerMark = styled.span<{ $tone?: "owner" | "admin" }>`
+  display: grid;
+  place-items: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  flex-shrink: 0;
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: ${(p) => (p.$tone === "admin" ? "#0a84ff" : "#c7c7cc")};
+
+  svg {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+`;
+
+export const ServerCopy = styled.span`
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+`;
+
+export const ServerName = styled.span`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #f5f5f7;
+`;
+
+export const ServerCode = styled.span`
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #a1a1a6;
+`;
+
+export const Occupancy = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  color: #a1a1a6;
+  font-size: 0.88rem;
+  font-weight: 600;
+
+  svg {
+    width: 0.95rem;
+    height: 0.95rem;
+  }
+`;
+
+export const Chevron = styled.span`
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #8e8e93;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
 `;

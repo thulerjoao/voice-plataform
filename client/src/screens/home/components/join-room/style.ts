@@ -20,9 +20,12 @@ export {
 } from "../create-room/style";
 
 export const HeroIcon = styled(SharedHeroIcon)`
+  width: 5.1rem;
+  height: 5.1rem;
+
   img {
     display: block;
-    width: 3.6rem;
-    height: 3.6rem;
+    width: 4.4rem;
+    height: 4.4rem;
   }
 `;

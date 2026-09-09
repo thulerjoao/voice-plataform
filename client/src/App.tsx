@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchClientVersion, registerIdentity } from "./api";
 import { clearBookmarks } from "./bookmarks";
 import { clearIdentity, loadIdentity, saveIdentity } from "./identity";
+import { WorkspaceScreen } from "./screens/workspace";
 import { HomeScreen } from "./screens/home";
 import { NicknameScreen } from "./screens/nickname";
 import { UpdateScreen } from "./screens/update";
@@ -14,10 +15,18 @@ import {
 export default function App() {
   const [identity, setIdentity] = useState(loadIdentity);
   const [identityReady, setIdentityReady] = useState(false);
+  const [openServerId, setOpenServerId] = useState<string | null>(null);
   const [gate, setGate] = useState<"loading" | "ok" | "outdated">("loading");
   const [versionInfo, setVersionInfo] = useState<ClientVersionInfo | null>(
     null,
   );
+
+  function handleLogout() {
+    clearIdentity();
+    clearBookmarks();
+    setOpenServerId(null);
+    setIdentity(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -78,12 +87,6 @@ export default function App() {
     };
   }, [identity, gate]);
 
-  function handleLogout() {
-    clearIdentity();
-    clearBookmarks();
-    setIdentity(null);
-  }
-
   if (gate === "loading") return null;
   if (gate === "outdated" && versionInfo) {
     return <UpdateScreen info={versionInfo} />;
@@ -95,11 +98,24 @@ export default function App() {
 
   if (!identityReady) return null;
 
+  if (openServerId) {
+    return (
+      <WorkspaceScreen
+        roomId={openServerId}
+        identity={identity}
+        onNicknameChange={setIdentity}
+        onLogout={handleLogout}
+        onBack={() => setOpenServerId(null)}
+        onSwitchServer={setOpenServerId}
+      />
+    );
+  }
+
   return (
     <HomeScreen
       identity={identity}
       onNicknameChange={setIdentity}
-      onLogout={handleLogout}
+      onOpenServer={setOpenServerId}
     />
   );
 }

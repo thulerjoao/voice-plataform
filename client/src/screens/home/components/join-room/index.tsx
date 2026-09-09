@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { joinRoom, type CreatedRoom } from "../../api";
-import { findBookmarkByCode } from "../../bookmarks";
-import type { Identity } from "../../identity";
-import keyWebsiteIcon from "./key-website-svgrepo-com.svg";
+import { joinRoom, type CreatedRoom } from "../../../../api";
+import { findBookmarkByCode } from "../../../../bookmarks";
+import type { Identity } from "../../../../identity";
+import serverKeyIcon from "../../icons/serverkey.svg";
 import {
   BackButton,
   BackRow,
@@ -131,7 +131,7 @@ export function JoinRoomScreen({
       </BackRow>
       <Body>
         <HeroIcon>
-          <img src={keyWebsiteIcon} alt="" aria-hidden="true" />
+          <img src={serverKeyIcon} alt="" aria-hidden="true" />
         </HeroIcon>
         <Title>Encontrar servidor</Title>
         <Subtitle>Cole o código que alguém compartilhou com você.</Subtitle>
