@@ -39,6 +39,7 @@ import {
   CreateSala,
   MenuCode,
   MenuCopy,
+  MenuLive,
   MenuMark,
   MenuName,
   ResizeHandle,
@@ -106,6 +107,7 @@ type WorkspaceSidebarProps = {
   channels: RoomChannel[];
   occupants: Occupant[];
   activeSalaId: string | null;
+  callRoomId: string | null;
   status: StatusId;
   muted: boolean;
   deafened: boolean;
@@ -139,8 +141,9 @@ function salaLinking(input: {
   myJoined: number;
   activeSalaId: string | null;
   occupants: Occupant[];
+  linkGen: number;
 }) {
-  if (!input.activeSalaId) return false;
+  if (!input.activeSalaId || input.linkGen < 0) return false;
   if (input.userId === input.myUid) {
     return input.occupants.some(
       (item) =>
@@ -163,6 +166,7 @@ function usersForSala(input: {
   deafened: boolean;
   talking: boolean;
   youSince: number;
+  linkGen: number;
 }): SalaUser[] {
   const youColor = statusMeta(input.status).color;
   const inCall = input.activeSalaId === input.channelId;
@@ -187,6 +191,7 @@ function usersForSala(input: {
             myJoined,
             activeSalaId: input.activeSalaId,
             occupants: input.occupants,
+            linkGen: input.linkGen,
           })
         : false;
       return {
@@ -215,6 +220,7 @@ function usersForSala(input: {
       myJoined,
       activeSalaId: input.activeSalaId,
       occupants: input.occupants,
+      linkGen: input.linkGen,
     });
     users.unshift({
       id: input.identity.uid,
@@ -240,6 +246,7 @@ export function WorkspaceSidebar({
   channels,
   occupants,
   activeSalaId,
+  callRoomId,
   status,
   muted,
   deafened,
@@ -255,7 +262,7 @@ export function WorkspaceSidebar({
   const [error, setError] = useState("");
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() => loadBookmarks());
   const [youSince] = useState(() => Date.now());
-  const [, setLinkTick] = useState(0);
+  const [linkGen, setLinkGen] = useState(0);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -267,7 +274,7 @@ export function WorkspaceSidebar({
   const canMoveOthers = canManage;
 
   useEffect(() => {
-    const bump = () => setLinkTick((value) => value + 1);
+    const bump = () => setLinkGen((value) => value + 1);
     const stopLinks = subscribeRtcLinks(bump);
     const stopTalk = subscribeRtcTalking(bump);
     return () => {
@@ -438,27 +445,36 @@ export function WorkspaceSidebar({
 
         {menuOpen ? (
           <ServerMenu role="listbox" aria-label="Servidores">
-            {bookmarks.map((item) => (
-              <ServerMenuItem
-                key={item.roomId}
-                type="button"
-                role="option"
-                $active={item.roomId === roomId}
-                aria-selected={item.roomId === roomId}
-                onClick={() => {
-                  setMenuOpen(false);
-                  if (item.roomId !== roomId) onSwitchServer(item.roomId);
-                }}
-              >
-                <MenuMark>
-                  <GroupIcon />
-                </MenuMark>
-                <MenuCopy>
-                  <MenuName>{item.name}</MenuName>
-                  <MenuCode>{item.code}</MenuCode>
-                </MenuCopy>
-              </ServerMenuItem>
-            ))}
+            {bookmarks.map((item) => {
+              const live = callRoomId === item.roomId;
+              return (
+                <ServerMenuItem
+                  key={item.roomId}
+                  type="button"
+                  role="option"
+                  $active={item.roomId === roomId}
+                  aria-selected={item.roomId === roomId}
+                  title={live ? `${item.name} · em uma sala` : item.name}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    if (item.roomId !== roomId) onSwitchServer(item.roomId);
+                  }}
+                >
+                  <MenuMark>
+                    <GroupIcon />
+                  </MenuMark>
+                  <MenuCopy>
+                    <MenuName>{item.name}</MenuName>
+                    <MenuCode>{item.code}</MenuCode>
+                  </MenuCopy>
+                  {live ? (
+                    <MenuLive aria-hidden="true" title="Em chamada">
+                      <VolumeIcon />
+                    </MenuLive>
+                  ) : null}
+                </ServerMenuItem>
+              );
+            })}
           </ServerMenu>
         ) : null}
       </ServerWrap>
@@ -476,6 +492,7 @@ export function WorkspaceSidebar({
             deafened,
             talking,
             youSince,
+            linkGen,
           });
           const open = users.length > 0;
           return (

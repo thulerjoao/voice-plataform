@@ -137,12 +137,14 @@ export function WorkspaceFooter({
             title="Alterar status"
             onClick={() => setStatusOpen((open) => !open)}
           >
-            <UserAvatar $statusColor={currentStatus.color}>
+            <UserAvatar>
               <UserIcon />
             </UserAvatar>
             <UserCopy>
               <UserName>{nickname}</UserName>
-              <UserMeta>• {roleLabel(role)}</UserMeta>
+              <UserMeta>
+                <StatusDot $color={currentStatus.color} /> {roleLabel(role)}
+              </UserMeta>
             </UserCopy>
             <UserChevron>
               <ChevronUpIcon />

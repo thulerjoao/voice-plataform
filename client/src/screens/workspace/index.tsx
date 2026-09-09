@@ -159,11 +159,6 @@ export function WorkspaceScreen({
     let cancelled = false;
     setChannels([]);
     setOccupants([]);
-    setCall((prev) => {
-      if (!prev) return null;
-      skipPresenceSendRef.current = true;
-      return null;
-    });
 
     void getRoom({ roomId, uid: identity.uid })
       .then((room) => {
@@ -217,10 +212,11 @@ export function WorkspaceScreen({
     syncRtcSignaling();
   }, [call]);
 
+  // Mesmo padrão da RoomScreen (home backup): assentos → mesh enquanto há sala ativa.
   useEffect(() => {
-    if (!call) return;
+    if (!call || call.roomId !== roomId) return;
     syncRtcSignaling(occupants);
-  }, [occupants, call]);
+  }, [occupants, call, roomId]);
 
   useEffect(() => {
     setRtcMedia({
@@ -549,7 +545,10 @@ export function WorkspaceScreen({
           identity={identity}
           channels={channels}
           occupants={occupants}
-          activeSalaId={call?.salaId ?? null}
+          activeSalaId={
+            call?.roomId === roomId ? call.salaId : null
+          }
+          callRoomId={call?.roomId ?? null}
           status={status}
           muted={muted}
           deafened={deafened}

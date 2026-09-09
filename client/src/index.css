@@ -23,8 +23,10 @@
   --red-soft: rgba(255, 69, 58, 0.18);
   --red-soft-hover: rgba(255, 69, 58, 0.26);
   --text-on-accent: #ffffff;
-  
-
+  --scrollbar-size: 0.5rem;
+  --scrollbar-slim-inset: 2px;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.28);
+  --scrollbar-thumb-strong: rgba(255, 255, 255, 0.42);
 
   background: var(--bg-app);
   color: var(--text-primary);
@@ -32,6 +34,39 @@
 
 * {
   box-sizing: border-box;
+}
+
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.01);
+  border-radius: 999px;
+  border: var(--scrollbar-slim-inset) solid transparent;
+  background-clip: content-box;
+}
+
+[data-sb="1"]::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+}
+
+[data-sb="1"]::-webkit-scrollbar-thumb:hover {
+  border-width: 0;
+  background-clip: border-box;
+  background-color: var(--scrollbar-thumb-strong);
 }
 
 html,

@@ -193,16 +193,15 @@ export const UserCard = styled.button`
   } */
 `;
 
-export const UserAvatar = styled.span<{ $statusColor: string }>`
+export const UserAvatar = styled.span`
   display: grid;
   place-items: center;
   width: 2rem;
   height: 2rem;
   flex-shrink: 0;
   border-radius: 999px;
-  border: 2px solid ${(p) => p.$statusColor};
   background: var(--border);
-  color: ${(p) => p.$statusColor};
+  color: var(--text-secondary);
   box-sizing: border-box;
 
   svg {
@@ -232,6 +231,9 @@ export const UserMeta = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
   color: var(--text-secondary);
   font-size: 0.72rem;
   font-weight: 500;

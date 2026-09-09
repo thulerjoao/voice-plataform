@@ -219,6 +219,21 @@ export const MenuCode = styled.span`
   color: var(--text-tertiary);
 `;
 
+export const MenuLive = styled.span`
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--blue);
+
+  svg {
+    display: block;
+    width: 1rem;
+    height: 1rem;
+  }
+`;
+
 export const SalaList = styled.div`
   flex: 1;
   min-height: 0;
@@ -362,8 +377,8 @@ export const UserAvatar = styled.span<{
 }>`
   display: grid;
   place-items: center;
-  width: 1.45rem;
-  height: 1.45rem;
+  width: 1.1rem;
+  height: 1.1rem;
   flex-shrink: 0;
   border-radius: 999px;
   border: 1.5px solid
