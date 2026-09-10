@@ -1,22 +1,25 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   getKnownAvatarHash,
   subscribeAvatarHash,
 } from "../../../../avatar-signal";
 import {
   avatarToObjectUrl,
-  loadPeerAvatar,
+  loadPeerAvatarForDisplay,
   subscribeAvatarCache,
 } from "../../../../avatar-store";
 import {
   CONTACT_NICK_MAX,
   addContact,
+  findContact,
   loadContacts,
   loadRecentContacts,
   removeContact,
+  subscribeContacts,
   updateContact,
   type Contact,
   type RecentContact,
+  type RecentSource,
 } from "../../../../contacts";
 import {
   syncContactPresence,
@@ -98,11 +101,17 @@ function fromContacts(list: Contact[]): ListPerson[] {
   }));
 }
 
+function recentMeta(source: RecentSource): string {
+  if (source === "dm") return "Mensagem";
+  if (source === "call") return "Em call";
+  return "Perfil";
+}
+
 function fromRecent(list: RecentContact[]): ListPerson[] {
   return list.map((item) => ({
     uid: item.uid,
     nickname: item.nickname,
-    meta: item.source === "dm" ? "Mensagem" : "Perfil",
+    meta: recentMeta(item.source),
     avatarHash: getKnownAvatarHash(item.uid) ?? undefined,
   }));
 }
@@ -117,7 +126,7 @@ export function WorkspaceDetails({
   onSelectContact,
 }: WorkspaceDetailsProps) {
   const [collapsed, setCollapsed] = useState(loadCollapsed);
-  const [tab, setTab] = useState<DetailsTab>("contacts");
+  const [tab, setTab] = useState<DetailsTab>("recent");
   const [contacts, setContacts] = useState(loadContacts);
   const [recent, setRecent] = useState(loadRecentContacts);
   const [adding, setAdding] = useState(false);
@@ -129,6 +138,7 @@ export function WorkspaceDetails({
   >({});
   const [hashes, setHashes] = useState<Record<string, string>>({});
   const [photos, setPhotos] = useState<Record<string, string>>({});
+  const photoUrlsRef = useRef<string[]>([]);
 
   const contactPeople = useMemo(
     () => fromContacts(contacts),
@@ -146,6 +156,10 @@ export function WorkspaceDetails({
   useEffect(() => {
     setContacts(loadContacts());
     setRecent(loadRecentContacts());
+    return subscribeContacts(() => {
+      setContacts(loadContacts());
+      setRecent(loadRecentContacts());
+    });
   }, []);
 
   useEffect(() => {
@@ -190,21 +204,35 @@ export function WorkspaceDetails({
 
   useEffect(() => {
     let cancelled = false;
-    const urls: string[] = [];
 
     async function hydrate() {
-      const next: Record<string, string> = {};
       const people = [...contactPeople, ...recentPeople];
+      const next: Record<string, string> = {};
+      const created: string[] = [];
+
       for (const person of people) {
         const hash = hashes[person.uid] ?? person.avatarHash;
         if (!hash) continue;
-        const stored = await loadPeerAvatar(person.uid, hash);
-        if (!stored || cancelled) continue;
+        const stored = await loadPeerAvatarForDisplay(person.uid, hash);
+        if (cancelled) {
+          for (const url of created) URL.revokeObjectURL(url);
+          return;
+        }
+        if (!stored) continue;
         const url = avatarToObjectUrl(stored);
-        urls.push(url);
+        created.push(url);
         next[person.uid] = url;
       }
-      if (!cancelled) setPhotos(next);
+
+      if (cancelled) {
+        for (const url of created) URL.revokeObjectURL(url);
+        return;
+      }
+
+      const previous = photoUrlsRef.current;
+      photoUrlsRef.current = created;
+      setPhotos(next);
+      for (const url of previous) URL.revokeObjectURL(url);
     }
 
     void hydrate();
@@ -215,9 +243,15 @@ export function WorkspaceDetails({
     return () => {
       cancelled = true;
       stopCache();
-      for (const url of urls) URL.revokeObjectURL(url);
     };
   }, [contactPeople, recentPeople, hashes]);
+
+  useEffect(() => {
+    return () => {
+      for (const url of photoUrlsRef.current) URL.revokeObjectURL(url);
+      photoUrlsRef.current = [];
+    };
+  }, []);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -265,6 +299,18 @@ export function WorkspaceDetails({
 
   function handleRemove(uid: string) {
     setContacts(removeContact(uid));
+  }
+
+  function handleAddFromRecent(person: ListPerson) {
+    const knownHash = getKnownAvatarHash(person.uid) ?? undefined;
+    setContacts(
+      addContact({
+        uid: person.uid,
+        nickname: person.nickname,
+        avatarHash: knownHash,
+      }),
+    );
+    setTab("contacts");
   }
 
   function selectPerson(person: ListPerson) {
@@ -337,14 +383,15 @@ export function WorkspaceDetails({
           {people.length === 0 ? (
             <Empty>
               {tab === "recent"
-                ? "Nenhuma conversa recente."
-                : "Nenhum contato ainda. Adicione pelo uid."}
+                ? "Entre em uma sala com alguém para ver aqui."
+                : "Nenhum contato ainda. Adicione a partir de Recentes ou pelo uid."}
             </Empty>
           ) : (
             <PersonList>
               {people.map((person) => {
                 const status = presence[person.uid] ?? "offline";
                 const photo = photos[person.uid];
+                const saved = Boolean(findContact(person.uid));
                 return (
                   <PersonItem key={person.uid}>
                     <PersonRow
@@ -353,7 +400,23 @@ export function WorkspaceDetails({
                       onClick={() => selectPerson(person)}
                     >
                       <PersonAvatar>
-                        {photo ? <img src={photo} alt="" /> : <UserIcon />}
+                        {photo ? (
+                          <img
+                            src={photo}
+                            alt=""
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                              setPhotos((prev) => {
+                                if (!(person.uid in prev)) return prev;
+                                const next = { ...prev };
+                                delete next[person.uid];
+                                return next;
+                              });
+                            }}
+                          />
+                        ) : (
+                          <UserIcon />
+                        )}
                       </PersonAvatar>
                       <StatusDot
                         $color={STATUS_COLOR[status]}
@@ -375,6 +438,15 @@ export function WorkspaceDetails({
                         onClick={() => handleRemove(person.uid)}
                       >
                         Remover
+                      </RemoveButton>
+                    ) : null}
+                    {tab === "recent" && !saved ? (
+                      <RemoveButton
+                        type="button"
+                        title="Adicionar aos contatos"
+                        onClick={() => handleAddFromRecent(person)}
+                      >
+                        Adicionar
                       </RemoveButton>
                     ) : null}
                   </PersonItem>

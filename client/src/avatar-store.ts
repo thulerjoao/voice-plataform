@@ -67,6 +67,10 @@ function peerKey(uid: string, hash: string) {
   return `${uid}:${hash}`;
 }
 
+function peerLatestKey(uid: string) {
+  return `${uid}:__latest__`;
+}
+
 export async function hashBytes(bytes: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)]
@@ -128,6 +132,7 @@ export async function putPeerAvatar(
   avatar: StoredAvatar,
 ): Promise<void> {
   await storePut("peers", peerKey(uid, avatar.hash), avatar);
+  await storePut("peers", peerLatestKey(uid), avatar);
   notifyCache();
 }
 
@@ -136,6 +141,43 @@ export async function loadPeerAvatar(
   hash: string,
 ): Promise<StoredAvatar | null> {
   return storeGet<StoredAvatar>("peers", peerKey(uid, hash));
+}
+
+/** Exact hash if cached; otherwise the last photo we successfully downloaded for this uid. */
+export async function loadPeerAvatarForDisplay(
+  uid: string,
+  hash?: string | null,
+): Promise<StoredAvatar | null> {
+  if (hash) {
+    const exact = await loadPeerAvatar(uid, hash);
+    if (exact) return exact;
+  }
+  const latest = await storeGet<StoredAvatar>("peers", peerLatestKey(uid));
+  if (latest) return latest;
+  if (!hash) return null;
+  return loadAnyPeerAvatar(uid);
+}
+
+async function loadAnyPeerAvatar(uid: string): Promise<StoredAvatar | null> {
+  const db = await openDb();
+  const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+    const tx = db.transaction("peers", "readonly");
+    const req = tx.objectStore("peers").getAllKeys();
+    req.onerror = () => reject(req.error ?? new Error("avatar keys"));
+    req.onsuccess = () => resolve(req.result);
+  });
+  const prefix = `${uid}:`;
+  const latestKey = peerLatestKey(uid);
+  for (const key of keys) {
+    if (typeof key !== "string" || !key.startsWith(prefix) || key === latestKey) {
+      continue;
+    }
+    const avatar = await storeGet<StoredAvatar>("peers", key);
+    if (!avatar) continue;
+    await storePut("peers", latestKey, avatar);
+    return avatar;
+  }
+  return null;
 }
 
 export async function clearAvatarCache(): Promise<void> {

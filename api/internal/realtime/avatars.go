@@ -106,3 +106,56 @@ func (a *Avatars) fanout(uid, hash string) {
 		Hash: hash,
 	})
 }
+
+// ShareInChannel sends existing hashes both ways when someone sits in a sala.
+// Needed because SetHash only fanouts on change — late joiners would otherwise
+// never learn a peer's already-announced hash until the next photo change.
+func (a *Avatars) ShareInChannel(uid, channelID string) {
+	if a == nil || a.presence == nil || a.hub == nil {
+		return
+	}
+	uid = strings.TrimSpace(uid)
+	channelID = strings.TrimSpace(channelID)
+	if uid == "" || channelID == "" {
+		return
+	}
+
+	peers := a.presence.UIDsInChannel(channelID)
+	a.mu.Lock()
+	selfHash := a.hash[uid]
+	peerHashes := make(map[string]string)
+	for _, peer := range peers {
+		if peer == uid {
+			continue
+		}
+		if hash := a.hash[peer]; hash != "" {
+			peerHashes[peer] = hash
+		}
+	}
+	a.mu.Unlock()
+
+	for peer, hash := range peerHashes {
+		a.hub.SendJSON([]string{uid}, avatarEvent{
+			Type: "avatar.hash",
+			UID:  peer,
+			Hash: hash,
+		})
+	}
+	if selfHash == "" {
+		return
+	}
+	targets := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		if peer != uid {
+			targets = append(targets, peer)
+		}
+	}
+	if len(targets) == 0 {
+		return
+	}
+	a.hub.SendJSON(targets, avatarEvent{
+		Type: "avatar.hash",
+		UID:  uid,
+		Hash: selfHash,
+	})
+}

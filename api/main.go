@@ -35,6 +35,7 @@ func main() {
 	presence.SetContacts(contacts)
 	avatars := realtime.NewAvatars(hub, presence, contacts)
 	contacts.SetAvatars(avatars)
+	presence.SetAvatars(avatars)
 	chat := realtime.NewChat(hub, presence)
 	activity := realtime.NewActivity(hub)
 	rtc := realtime.NewRTC(hub, presence)

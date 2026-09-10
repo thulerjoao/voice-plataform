@@ -7,6 +7,7 @@ services:
       POSTGRES_PASSWORD: voice
       POSTGRES_DB: voice
     ports:
+      # Host 5433: recharge-plataform-api already uses host 5432.
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data

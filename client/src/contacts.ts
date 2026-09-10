@@ -10,7 +10,7 @@ export type Contact = {
   avatarHash?: string;
 };
 
-export type RecentSource = "dm" | "profile";
+export type RecentSource = "dm" | "profile" | "call";
 
 export type RecentContact = {
   uid: string;
@@ -18,6 +18,20 @@ export type RecentContact = {
   lastAt: string;
   source: RecentSource;
 };
+
+type ContactsListener = () => void;
+const listeners = new Set<ContactsListener>();
+
+function emitContactsChange() {
+  for (const listener of listeners) listener();
+}
+
+export function subscribeContacts(listener: ContactsListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
 
 export function loadContacts(): Contact[] {
   const raw = localStorage.getItem(CONTACTS_KEY);
@@ -64,6 +78,7 @@ export function addContact(input: {
   };
   const next = [nextItem, ...existing.filter((item) => item.uid !== uid)];
   localStorage.setItem(CONTACTS_KEY, JSON.stringify(next));
+  emitContactsChange();
   return loadContacts();
 }
 
@@ -94,18 +109,21 @@ export function updateContact(
   const next = existing.slice();
   next[index] = nextItem;
   localStorage.setItem(CONTACTS_KEY, JSON.stringify(next));
+  emitContactsChange();
   return loadContacts();
 }
 
 export function removeContact(uid: string): Contact[] {
   const next = loadContacts().filter((item) => item.uid !== uid);
   localStorage.setItem(CONTACTS_KEY, JSON.stringify(next));
+  emitContactsChange();
   return next;
 }
 
 export function clearContacts(): void {
   localStorage.removeItem(CONTACTS_KEY);
   localStorage.removeItem(RECENT_KEY);
+  emitContactsChange();
 }
 
 export function loadRecentContacts(): RecentContact[] {
@@ -143,12 +161,14 @@ export function touchRecentContact(input: {
     ...loadRecentContacts().filter((item) => item.uid !== uid),
   ].slice(0, 40);
   localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  emitContactsChange();
   return next;
 }
 
 export function removeRecentContact(uid: string): RecentContact[] {
   const next = loadRecentContacts().filter((item) => item.uid !== uid);
   localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  emitContactsChange();
   return next;
 }
 
@@ -181,6 +201,8 @@ function isRecentContact(value: unknown): value is RecentContact {
     Boolean(item.nickname) &&
     typeof item.lastAt === "string" &&
     Boolean(item.lastAt) &&
-    (item.source === "dm" || item.source === "profile")
+    (item.source === "dm" ||
+      item.source === "profile" ||
+      item.source === "call")
   );
 }

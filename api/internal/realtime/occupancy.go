@@ -58,6 +58,7 @@ type occupancyEvent struct {
 type Presence struct {
 	hub      *Hub
 	contacts *Contacts
+	avatars  *Avatars
 	mu       sync.Mutex
 	seats    map[string]*Seat
 	offline  map[string]*time.Timer
@@ -76,6 +77,13 @@ func (p *Presence) SetContacts(contacts *Contacts) {
 		return
 	}
 	p.contacts = contacts
+}
+
+func (p *Presence) SetAvatars(avatars *Avatars) {
+	if p == nil {
+		return
+	}
+	p.avatars = avatars
 }
 
 func (p *Presence) PeersInSameSalas(uid string) []string {
@@ -239,6 +247,9 @@ func (p *Presence) JoinSala(ctx context.Context, store *db.DB, uid, roomID, chan
 			Deafened:  joined.Deafened,
 			Status:    normalizeStatus(joined.Status),
 		})
+	}
+	if p.avatars != nil && p.seatedHere(uid, roomID, channelID) {
+		p.avatars.ShareInChannel(uid, channelID)
 	}
 }
 

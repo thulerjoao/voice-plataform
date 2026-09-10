@@ -32,6 +32,7 @@ import {
   connectContactPresence,
   sendContactPresence,
 } from "../../contacts-presence";
+import { touchRecentContact } from "../../contacts";
 import { connectAvatarSignal } from "../../avatar-signal";
 import { startAvatarTransfer } from "../../avatar-transfer";
 import {
@@ -126,6 +127,7 @@ export function WorkspaceScreen({
   const callRef = useRef<VoiceCall | null>(null);
   const seatedRef = useRef(false);
   const skipPresenceSendRef = useRef(false);
+  const recentCallPeersRef = useRef(new Set<string>());
   const mutedRef = useRef(muted);
   const deafenedRef = useRef(deafened);
   const statusRef = useRef(status);
@@ -252,6 +254,32 @@ export function WorkspaceScreen({
     if (!call || call.roomId !== roomId) return;
     syncRtcSignaling(occupants);
   }, [occupants, call, roomId]);
+
+  // Quem compartilha a sala ativa entra em Recentes (uma vez por presença na call).
+  useEffect(() => {
+    if (!call || call.roomId !== roomId) {
+      recentCallPeersRef.current.clear();
+      return;
+    }
+
+    const seated = new Set<string>();
+    for (const occupant of occupants) {
+      if (occupant.channelId !== call.salaId) continue;
+      if (occupant.uid === identity.uid) continue;
+      seated.add(occupant.uid);
+      if (recentCallPeersRef.current.has(occupant.uid)) continue;
+      recentCallPeersRef.current.add(occupant.uid);
+      touchRecentContact({
+        uid: occupant.uid,
+        nickname: occupant.nickname,
+        source: "call",
+      });
+    }
+
+    for (const uid of [...recentCallPeersRef.current]) {
+      if (!seated.has(uid)) recentCallPeersRef.current.delete(uid);
+    }
+  }, [occupants, call, roomId, identity.uid]);
 
   useEffect(() => {
     setRtcMedia({
