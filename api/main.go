@@ -30,7 +30,9 @@ func main() {
 	defer store.Close()
 
 	hub := realtime.NewHub()
+	contacts := realtime.NewContacts(hub)
 	presence := realtime.NewPresence(hub)
+	presence.SetContacts(contacts)
 	chat := realtime.NewChat(hub, presence)
 	activity := realtime.NewActivity(hub)
 	rtc := realtime.NewRTC(hub, presence)
@@ -56,7 +58,7 @@ func main() {
 	mux.HandleFunc("POST /api/identity", identity.HandleRegister(store))
 	mux.HandleFunc("PATCH /api/identity", identity.HandleRename(store, hub, presence))
 	mux.HandleFunc("POST /api/identity/restore", identity.HandleRestore(store))
-	mux.HandleFunc("GET /ws", realtime.HandleWS(store, hub, presence, chat, rtc))
+	mux.HandleFunc("GET /ws", realtime.HandleWS(store, hub, presence, contacts, chat, rtc))
 	mux.HandleFunc("POST /api/rooms", rooms.HandleCreate(store))
 	mux.HandleFunc("POST /api/rooms/join", rooms.HandleJoin(store, hub))
 	mux.HandleFunc("GET /api/rooms/{id}", rooms.HandleGet(store))

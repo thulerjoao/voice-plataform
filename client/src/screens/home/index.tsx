@@ -29,6 +29,11 @@ import {
   sendOccupancy,
   subscribeOccupancy,
 } from "../../occupancy";
+import {
+  connectContactPresence,
+  sendContactPresence,
+} from "../../contacts-presence";
+import { loadStatus } from "../../presence";
 import { UpdateScreen } from "../update";
 import { CreateRoomScreen } from "./components/create-room";
 import { JoinRoomScreen } from "./components/join-room";
@@ -248,7 +253,10 @@ export function HomeScreen({
       onOpen: syncOccupancy,
     });
     const stopOccupancy = connectOccupancy();
+    const stopContacts = connectContactPresence();
+    sendContactPresence({ type: "contacts.status", status: loadStatus() });
     return () => {
+      stopContacts();
       stopOccupancy();
       stopData();
     };

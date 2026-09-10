@@ -56,10 +56,11 @@ type occupancyEvent struct {
 }
 
 type Presence struct {
-	hub     *Hub
-	mu      sync.Mutex
-	seats   map[string]*Seat
-	offline map[string]*time.Timer
+	hub      *Hub
+	contacts *Contacts
+	mu       sync.Mutex
+	seats    map[string]*Seat
+	offline  map[string]*time.Timer
 }
 
 func NewPresence(hub *Hub) *Presence {
@@ -68,6 +69,13 @@ func NewPresence(hub *Hub) *Presence {
 		seats:   make(map[string]*Seat),
 		offline: make(map[string]*time.Timer),
 	}
+}
+
+func (p *Presence) SetContacts(contacts *Contacts) {
+	if p == nil {
+		return
+	}
+	p.contacts = contacts
 }
 
 func (p *Presence) SeatOf(uid string) *Seat {
@@ -533,9 +541,19 @@ func normalizeStatus(status string) string {
 	switch strings.TrimSpace(status) {
 	case "busy", "brb":
 		return strings.TrimSpace(status)
+	case "invisible":
+		// Na sala continua visível; invisível só afeta contatos.
+		return "online"
 	default:
 		return "online"
 	}
+}
+
+func normalizeSeatIncoming(status string) (seat string, contact string) {
+	raw := strings.TrimSpace(status)
+	contact = normalizeContactStatus(raw)
+	seat = normalizeStatus(raw)
+	return seat, contact
 }
 
 func (p *Presence) SetStatus(ctx context.Context, store *db.DB, uid, status string) {
@@ -546,18 +564,21 @@ func (p *Presence) SetStatus(ctx context.Context, store *db.DB, uid, status stri
 	if uid == "" {
 		return
 	}
-	status = normalizeStatus(status)
+	seatStatus, contactStatus := normalizeSeatIncoming(status)
+	if p.contacts != nil {
+		p.contacts.SetStatus(uid, contactStatus)
+	}
 	p.mu.Lock()
 	seat := p.seats[uid]
 	if seat == nil {
 		p.mu.Unlock()
 		return
 	}
-	if normalizeStatus(seat.Status) == status {
+	if normalizeStatus(seat.Status) == seatStatus {
 		p.mu.Unlock()
 		return
 	}
-	seat.Status = status
+	seat.Status = seatStatus
 	roomID := seat.RoomID
 	copy := *seat
 	p.mu.Unlock()

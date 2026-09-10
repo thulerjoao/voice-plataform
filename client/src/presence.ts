@@ -4,16 +4,27 @@ export const STATUSES = [
   { id: "online", label: "Online", color: "#30d158" },
   { id: "busy", label: "Ocupado", color: "#ff453a" },
   { id: "brb", label: "Volto logo", color: "#ffd60a" },
+  { id: "invisible", label: "Invisível", color: "#8d8d93" },
 ] as const;
 
 export type StatusId = (typeof STATUSES)[number]["id"];
 
 export function isStatusId(value: unknown): value is StatusId {
-  return value === "online" || value === "busy" || value === "brb";
+  return (
+    value === "online" ||
+    value === "busy" ||
+    value === "brb" ||
+    value === "invisible"
+  );
 }
 
 export function parseStatusId(value: unknown): StatusId {
   return isStatusId(value) ? value : "online";
+}
+
+/** Status enviado para a sala: invisível aparece como online na árvore. */
+export function seatStatusId(status: StatusId): Exclude<StatusId, "invisible"> {
+  return status === "invisible" ? "online" : status;
 }
 
 export function loadStatus(): StatusId {

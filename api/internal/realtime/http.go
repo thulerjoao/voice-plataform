@@ -24,7 +24,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func HandleWS(store *db.DB, hub *Hub, presence *Presence, chat *Chat, rtc *RTC) http.HandlerFunc {
+func HandleWS(store *db.DB, hub *Hub, presence *Presence, contacts *Contacts, chat *Chat, rtc *RTC) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := strings.TrimSpace(r.URL.Query().Get("uid"))
 		if uid == "" {
@@ -47,16 +47,24 @@ func HandleWS(store *db.DB, hub *Hub, presence *Presence, chat *Chat, rtc *RTC) 
 			version: strings.TrimSpace(r.URL.Query().Get("v")),
 			send:    make(chan []byte, sendBuffer),
 		}
+		wasOnline := hub.Online(uid)
 		hub.add(c)
+		if !wasOnline {
+			contacts.Announce(uid)
+		}
 
 		go c.writePump(conn)
 		c.readPump(conn, func(raw []byte) {
 			presence.HandleMessage(context.Background(), store, uid, raw)
+			contacts.HandleMessage(uid, raw)
 			chat.HandleMessage(context.Background(), store, uid, raw)
 			rtc.HandleMessage(context.Background(), store, uid, raw)
 		})
 		hub.remove(c)
 		close(c.send)
+		if !hub.Online(uid) {
+			contacts.Announce(uid)
+		}
 		presence.LeaveIfOffline(r.Context(), store, uid)
 	}
 }

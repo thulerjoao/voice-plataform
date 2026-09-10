@@ -22,7 +22,16 @@ import {
   subscribeOccupancy,
   type Occupant,
 } from "../../occupancy";
-import { loadStatus, saveStatus, type StatusId } from "../../presence";
+import {
+  loadStatus,
+  saveStatus,
+  seatStatusId,
+  type StatusId,
+} from "../../presence";
+import {
+  connectContactPresence,
+  sendContactPresence,
+} from "../../contacts-presence";
 import {
   connectRealtime,
   subscribeRealtime,
@@ -152,6 +161,7 @@ export function WorkspaceScreen({
   useEffect(() => {
     const stopData = connectRealtime(identity.uid);
     const stopOccupancy = connectOccupancy();
+    const stopContacts = connectContactPresence();
     const stopChat = connectChat();
     const stopActivity = connectActivity();
     const stopRtc = connectRtc();
@@ -161,6 +171,7 @@ export function WorkspaceScreen({
       stopRtc();
       stopActivity();
       stopChat();
+      stopContacts();
       stopOccupancy();
       stopData();
     };
@@ -258,10 +269,14 @@ export function WorkspaceScreen({
   }, [call, muted, deafened]);
 
   useEffect(() => {
+    sendContactPresence({ type: "contacts.status", status });
+  }, [status]);
+
+  useEffect(() => {
     if (!call) return;
     sendOccupancy({
       type: "presence.status",
-      status,
+      status: seatStatusId(status),
     });
   }, [call, status]);
 
@@ -282,6 +297,10 @@ export function WorkspaceScreen({
       });
       sendOccupancy({
         type: "presence.status",
+        status: seatStatusId(statusRef.current),
+      });
+      sendContactPresence({
+        type: "contacts.status",
         status: statusRef.current,
       });
     });
