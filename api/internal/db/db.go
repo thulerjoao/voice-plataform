@@ -17,7 +17,7 @@ type DB struct {
 func Connect(ctx context.Context) (*DB, error) {
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
-		url = "postgres://voice:voice@localhost:5432/voice?sslmode=disable"
+		url = "postgres://voice:voice@localhost:5433/voice?sslmode=disable"
 	}
 
 	pool, err := pgxpool.New(ctx, url)
