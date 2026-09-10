@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { getRoom, type RoomChannel, type RoomRole } from "../../api";
+import {
+  getRoom,
+  type RoomBlocked,
+  type RoomChannel,
+  type RoomMember,
+  type RoomRole,
+} from "../../api";
 import {
   isEditableTarget,
   loadAudioSettings,
@@ -8,7 +14,7 @@ import {
   saveOutputVolume,
   subscribeAudioSettings,
 } from "../../audio-settings";
-import { loadBookmarks, saveBookmark } from "../../bookmarks";
+import { loadBookmarks, removeBookmark, saveBookmark } from "../../bookmarks";
 import { connectActivity } from "../../activity";
 import { connectChat } from "../../chat";
 import type { Identity } from "../../identity";
@@ -30,10 +36,16 @@ import {
   startRtcSignaling,
   syncRtcSignaling,
 } from "../../rtc-session";
-import { playConnectSound, playMuteSound, playUnmuteSound } from "../../sounds";
+import {
+  playConnectSound,
+  playDisconnectSound,
+  playMuteSound,
+  playUnmuteSound,
+} from "../../sounds";
 import { useTalking } from "../../use-talking";
 import { SettingsScreen } from "../settings";
 import { WorkspaceChat } from "./components/chat";
+import { WorkspaceDetails } from "./components/details";
 import { WorkspaceFooter } from "./components/footer";
 import { WorkspaceHeader } from "./components/header";
 import {
@@ -91,6 +103,9 @@ export function WorkspaceScreen({
   const [role, setRole] = useState<RoomRole | undefined>(known?.role);
   const [channels, setChannels] = useState<RoomChannel[]>([]);
   const [occupants, setOccupants] = useState<Occupant[]>([]);
+  const [members, setMembers] = useState<RoomMember[]>([]);
+  const [blocked, setBlocked] = useState<RoomBlocked[]>([]);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [call, setCall] = useState<VoiceCall | null>(null);
   const [sideWidth, setSideWidth] = useState(loadSidebarWidth);
   const [showSettings, setShowSettings] = useState(false);
@@ -166,6 +181,9 @@ export function WorkspaceScreen({
     let cancelled = false;
     setChannels([]);
     setOccupants([]);
+    setMembers([]);
+    setBlocked([]);
+    setCreatedAt(null);
 
     void getRoom({ roomId, uid: identity.uid })
       .then((room) => {
@@ -174,6 +192,9 @@ export function WorkspaceScreen({
         setCode(room.code);
         setRole(room.role);
         setChannels(room.channels);
+        setMembers(room.members);
+        setBlocked(room.blocked ?? []);
+        setCreatedAt(room.createdAt || null);
         saveBookmark({
           roomId: room.id,
           name: room.name,
@@ -284,6 +305,16 @@ export function WorkspaceScreen({
             item.uid === event.uid ? { ...item, nickname: event.nickname } : item,
           ),
         );
+        setMembers((prev) =>
+          prev.map((item) =>
+            item.uid === event.uid ? { ...item, nickname: event.nickname } : item,
+          ),
+        );
+        setBlocked((prev) =>
+          prev.map((item) =>
+            item.uid === event.uid ? { ...item, nickname: event.nickname } : item,
+          ),
+        );
         if (event.uid === identity.uid && event.nickname !== identity.nickname) {
           onNicknameChange({ ...identity, nickname: event.nickname });
         }
@@ -292,18 +323,70 @@ export function WorkspaceScreen({
 
       if (!("roomId" in event) || event.roomId !== roomId) return;
 
+      if (event.type === "room.renamed") {
+        setName(event.name);
+        const bookmark = findBookmark(roomId);
+        if (bookmark) saveBookmark({ ...bookmark, name: event.name });
+        return;
+      }
+
+      if (event.type === "member.joined") {
+        setMembers((prev) => {
+          if (prev.some((item) => item.uid === event.uid)) {
+            return prev.map((item) =>
+              item.uid === event.uid
+                ? {
+                    ...item,
+                    nickname: event.nickname,
+                    role: event.role,
+                  }
+                : item,
+            );
+          }
+          return [
+            ...prev,
+            {
+              uid: event.uid,
+              nickname: event.nickname,
+              role: event.role,
+            },
+          ];
+        });
+        return;
+      }
+
       if (
         event.type === "member.left" ||
         event.type === "member.kicked" ||
         event.type === "member.blocked"
       ) {
         setOccupants((prev) => prev.filter((item) => item.uid !== event.uid));
+        setMembers((prev) => prev.filter((item) => item.uid !== event.uid));
+        if (event.type === "member.blocked") {
+          setBlocked((prev) => {
+            if (prev.some((item) => item.uid === event.uid)) return prev;
+            return [
+              ...prev,
+              { uid: event.uid, nickname: event.nickname },
+            ];
+          });
+        }
+        return;
+      }
+
+      if (event.type === "member.unblocked") {
+        setBlocked((prev) => prev.filter((item) => item.uid !== event.uid));
         return;
       }
 
       if (event.type === "member.role") {
         if (event.uid === identity.uid) setRole(event.role);
         setOccupants((prev) =>
+          prev.map((item) =>
+            item.uid === event.uid ? { ...item, role: event.role } : item,
+          ),
+        );
+        setMembers((prev) =>
           prev.map((item) =>
             item.uid === event.uid ? { ...item, role: event.role } : item,
           ),
@@ -521,9 +604,19 @@ export function WorkspaceScreen({
     if (!deafened) playConnectSound();
   }
 
+  function handleLeaveSala() {
+    if (!call || call.roomId !== roomId) return;
+    setCall(null);
+    if (!deafened) playDisconnectSound();
+  }
+
   const activeSalaId = call?.roomId === roomId ? call.salaId : null;
-  const activeSalaName =
-    channels.find((item) => item.id === activeSalaId)?.name ?? null;
+  const activeSala =
+    channels.find((item) => item.id === activeSalaId) ?? null;
+  const activeSalaName = activeSala?.name ?? null;
+  const activeSalaCount = occupants.filter(
+    (item) => item.channelId === activeSalaId,
+  ).length;
 
   if (showSettings) {
     return (
@@ -578,6 +671,46 @@ export function WorkspaceScreen({
             deafened={deafened}
           />
         </Main>
+        <WorkspaceDetails
+          roomId={roomId}
+          serverName={name}
+          serverCode={code}
+          createdAt={createdAt}
+          identity={identity}
+          role={role}
+          sala={activeSala}
+          salaCount={activeSalaCount}
+          salaCap={CHANNEL_CAP}
+          channelCount={channels.length}
+          members={members}
+          blocked={blocked}
+          onLeaveSala={handleLeaveSala}
+          onPatchChannel={(channel) =>
+            setChannels((prev) =>
+              prev.map((item) => (item.id === channel.id ? channel : item)),
+            )
+          }
+          onRemoveChannel={(channelId) => {
+            setChannels((prev) => prev.filter((item) => item.id !== channelId));
+            if (call?.salaId === channelId) handleLeaveSala();
+          }}
+          onServerUpdated={(patch) => {
+            if (patch.name) setName(patch.name);
+            if (patch.role) setRole(patch.role);
+            saveBookmark({
+              roomId,
+              name: patch.name ?? name,
+              code,
+              role: patch.role ?? role ?? "member",
+            });
+          }}
+          onMembersChange={setMembers}
+          onBlockedChange={setBlocked}
+          onLeftServer={() => {
+            removeBookmark(roomId);
+            onBack();
+          }}
+        />
       </Body>
       <WorkspaceFooter
         nickname={identity.nickname}

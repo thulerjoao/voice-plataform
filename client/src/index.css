@@ -2,6 +2,14 @@
   color-scheme: dark;
   font-family: Inter, "SF Pro Text", system-ui, sans-serif;
   --bg-app: #15181f;
+  --bg-app-edge: #13161d;
+  --bg-app-mid: #171b23;
+  --bg-app-gradient: radial-gradient(
+    ellipse 78% 72% at 50% 48%,
+    var(--bg-app-mid) 0%,
+    var(--bg-app) 48%,
+    var(--bg-app-edge) 100%
+  );
   --bg-secondary: #191d25;
   --bg-header: #1c2028;
   --bg-footer: #1c2028;
@@ -28,7 +36,7 @@
   --scrollbar-thumb: rgba(255, 255, 255, 0.28);
   --scrollbar-thumb-strong: rgba(255, 255, 255, 0.42);
 
-  background: var(--bg-app);
+  background: var(--bg-app-gradient);
   color: var(--text-primary);
 }
 
@@ -75,10 +83,11 @@ body,
   margin: 0;
   height: 100%;
   overflow: hidden;
+  background: var(--bg-app-gradient);
 }
 
 body {
-  background: var(--bg-app);
+  background: var(--bg-app-gradient);
 }
 
 button,

@@ -34,7 +34,7 @@ export const Mark = styled.span<{ $tone?: "owner" | "admin" }>`
   flex-shrink: 0;
   border-radius: 0.7rem;
   background: var(--border);
-  color: ${(p) => (p.$tone === "admin" ? "var(--blue)" : "#c7c7cc")};
+  color: #c7c7cc;
 
   svg {
     width: 1.2rem;

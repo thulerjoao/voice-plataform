@@ -78,15 +78,6 @@ export function WorkspaceHeader({
           <PeopleIcon />
         </ServerMark>
         <ServerName title={name}>{name}</ServerName>
-        {displayCode ? (
-          <CodeContainer type="button" onClick={handleCopy}>
-            <CodePill>{displayCode}</CodePill>
-            <CopyButton>
-              <CopyIcon />
-              {copied ? "Copiado!" : "Copiar"}
-            </CopyButton>
-          </CodeContainer>
-        ) : null}
       </Center>
 
       <Actions>

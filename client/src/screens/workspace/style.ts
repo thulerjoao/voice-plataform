@@ -6,7 +6,7 @@ export const Frame = styled.div`
   height: 100%;
   max-height: 100dvh;
   overflow: hidden;
-  background: var(--bg-app);
+  background: transparent;
   color: var(--text-primary);
 `;
 
@@ -26,7 +26,7 @@ export const Main = styled.main`
   padding: 0;
   gap: 0;
   overflow: hidden;
-  background: var(--bg-app);
+  background: transparent;
 `;
 
 export const Stage = styled.section`
@@ -35,5 +35,5 @@ export const Stage = styled.section`
   min-width: 0;
   border: 0;
   border-radius: 0;
-  background: var(--bg-app);
+  background: transparent;
 `;

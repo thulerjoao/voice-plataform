@@ -194,7 +194,7 @@ export const ChatTime = styled.span`
 `;
 
 export const ChatNick = styled.span<{ $you?: boolean }>`
-  color: ${(p) => (p.$you ? "var(--green)" : "var(--blue)")};
+  color: ${(p) => (p.$you ? "var(--green)" : "var(--blue-hover)")};
   font-weight: 600;
 `;
 
@@ -203,7 +203,6 @@ export const ChatForm = styled.form`
   gap: 0.4rem;
   padding: 0.45rem 0.55rem 0.5rem;
   border-top: 1px solid var(--border-soft);
-  background: var(--bg-header);
 `;
 
 export const ChatInput = styled.input`
@@ -213,7 +212,7 @@ export const ChatInput = styled.input`
   padding: 0 0.65rem;
   border: 1px solid var(--border);
   border-radius: 0.4rem;
-  background: var(--bg-surface);
+  background: var(--bg-footer);
   color: var(--text-primary);
   outline: none;
   font-size: 0.9rem;

@@ -31,20 +31,8 @@ function PeopleIcon() {
 
 function CrownIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M4 17.5 7 8l5 5 5-6 3 10.5H4z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 20h14"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M2.2 11.2 3.4 5.6l2.6 2.4L8 4.2l2 3.8 2.6-2.4 1.2 5.6H2.2zM2 12.4h12v1.2H2z" />
     </svg>
   );
 }
