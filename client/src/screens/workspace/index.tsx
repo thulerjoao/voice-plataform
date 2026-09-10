@@ -629,7 +629,7 @@ export function WorkspaceScreen({
             deafened={deafened}
           />
         </Main>
-        <WorkspaceDetails />
+        <WorkspaceDetails selfUid={identity.uid} />
       </Body>
       <WorkspaceFooter
         nickname={identity.nickname}

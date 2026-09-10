@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   getKnownAvatarHash,
   subscribeAvatarHash,
@@ -9,8 +9,11 @@ import {
   subscribeAvatarCache,
 } from "../../../../avatar-store";
 import {
+  CONTACT_NICK_MAX,
+  addContact,
   loadContacts,
   loadRecentContacts,
+  removeContact,
   updateContact,
   type Contact,
   type RecentContact,
@@ -22,7 +25,14 @@ import {
 } from "../../../../contacts-presence";
 import { BackIcon, UserIcon } from "../../icons/ui";
 import {
+  AddActions,
   AddButton,
+  AddCancel,
+  AddError,
+  AddField,
+  AddForm,
+  AddInput,
+  AddSubmit,
   Aside,
   CollapseButton,
   CollapseRail,
@@ -31,10 +41,12 @@ import {
   HeadTitle,
   PersonAvatar,
   PersonCopy,
+  PersonItem,
   PersonList,
   PersonMeta,
   PersonName,
   PersonRow,
+  RemoveButton,
   Scroll,
   Section,
   SectionTitle,
@@ -44,6 +56,8 @@ import {
 } from "./style";
 
 const COLLAPSED_KEY = "voice.detailsCollapsed";
+const UID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type DetailsTab = "recent" | "contacts";
 
@@ -68,23 +82,6 @@ const STATUS_LABEL: Record<ContactPresenceStatus, string> = {
   offline: "Offline",
 };
 
-const MOCK_CONTACTS: ListPerson[] = [
-  { uid: "c-joao", nickname: "João", meta: "Mock" },
-  { uid: "c-lucas", nickname: "Lucas", meta: "Mock" },
-  { uid: "c-bruno", nickname: "Bruno", meta: "Mock" },
-  { uid: "c-gabriela", nickname: "Gabriela", meta: "Mock" },
-  { uid: "c-mariana", nickname: "Mariana", meta: "Mock" },
-  { uid: "c-rafael", nickname: "Rafael", meta: "Mock" },
-  { uid: "c-diego", nickname: "Diego", meta: "Mock" },
-];
-
-const MOCK_RECENT: ListPerson[] = [
-  { uid: "c-bruno", nickname: "Bruno", meta: "Há 2 min" },
-  { uid: "c-mariana", nickname: "Mariana", meta: "Ontem" },
-  { uid: "c-gabriela", nickname: "Gabriela", meta: "Há 3 h" },
-  { uid: "c-diego", nickname: "Diego", meta: "Segunda" },
-];
-
 function loadCollapsed() {
   return window.localStorage.getItem(COLLAPSED_KEY) === "1";
 }
@@ -97,7 +94,7 @@ function fromContacts(list: Contact[]): ListPerson[] {
   return list.map((item) => ({
     uid: item.uid,
     nickname: item.nickname,
-    avatarHash: item.avatarHash,
+    avatarHash: item.avatarHash ?? getKnownAvatarHash(item.uid) ?? undefined,
   }));
 }
 
@@ -111,29 +108,33 @@ function fromRecent(list: RecentContact[]): ListPerson[] {
 }
 
 type WorkspaceDetailsProps = {
+  selfUid: string;
   onSelectContact?: (user: { uid: string; nickname: string }) => void;
 };
 
-export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
+export function WorkspaceDetails({
+  selfUid,
+  onSelectContact,
+}: WorkspaceDetailsProps) {
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const [tab, setTab] = useState<DetailsTab>("contacts");
   const [contacts, setContacts] = useState(loadContacts);
   const [recent, setRecent] = useState(loadRecentContacts);
+  const [adding, setAdding] = useState(false);
+  const [uidDraft, setUidDraft] = useState("");
+  const [nickDraft, setNickDraft] = useState("");
+  const [addError, setAddError] = useState("");
   const [presence, setPresence] = useState<
     Record<string, ContactPresenceStatus>
   >({});
   const [hashes, setHashes] = useState<Record<string, string>>({});
   const [photos, setPhotos] = useState<Record<string, string>>({});
 
-  const contactPeople = useMemo(() => {
-    const stored = fromContacts(contacts);
-    return stored.length > 0 ? stored : MOCK_CONTACTS;
-  }, [contacts]);
-
-  const recentPeople = useMemo(() => {
-    const stored = fromRecent(recent);
-    return stored.length > 0 ? stored : MOCK_RECENT;
-  }, [recent, hashes]);
+  const contactPeople = useMemo(
+    () => fromContacts(contacts),
+    [contacts, hashes],
+  );
+  const recentPeople = useMemo(() => fromRecent(recent), [recent, hashes]);
 
   const watchUids = useMemo(() => {
     const ids = new Set<string>();
@@ -226,6 +227,46 @@ export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
     });
   }
 
+  function openAdd() {
+    setAdding(true);
+    setUidDraft("");
+    setNickDraft("");
+    setAddError("");
+  }
+
+  function cancelAdd() {
+    setAdding(false);
+    setUidDraft("");
+    setNickDraft("");
+    setAddError("");
+  }
+
+  function handleAdd(event: FormEvent) {
+    event.preventDefault();
+    const uid = uidDraft.trim();
+    const nickname = nickDraft.trim().slice(0, CONTACT_NICK_MAX);
+    if (!UID_RE.test(uid)) {
+      setAddError("Informe um uid válido (UUID).");
+      return;
+    }
+    if (uid === selfUid) {
+      setAddError("Você não pode se adicionar.");
+      return;
+    }
+    if (!nickname) {
+      setAddError("Informe um apelido.");
+      return;
+    }
+    const knownHash = getKnownAvatarHash(uid) ?? undefined;
+    setContacts(addContact({ uid, nickname, avatarHash: knownHash }));
+    setTab("contacts");
+    cancelAdd();
+  }
+
+  function handleRemove(uid: string) {
+    setContacts(removeContact(uid));
+  }
+
   function selectPerson(person: ListPerson) {
     onSelectContact?.({ uid: person.uid, nickname: person.nickname });
   }
@@ -297,7 +338,7 @@ export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
             <Empty>
               {tab === "recent"
                 ? "Nenhuma conversa recente."
-                : "Nenhum contato ainda."}
+                : "Nenhum contato ainda. Adicione pelo uid."}
             </Empty>
           ) : (
             <PersonList>
@@ -305,32 +346,38 @@ export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
                 const status = presence[person.uid] ?? "offline";
                 const photo = photos[person.uid];
                 return (
-                  <PersonRow
-                    key={person.uid}
-                    type="button"
-                    title={`Abrir ${person.nickname}`}
-                    onClick={() => selectPerson(person)}
-                  >
-                    <PersonAvatar>
-                      {photo ? (
-                        <img src={photo} alt="" />
-                      ) : (
-                        <UserIcon />
-                      )}
-                    </PersonAvatar>
-                    <StatusDot
-                      $color={STATUS_COLOR[status]}
-                      $hollow={status === "brb"}
-                      title={STATUS_LABEL[status]}
-                      aria-label={STATUS_LABEL[status]}
-                    />
-                    <PersonCopy>
-                      <PersonName>{person.nickname}</PersonName>
-                      <PersonMeta>
-                        {person.meta ?? STATUS_LABEL[status]}
-                      </PersonMeta>
-                    </PersonCopy>
-                  </PersonRow>
+                  <PersonItem key={person.uid}>
+                    <PersonRow
+                      type="button"
+                      title={`Abrir ${person.nickname}`}
+                      onClick={() => selectPerson(person)}
+                    >
+                      <PersonAvatar>
+                        {photo ? <img src={photo} alt="" /> : <UserIcon />}
+                      </PersonAvatar>
+                      <StatusDot
+                        $color={STATUS_COLOR[status]}
+                        $hollow={status === "brb"}
+                        title={STATUS_LABEL[status]}
+                        aria-label={STATUS_LABEL[status]}
+                      />
+                      <PersonCopy>
+                        <PersonName>{person.nickname}</PersonName>
+                        <PersonMeta>
+                          {person.meta ?? STATUS_LABEL[status]}
+                        </PersonMeta>
+                      </PersonCopy>
+                    </PersonRow>
+                    {tab === "contacts" ? (
+                      <RemoveButton
+                        type="button"
+                        title="Remover contato"
+                        onClick={() => handleRemove(person.uid)}
+                      >
+                        Remover
+                      </RemoveButton>
+                    ) : null}
+                  </PersonItem>
                 );
               })}
             </PersonList>
@@ -338,15 +385,40 @@ export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
         </Section>
 
         {tab === "contacts" ? (
-          <AddButton
-            type="button"
-            title="Em breve"
-            onClick={() => {
-              /* adicionar contato: passo seguinte */
-            }}
-          >
-            Adicionar contato
-          </AddButton>
+          adding ? (
+            <AddForm onSubmit={handleAdd}>
+              <AddField>
+                Uid
+                <AddInput
+                  autoFocus
+                  value={uidDraft}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  spellCheck={false}
+                  onChange={(event) => setUidDraft(event.target.value)}
+                />
+              </AddField>
+              <AddField>
+                Apelido
+                <AddInput
+                  value={nickDraft}
+                  maxLength={CONTACT_NICK_MAX}
+                  placeholder="Como você chama essa pessoa"
+                  onChange={(event) => setNickDraft(event.target.value)}
+                />
+              </AddField>
+              {addError ? <AddError>{addError}</AddError> : null}
+              <AddActions>
+                <AddSubmit type="submit">Salvar</AddSubmit>
+                <AddCancel type="button" onClick={cancelAdd}>
+                  Cancelar
+                </AddCancel>
+              </AddActions>
+            </AddForm>
+          ) : (
+            <AddButton type="button" onClick={openAdd}>
+              Adicionar contato
+            </AddButton>
+          )
         ) : null}
       </Scroll>
     </Aside>

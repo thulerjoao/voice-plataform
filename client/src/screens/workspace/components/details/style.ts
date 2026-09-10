@@ -148,11 +148,23 @@ export const PersonList = styled.div`
   gap: 0.1rem;
 `;
 
+export const PersonItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  border-radius: 0.45rem;
+
+  &:hover {
+    background: var(--border-soft);
+  }
+`;
+
 export const PersonRow = styled.button`
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  width: 100%;
+  flex: 1;
   min-width: 0;
   margin: 0;
   padding: 0.4rem 0.35rem;
@@ -162,10 +174,6 @@ export const PersonRow = styled.button`
   color: inherit;
   text-align: left;
   cursor: pointer;
-
-  &:hover {
-    background: var(--border-soft);
-  }
 `;
 
 export const PersonAvatar = styled.span`
@@ -257,5 +265,102 @@ export const AddButton = styled.button`
     color: var(--text-primary);
     border-color: var(--border-hover);
     background: var(--border-soft);
+  }
+`;
+
+export const AddForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.35rem;
+`;
+
+export const AddField = styled.label`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+`;
+
+export const AddInput = styled.input`
+  width: 100%;
+  height: 2rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  outline: none;
+
+  &:focus {
+    border-color: var(--border-hover);
+  }
+`;
+
+export const AddActions = styled.div`
+  display: flex;
+  gap: 0.4rem;
+`;
+
+export const AddSubmit = styled.button`
+  flex: 1;
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: var(--blue);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+`;
+
+export const AddCancel = styled.button`
+  flex: 1;
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-primary);
+    background: var(--border-soft);
+  }
+`;
+
+export const AddError = styled.p`
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--red);
+`;
+
+export const RemoveButton = styled.button`
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.2rem 0.35rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--red);
+    background: var(--red-soft, rgba(255, 69, 58, 0.12));
   }
 `;
