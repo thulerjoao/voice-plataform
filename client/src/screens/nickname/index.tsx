@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { registerIdentity, restoreIdentity } from "../../api";
 import { clearBookmarks, saveBookmark } from "../../bookmarks";
+import { clearContacts } from "../../contacts";
 import {
   NICKNAME_MAX_LENGTH,
   formatRecoveryCode,
@@ -182,6 +183,7 @@ export function NicknameScreen({ onReady }: NicknameScreenProps) {
       };
       saveIdentity(next);
       clearBookmarks();
+      clearContacts();
       for (const room of [...restored.rooms].reverse()) {
         saveBookmark({
           roomId: room.id,
