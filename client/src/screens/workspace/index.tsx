@@ -32,6 +32,8 @@ import {
   connectContactPresence,
   sendContactPresence,
 } from "../../contacts-presence";
+import { connectAvatarSignal } from "../../avatar-signal";
+import { startAvatarTransfer } from "../../avatar-transfer";
 import {
   connectRealtime,
   subscribeRealtime,
@@ -162,6 +164,8 @@ export function WorkspaceScreen({
     const stopData = connectRealtime(identity.uid);
     const stopOccupancy = connectOccupancy();
     const stopContacts = connectContactPresence();
+    const stopAvatarSignal = connectAvatarSignal(identity.uid);
+    const stopAvatarTransfer = startAvatarTransfer();
     const stopChat = connectChat();
     const stopActivity = connectActivity();
     const stopRtc = connectRtc();
@@ -171,6 +175,8 @@ export function WorkspaceScreen({
       stopRtc();
       stopActivity();
       stopChat();
+      stopAvatarTransfer();
+      stopAvatarSignal();
       stopContacts();
       stopOccupancy();
       stopData();

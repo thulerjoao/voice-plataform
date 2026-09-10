@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  getKnownAvatarHash,
+  subscribeAvatarHash,
+} from "../../../../avatar-signal";
+import {
+  avatarToObjectUrl,
+  loadPeerAvatar,
+  subscribeAvatarCache,
+} from "../../../../avatar-store";
+import {
   loadContacts,
   loadRecentContacts,
+  updateContact,
   type Contact,
   type RecentContact,
 } from "../../../../contacts";
@@ -41,6 +51,7 @@ type ListPerson = {
   uid: string;
   nickname: string;
   meta?: string;
+  avatarHash?: string;
 };
 
 const STATUS_COLOR: Record<ContactPresenceStatus, string> = {
@@ -86,6 +97,7 @@ function fromContacts(list: Contact[]): ListPerson[] {
   return list.map((item) => ({
     uid: item.uid,
     nickname: item.nickname,
+    avatarHash: item.avatarHash,
   }));
 }
 
@@ -94,11 +106,11 @@ function fromRecent(list: RecentContact[]): ListPerson[] {
     uid: item.uid,
     nickname: item.nickname,
     meta: item.source === "dm" ? "Mensagem" : "Perfil",
+    avatarHash: getKnownAvatarHash(item.uid) ?? undefined,
   }));
 }
 
 type WorkspaceDetailsProps = {
-  /** Futuro: abre perfil / DM no Stage. */
   onSelectContact?: (user: { uid: string; nickname: string }) => void;
 };
 
@@ -110,6 +122,8 @@ export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
   const [presence, setPresence] = useState<
     Record<string, ContactPresenceStatus>
   >({});
+  const [hashes, setHashes] = useState<Record<string, string>>({});
+  const [photos, setPhotos] = useState<Record<string, string>>({});
 
   const contactPeople = useMemo(() => {
     const stored = fromContacts(contacts);
@@ -119,7 +133,7 @@ export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
   const recentPeople = useMemo(() => {
     const stored = fromRecent(recent);
     return stored.length > 0 ? stored : MOCK_RECENT;
-  }, [recent]);
+  }, [recent, hashes]);
 
   const watchUids = useMemo(() => {
     const ids = new Set<string>();
@@ -140,16 +154,69 @@ export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
   useEffect(() => {
     return subscribeContactPresence((event) => {
       if (event.type === "contacts.snapshot") {
-        const next: Record<string, ContactPresenceStatus> = {};
+        const nextPresence: Record<string, ContactPresenceStatus> = {};
+        const nextHashes: Record<string, string> = {};
         for (const person of event.people) {
-          next[person.uid] = person.status;
+          nextPresence[person.uid] = person.status;
+          if (person.avatarHash) {
+            nextHashes[person.uid] = person.avatarHash;
+            updateContact(person.uid, { avatarHash: person.avatarHash });
+          }
         }
-        setPresence(next);
+        setPresence(nextPresence);
+        setHashes((prev) => ({ ...prev, ...nextHashes }));
+        setContacts(loadContacts());
         return;
       }
       setPresence((prev) => ({ ...prev, [event.uid]: event.status }));
     });
   }, []);
+
+  useEffect(() => {
+    return subscribeAvatarHash((event) => {
+      setHashes((prev) => {
+        if (!event.hash) {
+          const next = { ...prev };
+          delete next[event.uid];
+          return next;
+        }
+        return { ...prev, [event.uid]: event.hash };
+      });
+      if (event.hash) updateContact(event.uid, { avatarHash: event.hash });
+      setContacts(loadContacts());
+    });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls: string[] = [];
+
+    async function hydrate() {
+      const next: Record<string, string> = {};
+      const people = [...contactPeople, ...recentPeople];
+      for (const person of people) {
+        const hash = hashes[person.uid] ?? person.avatarHash;
+        if (!hash) continue;
+        const stored = await loadPeerAvatar(person.uid, hash);
+        if (!stored || cancelled) continue;
+        const url = avatarToObjectUrl(stored);
+        urls.push(url);
+        next[person.uid] = url;
+      }
+      if (!cancelled) setPhotos(next);
+    }
+
+    void hydrate();
+    const stopCache = subscribeAvatarCache(() => {
+      void hydrate();
+    });
+
+    return () => {
+      cancelled = true;
+      stopCache();
+      for (const url of urls) URL.revokeObjectURL(url);
+    };
+  }, [contactPeople, recentPeople, hashes]);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -236,6 +303,7 @@ export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
             <PersonList>
               {people.map((person) => {
                 const status = presence[person.uid] ?? "offline";
+                const photo = photos[person.uid];
                 return (
                   <PersonRow
                     key={person.uid}
@@ -244,7 +312,11 @@ export function WorkspaceDetails({ onSelectContact }: WorkspaceDetailsProps) {
                     onClick={() => selectPerson(person)}
                   >
                     <PersonAvatar>
-                      <UserIcon />
+                      {photo ? (
+                        <img src={photo} alt="" />
+                      ) : (
+                        <UserIcon />
+                      )}
                     </PersonAvatar>
                     <StatusDot
                       $color={STATUS_COLOR[status]}

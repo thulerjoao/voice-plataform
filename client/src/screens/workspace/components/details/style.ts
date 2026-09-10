@@ -177,10 +177,17 @@ export const PersonAvatar = styled.span`
   border-radius: 999px;
   background: var(--border-soft);
   color: var(--text-secondary);
+  overflow: hidden;
 
   svg {
     width: 1.05rem;
     height: 1.05rem;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 `;
 

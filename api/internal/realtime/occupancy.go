@@ -78,6 +78,38 @@ func (p *Presence) SetContacts(contacts *Contacts) {
 	p.contacts = contacts
 }
 
+func (p *Presence) PeersInSameSalas(uid string) []string {
+	if p == nil {
+		return nil
+	}
+	uid = strings.TrimSpace(uid)
+	if uid == "" {
+		return nil
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	self := p.seats[uid]
+	if self == nil {
+		return nil
+	}
+	out := make([]string, 0)
+	seen := map[string]struct{}{}
+	for _, seat := range p.seats {
+		if seat.UID == uid {
+			continue
+		}
+		if seat.RoomID != self.RoomID || seat.ChannelID != self.ChannelID {
+			continue
+		}
+		if _, ok := seen[seat.UID]; ok {
+			continue
+		}
+		seen[seat.UID] = struct{}{}
+		out = append(out, seat.UID)
+	}
+	return out
+}
+
 func (p *Presence) SeatOf(uid string) *Seat {
 	if p == nil || uid == "" {
 		return nil

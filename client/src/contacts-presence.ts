@@ -13,7 +13,11 @@ export type ContactPresenceStatus =
 export type ContactPresenceEvent =
   | {
       type: "contacts.snapshot";
-      people: { uid: string; status: ContactPresenceStatus }[];
+      people: {
+        uid: string;
+        status: ContactPresenceStatus;
+        avatarHash?: string;
+      }[];
     }
   | {
       type: "contacts.presence";
@@ -99,12 +103,27 @@ function parseContactPresence(raw: string): ContactPresenceEvent | null {
   if (item.type === "contacts.snapshot") {
     const peopleRaw = (value as { people?: unknown }).people;
     if (!Array.isArray(peopleRaw)) return null;
-    const people: { uid: string; status: ContactPresenceStatus }[] = [];
+    const people: {
+      uid: string;
+      status: ContactPresenceStatus;
+      avatarHash?: string;
+    }[] = [];
     for (const entry of peopleRaw) {
       if (!entry || typeof entry !== "object") continue;
-      const row = entry as { uid?: unknown; status?: unknown };
+      const row = entry as {
+        uid?: unknown;
+        status?: unknown;
+        avatarHash?: unknown;
+      };
       if (typeof row.uid !== "string" || !row.uid) continue;
-      people.push({ uid: row.uid, status: parseVisibleStatus(row.status) });
+      people.push({
+        uid: row.uid,
+        status: parseVisibleStatus(row.status),
+        avatarHash:
+          typeof row.avatarHash === "string" && row.avatarHash
+            ? row.avatarHash
+            : undefined,
+      });
     }
     return { type: "contacts.snapshot", people };
   }

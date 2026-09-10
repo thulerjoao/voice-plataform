@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchClientVersion, registerIdentity } from "./api";
 import { clearBookmarks } from "./bookmarks";
 import { clearContacts } from "./contacts";
+import { clearAvatarCache } from "./avatar-store";
 import { clearIdentity, loadIdentity, saveIdentity } from "./identity";
 import { WorkspaceScreen } from "./screens/workspace";
 import { HomeScreen } from "./screens/home";
@@ -26,6 +27,7 @@ export default function App() {
     clearIdentity();
     clearBookmarks();
     clearContacts();
+    void clearAvatarCache();
     setOpenServerId(null);
     setIdentity(null);
   }

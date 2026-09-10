@@ -14,14 +14,16 @@ type contactEvent struct {
 }
 
 type contactPerson struct {
-	UID    string `json:"uid"`
-	Status string `json:"status"`
+	UID        string `json:"uid"`
+	Status     string `json:"status"`
+	AvatarHash string `json:"avatarHash,omitempty"`
 }
 
 // Contacts tracks who watches whom and each uid's contact-visible status.
 type Contacts struct {
 	mu        sync.Mutex
 	hub       *Hub
+	avatars   *Avatars
 	status    map[string]string              // uid → online|busy|brb|invisible
 	watching  map[string]map[string]struct{} // watcher → targets
 	watchedBy map[string]map[string]struct{} // target → watchers
@@ -34,6 +36,22 @@ func NewContacts(hub *Hub) *Contacts {
 		watching:  make(map[string]map[string]struct{}),
 		watchedBy: make(map[string]map[string]struct{}),
 	}
+}
+
+func (c *Contacts) SetAvatars(avatars *Avatars) {
+	if c == nil {
+		return
+	}
+	c.avatars = avatars
+}
+
+func (c *Contacts) WatchersOf(uid string) []string {
+	if c == nil {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.copyWatchersLocked(uid)
 }
 
 func normalizeContactStatus(status string) string {
@@ -165,10 +183,14 @@ func (c *Contacts) Sync(watcher string, uids []string) {
 
 	people := make([]contactPerson, 0, len(clean))
 	for _, target := range clean {
-		people = append(people, contactPerson{
+		person := contactPerson{
 			UID:    target,
 			Status: c.visibleStatusLocked(target),
-		})
+		}
+		if c.avatars != nil {
+			person.AvatarHash = c.avatars.Hash(target)
+		}
+		people = append(people, person)
 	}
 	c.mu.Unlock()
 

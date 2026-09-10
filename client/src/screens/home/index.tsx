@@ -33,6 +33,7 @@ import {
   connectContactPresence,
   sendContactPresence,
 } from "../../contacts-presence";
+import { connectAvatarSignal } from "../../avatar-signal";
 import { loadStatus } from "../../presence";
 import { UpdateScreen } from "../update";
 import { CreateRoomScreen } from "./components/create-room";
@@ -255,7 +256,9 @@ export function HomeScreen({
     const stopOccupancy = connectOccupancy();
     const stopContacts = connectContactPresence();
     sendContactPresence({ type: "contacts.status", status: loadStatus() });
+    const stopAvatar = connectAvatarSignal(identity.uid);
     return () => {
+      stopAvatar();
       stopContacts();
       stopOccupancy();
       stopData();

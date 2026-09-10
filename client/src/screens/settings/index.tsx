@@ -77,6 +77,14 @@ import {
 } from "./style";
 import type { Identity } from "../../identity";
 import { NICKNAME_MAX_LENGTH, persistNickname } from "../../identity";
+import { announceAvatarHash } from "../../avatar-signal";
+import {
+  avatarToObjectUrl,
+  clearOwnAvatar,
+  loadOwnAvatar,
+  saveOwnAvatar,
+  subscribeAvatarCache,
+} from "../../avatar-store";
 import { CLIENT_VERSION } from "../../version";
 
 type SettingsScreenProps = {
@@ -326,7 +334,11 @@ export function SettingsScreen({
   const [savingNick, setSavingNick] = useState(false);
   const [nickError, setNickError] = useState("");
   const [nickDraft, setNickDraft] = useState(identity.nickname);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
   const nickEditRef = useRef<HTMLFormElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [settings, setSettings] = useState(loadAudioSettings);
   const [devices, setDevices] = useState<DeviceLists>({
     inputs: [],
@@ -383,6 +395,31 @@ export function SettingsScreen({
       setSavingNick(false);
     }
   }
+
+  useEffect(() => {
+    let url: string | null = null;
+    let cancelled = false;
+    async function load() {
+      const own = await loadOwnAvatar();
+      if (cancelled) return;
+      if (url) URL.revokeObjectURL(url);
+      if (!own) {
+        setAvatarUrl(null);
+        return;
+      }
+      url = avatarToObjectUrl(own);
+      setAvatarUrl(url);
+    }
+    void load();
+    const stop = subscribeAvatarCache(() => {
+      void load();
+    });
+    return () => {
+      cancelled = true;
+      stop();
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, []);
 
   useEffect(() => {
     if (!editingNick) return;
@@ -812,6 +849,107 @@ export function SettingsScreen({
                 )}
               </Field>
               {nickError ? <ErrorText>{nickError}</ErrorText> : null}
+            </Section>
+            <Section>
+              <SectionTitle>Foto de perfil</SectionTitle>
+              <Field>
+                <FieldLabel>256×256, comprimida neste PC</FieldLabel>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "grid",
+                      placeItems: "center",
+                      width: "3.25rem",
+                      height: "3.25rem",
+                      borderRadius: "999px",
+                      overflow: "hidden",
+                      background: "var(--border-soft)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt=""
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : null}
+                  </span>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    <GhostButton
+                      type="button"
+                      disabled={avatarBusy}
+                      onClick={() => avatarInputRef.current?.click()}
+                    >
+                      {avatarBusy ? "Processando…" : "Escolher foto"}
+                    </GhostButton>
+                    {avatarUrl ? (
+                      <GhostButton
+                        type="button"
+                        disabled={avatarBusy}
+                        onClick={() => {
+                          void (async () => {
+                            setAvatarBusy(true);
+                            setAvatarError("");
+                            try {
+                              await clearOwnAvatar();
+                              announceAvatarHash("");
+                            } catch {
+                              setAvatarError("Não foi possível remover a foto.");
+                            } finally {
+                              setAvatarBusy(false);
+                            }
+                          })();
+                        }}
+                      >
+                        Remover
+                      </GhostButton>
+                    ) : null}
+                  </div>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = "";
+                      if (!file) return;
+                      void (async () => {
+                        setAvatarBusy(true);
+                        setAvatarError("");
+                        try {
+                          const saved = await saveOwnAvatar(file);
+                          announceAvatarHash(saved.hash);
+                        } catch {
+                          setAvatarError(
+                            "Não foi possível salvar a foto. Tente outra imagem.",
+                          );
+                        } finally {
+                          setAvatarBusy(false);
+                        }
+                      })();
+                    }}
+                  />
+                </div>
+              </Field>
+              <Hint>
+                A foto fica neste computador. Para outros, o hash vai no
+                WebSocket e os bytes só por P2P (~16 KB/s), mesmo em call.
+              </Hint>
+              {avatarError ? <ErrorText>{avatarError}</ErrorText> : null}
             </Section>
             <Section>
               <SectionTitle>Código de recuperação</SectionTitle>

@@ -11,6 +11,11 @@ import {
   type Occupant,
 } from "./occupancy";
 import { sendRtc, subscribeRtc, type RtcEvent } from "./rtc";
+import {
+  attachAvatarChannel,
+  detachAvatarChannel,
+  onAvatarPeerReady,
+} from "./avatar-transfer";
 
 const STUN = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
@@ -341,6 +346,7 @@ function peerOf(peerUid: string): Peer {
   const pc = new RTCPeerConnection(STUN);
   const peer: Peer = { pc, ice: [], offered: false };
   peers.set(peerUid, peer);
+  attachAvatarChannel(pc, peerUid, selfUid < peerUid);
   pc.ontrack = (event) => {
     if (peerUid === selfUid) return;
     playRemote(peerUid, event.track, event.streams[0]);
@@ -348,8 +354,10 @@ function peerOf(peerUid: string): Peer {
   setLink(peerUid, "connecting");
   pc.onconnectionstatechange = () => {
     console.info("[rtc] pc", peerUid, pc.connectionState);
-    if (pc.connectionState === "connected") setLink(peerUid, "connected");
-    else if (pc.connectionState !== "closed") setLink(peerUid, "connecting");
+    if (pc.connectionState === "connected") {
+      setLink(peerUid, "connected");
+      onAvatarPeerReady(peerUid);
+    } else if (pc.connectionState !== "closed") setLink(peerUid, "connecting");
   };
   return peer;
 }
@@ -380,8 +388,10 @@ function closePeer(uid: string): void {
   const peer = peers.get(uid);
   if (!peer) return;
   peers.delete(uid);
+  detachAvatarChannel(uid);
   peer.pc.ontrack = null;
   peer.pc.onconnectionstatechange = null;
+  peer.pc.ondatachannel = null;
   peer.pc.close();
   stopRemote(uid);
   clearLink(uid);
