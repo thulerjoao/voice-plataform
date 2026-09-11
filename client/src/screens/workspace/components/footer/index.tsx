@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { RoomRole } from "../../../../api";
+import {
+  avatarToObjectUrl,
+  loadOwnAvatar,
+  subscribeAvatarCache,
+} from "../../../../avatar-store";
 import { STATUSES, statusMeta, type StatusId } from "../../../../presence";
 import {
   ChevronUpIcon,
+  GearIcon,
   HeadsetIcon,
   HeadsetOffIcon,
   MicIcon,
@@ -42,6 +48,7 @@ type WorkspaceFooterProps = {
   onToggleDeafen: () => void;
   onOutputVolume: (value: number) => void;
   onStatusChange: (status: StatusId) => void;
+  onOpenSettings: () => void;
 };
 
 function roleLabel(role: RoomRole | undefined) {
@@ -61,11 +68,40 @@ export function WorkspaceFooter({
   onToggleDeafen,
   onOutputVolume,
   onStatusChange,
+  onOpenSettings,
 }: WorkspaceFooterProps) {
   const [statusOpen, setStatusOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
   const micOff = muted || deafened;
   const currentStatus = statusMeta(status);
+
+  useEffect(() => {
+    let url: string | null = null;
+    let cancelled = false;
+
+    async function load() {
+      const own = await loadOwnAvatar();
+      if (cancelled) return;
+      if (url) URL.revokeObjectURL(url);
+      if (!own) {
+        setAvatarUrl(null);
+        return;
+      }
+      url = avatarToObjectUrl(own);
+      setAvatarUrl(url);
+    }
+
+    void load();
+    const stop = subscribeAvatarCache(() => {
+      void load();
+    });
+    return () => {
+      cancelled = true;
+      stop();
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, []);
 
   useEffect(() => {
     if (!statusOpen) return;
@@ -112,6 +148,14 @@ export function WorkspaceFooter({
         >
           {deafened ? <HeadsetOffIcon /> : <HeadsetIcon />}
         </ControlButton>
+        <ControlButton
+          type="button"
+          title="Configurações"
+          aria-label="Configurações"
+          onClick={onOpenSettings}
+        >
+          <GearIcon />
+        </ControlButton>
       </FooterLeft>
 
       <FooterCenter>
@@ -138,7 +182,7 @@ export function WorkspaceFooter({
             onClick={() => setStatusOpen((open) => !open)}
           >
             <UserAvatar>
-              <UserIcon />
+              {avatarUrl ? <img src={avatarUrl} alt="" /> : <UserIcon />}
             </UserAvatar>
             <UserCopy>
               <UserName>{nickname}</UserName>

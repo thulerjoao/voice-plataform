@@ -23,7 +23,7 @@ Um VPS pequeno deve aguentar **muitas salas pequenas**.
 - Praticidade. Convite vazou → cria outra sala.
 - Identidade no computador.
 - Lista de servidores só no PC (bookmarks).
-- API: HTTP + WebSocket de sinalização. Áudio no P2P.
+- API: HTTP + WebSocket de sinalização. **Áudio** no P2P. **Foto de perfil** sobe/baixa pela API (não P2P).
 - Client desatualizado fica de fora de **entradas novas**; quem já está na call continua.
 - Chat e streaming, quando existirem, entram **na mesma sala**.
 
@@ -100,7 +100,9 @@ Dois “sair”, nomes diferentes:
 
 Se o `localStorage` for apagado sem o código: nickname de novo, `uid` novo; o uid antigo continua no banco, este client é outro usuário.
 
-Status local (sidebar): **online**, **ocupado**, **volto logo**. A bolinha da **sua** linha nas salas segue esse status. Sem invisível — no P2P quem está no canal precisa aparecer. Por enquanto só no PC; a sinalização vem com o WebSocket.
+Status local (sidebar): **online**, **ocupado**, **volto logo**, **invisível** (contatos veem offline; na árvore da sala a pessoa continua visível). A bolinha da **sua** linha nas salas segue o status efetivo da call. A sinalização de status/presença de contatos vai no WebSocket.
+
+Foto de perfil: escolhida em **Configurações → Conta**; 256×256 local; ver seção **Contatos e foto de perfil**.
 
 ---
 
@@ -383,6 +385,27 @@ Depois do item 10 o MVP web está fechado. **Tauri** vem na sequência.
 - AFK channel automático
 - canais temporários
 
+### Contatos e foto de perfil
+
+Aside direito: **Contatos** / **Recentes** (não configs de servidor/sala). Contato = lista unilateral (sem pedido de amizade). Bloquear contato: depois. Bio: depois.
+
+- Entrar na mesma sala → peer entra em **Recentes**; daí dá para **Adicionar** aos Contatos.
+- Clique no contato → perfil / DM no centro (próximo): alimentar Recentes com `profile` / `dm`.
+- Configs de servidor/sala: Stage (depois); código de convite permanece no header.
+
+#### Foto de perfil (acordado)
+
+UX de app “full-server”, custo baixo:
+
+1. **Hash** no WebSocket (`avatar.hash`) para watchers de contatos e quem compartilha sala.
+2. **Bytes só pela API** (upload ao salvar; GET sob demanda). **Sem** DataChannel P2P para foto — P2P fica para **voz**.
+3. Arquivos no **disco do VPS** (`data/avatars/...`). Metadado leve (`uid` → hash atual); **não** guardar blob/`bytea` no Postgres.
+4. Client: IndexedDB; por uid manter hash atual + **até 3 hashes anteriores**. Mesmo hash de novo → só apontamento no WS, zero transferência.
+5. Fluxo ao receber hash: cache hit → UI; senão GET na API (throttle ~16 KB/s). Sem hash novo baixável → manter última foto em cache (não cair no ícone vazio).
+6. Remover o caminho P2P de avatar que existe hoje, quando a API de foto estiver pronta.
+
+Capacidade: fotos não são o gargalo com milhares de users (troca rara + cache). Limite real a estudar depois: **WebSockets por instância** no deploy (ex. GCP).
+
 ### Motor de áudio
 
 - Rust no pipeline de voz se a CPU in-game pedir
@@ -417,4 +440,4 @@ O restante está na seção 14.
 
 ## 17. Próxima ação
 
-Gate de versão na entrada nova. Próximo: share de tela (árvore 720+480). Tauri na sequência.
+Foto de perfil pela API (disco + hash WS + cache local com até 3 versões; retirar P2P de avatar). Em seguida: clique em contato → perfil/DM no centro. Depois: capacidade de WebSockets por instância / deploy GCP.

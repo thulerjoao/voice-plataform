@@ -203,10 +203,17 @@ export const UserAvatar = styled.span`
   background: var(--border);
   color: var(--text-secondary);
   box-sizing: border-box;
+  overflow: hidden;
 
   svg {
     width: 1.05rem;
     height: 1.05rem;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 `;
 

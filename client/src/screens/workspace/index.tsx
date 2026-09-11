@@ -624,7 +624,6 @@ export function WorkspaceScreen({
         code={code}
         sideWidth={sideWidth}
         onBack={onBack}
-        onOpenSettings={() => setShowSettings(true)}
       />
       <Body>
         <WorkspaceSidebar
@@ -673,6 +672,7 @@ export function WorkspaceScreen({
         }}
         onOutputVolume={handleOutputVolume}
         onStatusChange={handleStatus}
+        onOpenSettings={() => setShowSettings(true)}
       />
     </Frame>
   );

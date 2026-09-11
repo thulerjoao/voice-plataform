@@ -1,12 +1,6 @@
 import { useState } from "react";
 import { normalizeRoomCode } from "../../../../bookmarks";
-import {
-  BackIcon,
-  CopyIcon,
-  GearIcon,
-  MicIcon,
-  PeopleIcon,
-} from "../../icons/ui";
+import { BackIcon, CopyIcon, MicIcon, PeopleIcon } from "../../icons/ui";
 import {
   Actions,
   BrandMark,
@@ -27,7 +21,6 @@ type WorkspaceHeaderProps = {
   code: string;
   sideWidth: number;
   onBack: () => void;
-  onOpenSettings: () => void;
 };
 
 export function WorkspaceHeader({
@@ -35,7 +28,6 @@ export function WorkspaceHeader({
   code,
   sideWidth,
   onBack,
-  onOpenSettings,
 }: WorkspaceHeaderProps) {
   const [copied, setCopied] = useState(false);
   const displayCode = normalizeRoomCode(code) || code;
@@ -89,16 +81,7 @@ export function WorkspaceHeader({
         ) : null}
       </Center>
 
-      <Actions>
-        <IconButton
-          type="button"
-          title="Configurações"
-          aria-label="Configurações"
-          onClick={onOpenSettings}
-        >
-          <GearIcon />
-        </IconButton>
-      </Actions>
+      <Actions />
     </Header>
   );
 }
