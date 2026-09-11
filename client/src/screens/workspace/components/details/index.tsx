@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { ensurePeerAvatar } from "../../../../avatar-fetch";
 import {
   getKnownAvatarHash,
   subscribeAvatarHash,
 } from "../../../../avatar-signal";
 import {
   avatarToObjectUrl,
+  loadPeerAvatar,
   loadPeerAvatarForDisplay,
   subscribeAvatarCache,
 } from "../../../../avatar-store";
@@ -108,12 +110,16 @@ function recentMeta(source: RecentSource): string {
 }
 
 function fromRecent(list: RecentContact[]): ListPerson[] {
-  return list.map((item) => ({
-    uid: item.uid,
-    nickname: item.nickname,
-    meta: recentMeta(item.source),
-    avatarHash: getKnownAvatarHash(item.uid) ?? undefined,
-  }));
+  return list.map((item) => {
+    const known =
+      getKnownAvatarHash(item.uid) ?? findContact(item.uid)?.avatarHash;
+    return {
+      uid: item.uid,
+      nickname: item.nickname,
+      meta: recentMeta(item.source),
+      avatarHash: known ?? undefined,
+    };
+  });
 }
 
 type WorkspaceDetailsProps = {
@@ -139,6 +145,9 @@ export function WorkspaceDetails({
   const [hashes, setHashes] = useState<Record<string, string>>({});
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const photoUrlsRef = useRef<string[]>([]);
+  const photoMetaRef = useRef<Record<string, { hash: string; url: string }>>(
+    {},
+  );
 
   const contactPeople = useMemo(
     () => fromContacts(contacts),
@@ -191,64 +200,106 @@ export function WorkspaceDetails({
     return subscribeAvatarHash((event) => {
       setHashes((prev) => {
         if (!event.hash) {
+          if (!(event.uid in prev)) return prev;
           const next = { ...prev };
           delete next[event.uid];
           return next;
         }
+        if (prev[event.uid] === event.hash) return prev;
         return { ...prev, [event.uid]: event.hash };
       });
-      if (event.hash) updateContact(event.uid, { avatarHash: event.hash });
-      setContacts(loadContacts());
+      if (event.hash) {
+        const current = findContact(event.uid);
+        if (!current || current.avatarHash !== event.hash) {
+          updateContact(event.uid, { avatarHash: event.hash });
+          setContacts(loadContacts());
+        }
+      } else if (findContact(event.uid)?.avatarHash) {
+        updateContact(event.uid, { avatarHash: null });
+        setContacts(loadContacts());
+      }
     });
   }, []);
 
   useEffect(() => {
     let cancelled = false;
+    let generation = 0;
+    let cacheTimer = 0;
 
     async function hydrate() {
+      const gen = ++generation;
       const people = [...contactPeople, ...recentPeople];
       const next: Record<string, string> = {};
+      const nextMeta: Record<string, { hash: string; url: string }> = {};
       const created: string[] = [];
+      const prevMeta = photoMetaRef.current;
 
       for (const person of people) {
+        if (person.uid === selfUid) continue;
         const hash = hashes[person.uid] ?? person.avatarHash;
         if (!hash) continue;
-        const stored = await loadPeerAvatarForDisplay(person.uid, hash);
-        if (cancelled) {
+
+        const reused = prevMeta[person.uid];
+        if (reused && reused.hash === hash) {
+          nextMeta[person.uid] = reused;
+          next[person.uid] = reused.url;
+          continue;
+        }
+
+        const exact = await loadPeerAvatar(person.uid, hash);
+        let stored = exact;
+        if (!stored) {
+          stored = await ensurePeerAvatar(selfUid, person.uid, hash);
+          if (!stored) {
+            stored = await loadPeerAvatarForDisplay(person.uid, hash);
+          }
+        }
+        if (cancelled || gen !== generation) {
           for (const url of created) URL.revokeObjectURL(url);
           return;
         }
         if (!stored) continue;
         const url = avatarToObjectUrl(stored);
         created.push(url);
+        nextMeta[person.uid] = { hash: stored.hash, url };
         next[person.uid] = url;
       }
 
-      if (cancelled) {
+      if (cancelled || gen !== generation) {
         for (const url of created) URL.revokeObjectURL(url);
         return;
       }
 
-      const previous = photoUrlsRef.current;
-      photoUrlsRef.current = created;
+      for (const [uid, meta] of Object.entries(prevMeta)) {
+        if (nextMeta[uid]?.url === meta.url) continue;
+        URL.revokeObjectURL(meta.url);
+      }
+      photoMetaRef.current = nextMeta;
+      photoUrlsRef.current = Object.values(nextMeta).map((item) => item.url);
       setPhotos(next);
-      for (const url of previous) URL.revokeObjectURL(url);
     }
 
     void hydrate();
     const stopCache = subscribeAvatarCache(() => {
-      void hydrate();
+      window.clearTimeout(cacheTimer);
+      cacheTimer = window.setTimeout(() => {
+        void hydrate();
+      }, 120);
     });
 
     return () => {
       cancelled = true;
+      window.clearTimeout(cacheTimer);
       stopCache();
     };
-  }, [contactPeople, recentPeople, hashes]);
+  }, [contactPeople, recentPeople, hashes, selfUid]);
 
   useEffect(() => {
     return () => {
-      for (const url of photoUrlsRef.current) URL.revokeObjectURL(url);
+      for (const meta of Object.values(photoMetaRef.current)) {
+        URL.revokeObjectURL(meta.url);
+      }
+      photoMetaRef.current = {};
       photoUrlsRef.current = [];
     };
   }, []);

@@ -65,19 +65,50 @@ func (a *Avatars) SetHash(uid, hash string) {
 		return
 	}
 	hash = strings.TrimSpace(hash)
+	changed := a.apply(uid, hash)
+	if !changed {
+		return
+	}
+	a.fanout(uid, hash)
+}
+
+// Publish updates the hash and always fans out (HTTP PUT/DELETE).
+func (a *Avatars) Publish(uid, hash string) {
+	if a == nil {
+		return
+	}
+	uid = strings.TrimSpace(uid)
+	if uid == "" {
+		return
+	}
+	hash = strings.TrimSpace(hash)
+	_ = a.apply(uid, hash)
+	a.fanout(uid, hash)
+}
+
+// Seed loads a hash into memory without fanout (API bootstrap from disk).
+func (a *Avatars) Seed(uid, hash string) {
+	if a == nil {
+		return
+	}
+	uid = strings.TrimSpace(uid)
+	hash = strings.TrimSpace(hash)
+	if uid == "" || hash == "" {
+		return
+	}
+	_ = a.apply(uid, hash)
+}
+
+func (a *Avatars) apply(uid, hash string) bool {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	prev := a.hash[uid]
 	if hash == "" {
 		delete(a.hash, uid)
 	} else {
 		a.hash[uid] = hash
 	}
-	same := prev == hash
-	a.mu.Unlock()
-	if same {
-		return
-	}
-	a.fanout(uid, hash)
+	return prev != hash
 }
 
 func (a *Avatars) fanout(uid, hash string) {

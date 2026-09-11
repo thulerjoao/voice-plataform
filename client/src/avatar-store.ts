@@ -71,6 +71,14 @@ function peerLatestKey(uid: string) {
   return `${uid}:__latest__`;
 }
 
+function peerHistoryKey(uid: string) {
+  return `${uid}:__history__`;
+}
+
+/** Current + up to 3 previous hashes. */
+const PEER_HASH_LIMIT = 4;
+const trimQueue = new Map<string, Promise<void>>();
+
 export async function hashBytes(bytes: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)]
@@ -134,6 +142,7 @@ export async function putPeerAvatar(
   await storePut("peers", peerKey(uid, avatar.hash), avatar);
   await storePut("peers", peerLatestKey(uid), avatar);
   notifyCache();
+  scheduleTrimPeerHistory(uid, avatar.hash);
 }
 
 export async function loadPeerAvatar(
@@ -168,8 +177,15 @@ async function loadAnyPeerAvatar(uid: string): Promise<StoredAvatar | null> {
   });
   const prefix = `${uid}:`;
   const latestKey = peerLatestKey(uid);
+  const historyKey = peerHistoryKey(uid);
   for (const key of keys) {
-    if (typeof key !== "string" || !key.startsWith(prefix) || key === latestKey) {
+    if (
+      typeof key !== "string" ||
+      !key.startsWith(prefix) ||
+      key === latestKey ||
+      key === historyKey ||
+      key.endsWith(":__sources__")
+    ) {
       continue;
     }
     const avatar = await storeGet<StoredAvatar>("peers", key);
@@ -178,6 +194,76 @@ async function loadAnyPeerAvatar(uid: string): Promise<StoredAvatar | null> {
     return avatar;
   }
   return null;
+}
+
+/** Fire-and-forget; never blocks put; never deletes the current hash. */
+function scheduleTrimPeerHistory(uid: string, currentHash: string): void {
+  const prev = trimQueue.get(uid) ?? Promise.resolve();
+  const job = prev
+    .catch(() => undefined)
+    .then(() => trimPeerHistory(uid, currentHash))
+    .catch(() => undefined);
+  trimQueue.set(uid, job);
+  void job.finally(() => {
+    if (trimQueue.get(uid) === job) trimQueue.delete(uid);
+  });
+}
+
+async function trimPeerHistory(uid: string, currentHash: string): Promise<void> {
+  const current = currentHash.trim();
+  if (!uid || !current) return;
+
+  const db = await openDb();
+  const allKeys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+    const tx = db.transaction("peers", "readonly");
+    const req = tx.objectStore("peers").getAllKeys();
+    req.onerror = () => reject(req.error ?? new Error("avatar keys"));
+    req.onsuccess = () => resolve(req.result);
+  });
+
+  const prefix = `${uid}:`;
+  const latestKey = peerLatestKey(uid);
+  const historyKey = peerHistoryKey(uid);
+  const hashKeys: string[] = [];
+  for (const key of allKeys) {
+    if (typeof key !== "string" || !key.startsWith(prefix)) continue;
+    if (
+      key === latestKey ||
+      key === historyKey ||
+      key.endsWith(":__sources__")
+    ) {
+      continue;
+    }
+    hashKeys.push(key);
+  }
+
+  const raw = await storeGet<unknown>("peers", historyKey);
+  const prev = Array.isArray(raw)
+    ? raw.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
+
+  const discovered = hashKeys.map((key) => key.slice(prefix.length));
+  const ordered = [
+    current,
+    ...prev.filter((h) => h !== current),
+    ...discovered.filter((h) => h !== current && !prev.includes(h)),
+  ].slice(0, PEER_HASH_LIMIT);
+  if (!ordered.includes(current)) {
+    ordered.unshift(current);
+  }
+  const keepList = ordered.slice(0, PEER_HASH_LIMIT);
+  const keep = new Set(keepList);
+  keep.add(current);
+
+  for (const key of hashKeys) {
+    const hash = key.slice(prefix.length);
+    if (keep.has(hash)) continue;
+    await storeDelete("peers", key);
+  }
+
+  await storePut("peers", historyKey, keepList);
+  // Drop leftover debug source maps from earlier Etapa 6 experiments.
+  await storeDelete("peers", `${uid}:__sources__`);
 }
 
 export async function clearAvatarCache(): Promise<void> {

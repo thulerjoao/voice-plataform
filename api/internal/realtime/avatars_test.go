@@ -45,3 +45,22 @@ func TestSetHashSkipsUnchangedFanout(t *testing.T) {
 		t.Fatalf("hash: %q", got)
 	}
 }
+
+func TestSeedDoesNotClearAndPublishUpdates(t *testing.T) {
+	hub := NewHub()
+	presence := NewPresence(hub)
+	avatars := NewAvatars(hub, presence, nil)
+
+	avatars.Seed("user-a", "hash-a")
+	if got := avatars.Hash("user-a"); got != "hash-a" {
+		t.Fatalf("seed: %q", got)
+	}
+	avatars.Publish("user-a", "hash-b")
+	if got := avatars.Hash("user-a"); got != "hash-b" {
+		t.Fatalf("publish: %q", got)
+	}
+	avatars.Publish("user-a", "")
+	if got := avatars.Hash("user-a"); got != "" {
+		t.Fatalf("clear: %q", got)
+	}
+}

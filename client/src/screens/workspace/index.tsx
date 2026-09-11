@@ -33,8 +33,8 @@ import {
   sendContactPresence,
 } from "../../contacts-presence";
 import { touchRecentContact } from "../../contacts";
+import { startAvatarFetch } from "../../avatar-fetch";
 import { connectAvatarSignal } from "../../avatar-signal";
-import { startAvatarTransfer } from "../../avatar-transfer";
 import {
   connectRealtime,
   subscribeRealtime,
@@ -167,7 +167,7 @@ export function WorkspaceScreen({
     const stopOccupancy = connectOccupancy();
     const stopContacts = connectContactPresence();
     const stopAvatarSignal = connectAvatarSignal(identity.uid);
-    const stopAvatarTransfer = startAvatarTransfer();
+    const stopAvatarFetch = startAvatarFetch(identity.uid);
     const stopChat = connectChat();
     const stopActivity = connectActivity();
     const stopRtc = connectRtc();
@@ -177,7 +177,7 @@ export function WorkspaceScreen({
       stopRtc();
       stopActivity();
       stopChat();
-      stopAvatarTransfer();
+      stopAvatarFetch();
       stopAvatarSignal();
       stopContacts();
       stopOccupancy();

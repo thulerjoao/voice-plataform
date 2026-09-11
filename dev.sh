@@ -45,6 +45,11 @@ fi
 (cd "$ROOT/api" && go run .) &
 pids+=($!)
 
+echo "→ aguardando API"
+until curl -sf http://127.0.0.1:8080/health >/dev/null 2>&1; do
+  sleep 0.3
+done
+
 echo "→ client :5173"
 (cd "$ROOT/client" && npm run dev) &
 pids+=($!)

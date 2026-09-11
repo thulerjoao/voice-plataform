@@ -33,6 +33,7 @@ import {
   connectContactPresence,
   sendContactPresence,
 } from "../../contacts-presence";
+import { startAvatarFetch } from "../../avatar-fetch";
 import { connectAvatarSignal } from "../../avatar-signal";
 import { loadStatus } from "../../presence";
 import { UpdateScreen } from "../update";
@@ -257,7 +258,9 @@ export function HomeScreen({
     const stopContacts = connectContactPresence();
     sendContactPresence({ type: "contacts.status", status: loadStatus() });
     const stopAvatar = connectAvatarSignal(identity.uid);
+    const stopAvatarFetch = startAvatarFetch(identity.uid);
     return () => {
+      stopAvatarFetch();
       stopAvatar();
       stopContacts();
       stopOccupancy();

@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	fileavatars "github.com/thulerjoao/voice-plataform/api/internal/avatars"
 	"github.com/thulerjoao/voice-plataform/api/internal/db"
 	"github.com/thulerjoao/voice-plataform/api/internal/identity"
 	"github.com/thulerjoao/voice-plataform/api/internal/realtime"
@@ -40,6 +41,15 @@ func main() {
 	activity := realtime.NewActivity(hub)
 	rtc := realtime.NewRTC(hub, presence)
 
+	avatarStore, err := fileavatars.NewStore("")
+	if err != nil {
+		log.Fatalf("avatars store: %v", err)
+	}
+	for uid, hash := range avatarStore.LoadAllHashes() {
+		avatars.Seed(uid, hash)
+	}
+	avatarHTTP := fileavatars.NewService(avatarStore, store, avatars)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -61,6 +71,9 @@ func main() {
 	mux.HandleFunc("POST /api/identity", identity.HandleRegister(store))
 	mux.HandleFunc("PATCH /api/identity", identity.HandleRename(store, hub, presence))
 	mux.HandleFunc("POST /api/identity/restore", identity.HandleRestore(store))
+	mux.HandleFunc("PUT /api/avatars", avatarHTTP.HandlePut())
+	mux.HandleFunc("DELETE /api/avatars", avatarHTTP.HandleDelete())
+	mux.HandleFunc("GET /api/avatars/{targetUid}", avatarHTTP.HandleGet())
 	mux.HandleFunc("GET /ws", realtime.HandleWS(store, hub, presence, contacts, avatars, chat, rtc))
 	mux.HandleFunc("POST /api/rooms", rooms.HandleCreate(store))
 	mux.HandleFunc("POST /api/rooms/join", rooms.HandleJoin(store, hub))

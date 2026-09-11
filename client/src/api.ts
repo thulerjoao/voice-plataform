@@ -295,6 +295,41 @@ export async function restoreIdentity(code: string): Promise<RestoredIdentity> {
   return payload;
 }
 
+export type UploadedAvatar = {
+  uid: string;
+  hash: string;
+  mime: string;
+  size: number;
+};
+
+export async function uploadOwnAvatar(input: {
+  uid: string;
+  bytes: ArrayBuffer;
+  mime: string;
+}): Promise<UploadedAvatar> {
+  const params = new URLSearchParams({ uid: input.uid });
+  const response = await fetch(`/api/avatars?${params}`, {
+    method: "PUT",
+    headers: { "Content-Type": input.mime || "application/octet-stream" },
+    body: input.bytes,
+  });
+  const payload = await readPayload(response);
+  if (!response.ok || !isUploadedAvatar(payload)) {
+    throw new Error(errorMessage(payload, "Não foi possível enviar a foto."));
+  }
+  return payload;
+}
+
+export async function deleteOwnAvatar(uid: string): Promise<void> {
+  const params = new URLSearchParams({ uid });
+  const response = await fetch(`/api/avatars?${params}`, {
+    method: "DELETE",
+  });
+  if (response.status === 204 || response.ok) return;
+  const payload = await readPayload(response);
+  throw new Error(errorMessage(payload, "Não foi possível remover a foto."));
+}
+
 async function readCreatedRoom(
   response: Response,
   fallback: string,
@@ -441,5 +476,17 @@ function isRestoredIdentity(value: unknown): value is RestoredIdentity {
     Boolean(item.uid && item.nickname) &&
     Array.isArray(item.rooms) &&
     item.rooms.every(isRestoredRoom)
+  );
+}
+
+function isUploadedAvatar(value: unknown): value is UploadedAvatar {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<UploadedAvatar>;
+  return (
+    typeof item.uid === "string" &&
+    typeof item.hash === "string" &&
+    typeof item.mime === "string" &&
+    typeof item.size === "number" &&
+    Boolean(item.uid && item.hash && item.mime)
   );
 }

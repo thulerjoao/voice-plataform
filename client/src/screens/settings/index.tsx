@@ -75,6 +75,7 @@ import {
   Value,
   Warn,
 } from "./style";
+import { deleteOwnAvatar, uploadOwnAvatar } from "../../api";
 import type { Identity } from "../../identity";
 import { NICKNAME_MAX_LENGTH, persistNickname } from "../../identity";
 import { announceAvatarHash } from "../../avatar-signal";
@@ -904,10 +905,15 @@ export function SettingsScreen({
                             setAvatarBusy(true);
                             setAvatarError("");
                             try {
+                              await deleteOwnAvatar(identity.uid);
                               await clearOwnAvatar();
                               announceAvatarHash("");
-                            } catch {
-                              setAvatarError("Não foi possível remover a foto.");
+                            } catch (reason) {
+                              setAvatarError(
+                                reason instanceof Error
+                                  ? reason.message
+                                  : "Não foi possível remover a foto.",
+                              );
                             } finally {
                               setAvatarBusy(false);
                             }
@@ -932,10 +938,22 @@ export function SettingsScreen({
                         setAvatarError("");
                         try {
                           const saved = await saveOwnAvatar(file);
+                          try {
+                            await uploadOwnAvatar({
+                              uid: identity.uid,
+                              bytes: saved.bytes,
+                              mime: saved.mime,
+                            });
+                          } catch (reason) {
+                            await clearOwnAvatar();
+                            throw reason;
+                          }
                           announceAvatarHash(saved.hash);
-                        } catch {
+                        } catch (reason) {
                           setAvatarError(
-                            "Não foi possível salvar a foto. Tente outra imagem.",
+                            reason instanceof Error
+                              ? reason.message
+                              : "Não foi possível salvar a foto. Tente outra imagem.",
                           );
                         } finally {
                           setAvatarBusy(false);
@@ -946,8 +964,8 @@ export function SettingsScreen({
                 </div>
               </Field>
               <Hint>
-                A foto fica neste computador. Para outros, o hash vai no
-                WebSocket e os bytes só por P2P (~16 KB/s), mesmo em call.
+                A foto fica neste computador e no servidor. O hash vai no
+                WebSocket; os outros clients baixam os bytes pela API.
               </Hint>
               {avatarError ? <ErrorText>{avatarError}</ErrorText> : null}
             </Section>
